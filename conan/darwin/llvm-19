@@ -1,0 +1,41 @@
+include(default)
+include(../conf)
+include(../require)
+
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.cppstd=23
+compiler.cstd=99
+compiler.libcxx=libc++
+compiler.version=19
+os=Macos
+
+
+[buildenv]
+{% set LLVM_PATH = os.path.realpath("/usr/local/opt/llvm@19") %}
+{% set clang = LLVM_PATH + "/bin/clang-19" %}
+{% set LLVM_TOOL = LLVM_PATH + "/bin/llvm-" %}
+
+CC=(path){{ clang }}
+CXX=(path){{ clang }}
+
+LDFLAGS=-L{{ LLVM_PATH }}/lib/c++ -L{{ LLVM_PATH }}/lib/unwind -lunwind -lc++ -lc++abi
+CPPFLAGS=-I{{ LLVM_PATH }}/include
+CXXFLAGS=-I{{ LLVM_PATH }}/include
+CFLAGS=-I{{ LLVM_PATH }}/include
+
+AR=(path){{ LLVM_TOOL }}ar
+RANLIB=(path){{ LLVM_TOOL }}ranlib
+STRIP=(path){{ LLVM_TOOL }}strip
+ADDR2LINE=(path){{ LLVM_TOOL }}addr2line
+NM=(path){{ LLVM_TOOL }}nm
+OBJCOPY=(path){{ LLVM_TOOL }}objcopy
+OBJDUMP=(path){{ LLVM_TOOL }}objdump
+READELF=(path){{ LLVM_TOOL }}readelf
+
+PATH=+(path){{ LLVM_PATH }}/bin
+
+[conf]
+tools.build:compiler_executables={"c":"{{ clang }}","cpp":"{{ clang }}"}
