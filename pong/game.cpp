@@ -192,7 +192,7 @@ void main()
 				auto transform = rb.get_transform();
 				auto& pos = transform.position;
 
-				pos += input.direction * dt * 5.0f; // TODO: set a variable here
+				pos += input.direction * dt * 15.0f; // TODO: set a variable here
 				pos.y = std::clamp(pos.y, -max_upper_bound(), max_upper_bound());
 
 				rb.set_transform(transform);
@@ -207,19 +207,36 @@ void main()
 								.view<Ball, vis::physics::RigidBody>() //
 								.each([&](Ball, const vis::physics::RigidBody& ball_rigid_body) {
 									auto pad_transform = ai_pad_rb.get_transform();
+									auto ball_vel = ball_rigid_body.get_linear_velocity();
 
 									auto& pad_pos = pad_transform.position;
 									auto ball_pos = ball_rigid_body.get_transform().position;
 
-									if (ball_pos.x >= 8.0f) {
-										ai_pad_rb.set_linear_velocity({});
+									if (ball_vel.x > 0.0) {
 										return;
 									}
 
-									auto direction = vis::normalize(ball_pos - pad_pos);
+									// if (ball_pos.x >= 0.0f) {
+									// return;
+									// }
+
+									if (ball_pos.x < -10.0f) {
+										return;
+									}
+
+									float time_to_paddle =
+											std::abs(pad_pos.x - ball_pos.x) / std::abs(ball_rigid_body.get_linear_velocity().x);
+									vis::vec2 predicted_pos{pad_pos.x, ball_pos.y + ball_vel.y * time_to_paddle};
+
+									auto direction = vis::normalize(predicted_pos - pad_pos);
 									direction.x = 0.0f;
 
-									pad_pos += direction * dt * 20.0f; // TODO: set a variable here
+									// ai_pad_rb.set_linear_velocity(direction * 15.0f);
+									// return;
+
+									ai_pad_rb.set_transform(pad_transform);
+
+									pad_pos += direction * dt * 10.0f; // TODO: set a variable here
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 
 									ai_pad_rb.set_transform(pad_transform);

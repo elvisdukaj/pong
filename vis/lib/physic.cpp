@@ -93,6 +93,11 @@ public:
 		return res;
 	}
 
+	vec2 get_linear_velocity() const {
+		auto v = b2Body_GetLinearVelocity(id);
+		return vis::vec2(v.x, v.y);
+	}
+
 	RigidBody& set_linear_velocity(vis::vec2 vel) {
 		b2Body_SetLinearVelocity(id, b2Vec2{vel.x, vel.y});
 		return *this;
