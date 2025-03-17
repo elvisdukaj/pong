@@ -108,8 +108,6 @@ struct VertexBufferObject {
 		const auto element_count = std::distance(begin, end);
 		const auto total_size_in_bytes = element_count * value_type_size;
 
-		std::println("elements: {}, element size: {}, total size: {}", element_count, value_type_size, total_size_in_bytes);
-
 		data(total_size_in_bytes, &(*begin), usage);
 	}
 
