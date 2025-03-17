@@ -3,7 +3,7 @@ module;
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
-#include <print>
+#include <cstdlib>
 
 export module Game;
 
@@ -106,19 +106,27 @@ export {
 
 		[[nodiscard]] SDL_AppResult update() noexcept {
 			static float previous_time = SDL_GetTicks() / 1000.0f;
+			static float ai_time = SDL_GetTicks() / 1000.0f;
+
 			engine.clear();
 
 			const auto t = SDL_GetTicks() / 1000.0f;
 			const auto dt = t - previous_time;
+			static uint64_t frame_count = 0;
 
+			// if (ai_time > .3f) {
 			update_ai_system(t, dt);
+			// ai_time = 0.0f;
+			// }
 			update_input_system(t, dt);
 			update_physic_system(t, dt);
+
 			render_system();
 
 			engine.render(window);
 
 			previous_time = t;
+			ai_time += dt;
 
 			return SDL_AppResult::SDL_APP_CONTINUE;
 		}
@@ -211,34 +219,23 @@ void main()
 
 									auto& pad_pos = pad_transform.position;
 									auto ball_pos = ball_rigid_body.get_transform().position;
+									vis::vec2 direction;
+
+									auto y_ball_pos = vis::vec2{0.0f, ball_pos.y};
+									auto y_ai_pos = vis::vec2{0.0f, pad_pos.y};
 
 									if (ball_vel.x > 0.0) {
-										return;
+										direction = vis::normalize(vis::vec2{pad_pos.x, 0.0f} - pad_pos);
+									} else {
+
+										float time_to_paddle =
+												std::abs(pad_pos.x - ball_pos.x) / std::abs(ball_rigid_body.get_linear_velocity().x);
+										vis::vec2 predicted_pos{pad_pos.x, ball_pos.y + ball_vel.y * time_to_paddle};
+										direction = vis::normalize(predicted_pos - pad_pos);
 									}
-
-									// if (ball_pos.x >= 0.0f) {
-									// return;
-									// }
-
-									if (ball_pos.x < -10.0f) {
-										return;
-									}
-
-									float time_to_paddle =
-											std::abs(pad_pos.x - ball_pos.x) / std::abs(ball_rigid_body.get_linear_velocity().x);
-									vis::vec2 predicted_pos{pad_pos.x, ball_pos.y + ball_vel.y * time_to_paddle};
-
-									auto direction = vis::normalize(predicted_pos - pad_pos);
-									direction.x = 0.0f;
-
-									// ai_pad_rb.set_linear_velocity(direction * 15.0f);
-									// return;
-
-									ai_pad_rb.set_transform(pad_transform);
-
+									// ai_pad_rb.set_linear_velocity(direction * 9.5f);
 									pad_pos += direction * dt * 10.0f; // TODO: set a variable here
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
-
 									ai_pad_rb.set_transform(pad_transform);
 								});
 					});
