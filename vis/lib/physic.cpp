@@ -82,6 +82,26 @@ class RigidBody {
 public:
 	friend class World;
 
+	RigidBody(RigidBody&) = delete;
+	RigidBody& operator=(RigidBody&) = delete;
+
+	RigidBody(RigidBody&& rhs) : id{rhs.id} {
+		rhs.id = b2_nullBodyId;
+	}
+
+	RigidBody& operator=(RigidBody&& rhs) {
+		id = rhs.id;
+		rhs.id = b2_nullBodyId;
+		return *this;
+	}
+
+	~RigidBody() {
+		if (b2Body_IsValid(id)) {
+			b2DestroyBody(id);
+			id = b2_nullBodyId;
+		}
+	}
+
 	RigidBody& create_shape(const ShapeDef& shape, const Polygon& polygon);
 	RigidBody& create_shape(const ShapeDef& shape, const Circle& circle);
 
@@ -109,10 +129,63 @@ public:
 		return *this;
 	}
 
+	explicit operator b2BodyId() const {
+		return id;
+	}
+
 private:
 	RigidBody(const World& world, const RigidBodyDef& def);
-
 	::b2BodyId id;
+};
+
+class PrismaticJointDef {
+public:
+	PrismaticJointDef() : def{::b2DefaultPrismaticJointDef()} {}
+
+	PrismaticJointDef& set_body_a(const RigidBody& rb) {
+		def.bodyIdA = static_cast<b2BodyId>(rb);
+		return *this;
+	}
+
+	PrismaticJointDef& set_body_b(const vec2& axe) {
+		def.localAxisA = b2Vec2{axe.x, axe.y};
+		return *this;
+	}
+
+	PrismaticJointDef& enable_limit(bool e) {
+		def.enableLimit = e;
+		return *this;
+	}
+
+	PrismaticJointDef& lower_translation(float val) {
+		def.lowerTranslation = val;
+		return *this;
+	}
+
+	PrismaticJointDef& upper_translation(float val) {
+		def.upperTranslation = val;
+		return *this;
+	}
+
+	explicit operator const b2PrismaticJointDef*() const {
+		return &def;
+	}
+
+private:
+	b2PrismaticJointDef def;
+};
+
+class b2PrismaticJoint {
+	friend class World;
+
+	explicit operator b2JointId() const {
+		return id;
+	}
+
+private:
+	b2PrismaticJoint(const World& world, const PrismaticJointDef& def);
+
+	::b2JointId id;
 };
 
 class WorldDef {
@@ -141,20 +214,20 @@ public:
 	World operator=(const World&) = delete;
 
 	World(World&& rhs) : id{rhs.id} {
-		rhs.id.index1 = std::numeric_limits<uint16_t>::max();
+		rhs.id = b2_nullWorldId;
 	}
+
 	World& operator=(World&& rhs) {
 		id = rhs.id;
-		rhs.id.index1 = std::numeric_limits<uint16_t>::max();
+		rhs.id = b2_nullWorldId;
 		return *this;
 	}
 
 	~World() {
-		if (id.index1 == std::numeric_limits<uint16_t>::max()) {
-			return;
+		if (b2World_IsValid(id)) {
+			b2DestroyWorld(id);
+			id = b2_nullWorldId;
 		}
-
-		b2DestroyWorld(id);
 	}
 
 	void step(float time_step, int sub_step_count) const {
