@@ -1,0 +1,15 @@
+include(../conf)
+
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.cppstd=26
+compiler.libcxx=libc++
+compiler.version=20
+os=Linux
+
+[buildenv]
+CC=/usr/bin/clang-20
+CXX=/usr/bin/clang++-20
+
