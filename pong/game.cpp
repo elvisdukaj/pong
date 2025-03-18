@@ -14,17 +14,20 @@ export {
 	namespace Game {
 
 	struct Ball {
-	private:
-		[[maybe_unused]] int unused;
+		float y_pos = 0.0;
+		float x_vel = 0.0;
 	};
-	struct Player {};
+
 	struct Ai {
-	private:
-		[[maybe_unused]] int unused;
+		float speed = 0.0;
 	};
 
 	struct InputComponent {
 		vis::vec2 direction{};
+	};
+
+	struct Player {
+		float speed = 0.0f;
 	};
 
 	constexpr int SCREEN_HEIGHT = 600;
@@ -117,10 +120,7 @@ export {
 			const auto t = get_time();
 			const auto dt = t - previous_time;
 
-			// if (ai_time > .3f) {
 			update_ai_system(t, dt);
-			// ai_time = 0.0f;
-			// }
 			update_input_system(t, dt);
 			update_physic_system(t, dt);
 
@@ -197,12 +197,12 @@ void main()
 		}
 
 		void update_input_system([[maybe_unused]] float t, float dt) {
-			const auto view = entity_registry.view<InputComponent, vis::physics::RigidBody>();
-			view.each([&](const InputComponent& input, vis::physics::RigidBody& rb) {
+			const auto view = entity_registry.view<Player, InputComponent, vis::physics::RigidBody>();
+			view.each([&](const Player player, const InputComponent& input, vis::physics::RigidBody& rb) {
 				auto transform = rb.get_transform();
 				auto& pos = transform.position;
 
-				pos += input.direction * dt * 15.0f; // TODO: set a variable here
+				pos += input.direction * dt * player.speed;
 				pos.y = std::clamp(pos.y, -max_upper_bound(), max_upper_bound());
 
 				rb.set_transform(transform);
@@ -212,31 +212,24 @@ void main()
 		void update_ai_system([[maybe_unused]] float t, float dt) {
 			entity_registry
 					.view<Ai, vis::physics::RigidBody>() //
-					.each([&](Ai&, vis::physics::RigidBody& ai_pad_rb) {
+					.each([&](Ai ai, vis::physics::RigidBody& ai_pad_rb) {
 						entity_registry
-								.view<Ball, vis::physics::RigidBody>() //
-								.each([&](Ball, const vis::physics::RigidBody& ball_rigid_body) {
+								.view<Ball>() //
+								.each([&](Ball ball) {
 									auto pad_transform = ai_pad_rb.get_transform();
-									auto ball_vel = ball_rigid_body.get_linear_velocity();
-
 									auto& pad_pos = pad_transform.position;
-									auto ball_pos = ball_rigid_body.get_transform().position;
-									vis::vec2 direction;
 
-									auto y_ball_pos = vis::vec2{0.0f, ball_pos.y};
-									auto y_ai_pos = vis::vec2{0.0f, pad_pos.y};
-
-									if (ball_vel.x > 0.0) {
-										direction = vis::normalize(vis::vec2{pad_pos.x, 0.0f} - pad_pos);
-									} else {
-
-										float time_to_paddle =
-												std::abs(pad_pos.x - ball_pos.x) / std::abs(ball_rigid_body.get_linear_velocity().x);
-										vis::vec2 predicted_pos{pad_pos.x, ball_pos.y + ball_vel.y * time_to_paddle};
-										direction = vis::normalize(predicted_pos - pad_pos);
+									if (ball.x_vel > 0.0f) {
+										return;
 									}
+
+									constexpr vis::vec2 up{0.0f, 1.0f};
+									constexpr vis::vec2 down{0.0f, -1.0f};
+
+									const auto direction = (ball.y_pos > pad_pos.y) ? up : down;
+
 									// ai_pad_rb.set_linear_velocity(direction * 9.5f);
-									pad_pos += direction * dt * 10.0f; // TODO: set a variable here
+									pad_pos += direction * dt * ai.speed; // TODO: set a variable here
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 									ai_pad_rb.set_transform(pad_transform);
 								});
@@ -256,13 +249,15 @@ void main()
 
 			entity_registry
 					.view<vis::physics::RigidBody, Ball>() //
-					.each([&](const vis::physics::RigidBody& rb, auto) {
-						auto pos = rb.get_transform().position;
-						if (pos.y < -screen_proj.half_world_extent.x) {
+					.each([&](const vis::physics::RigidBody& rb, Ball& ball) {
+						ball.y_pos = rb.get_transform().position.y;
+						ball.x_vel = rb.get_linear_velocity().x;
+
+						if (ball.y_pos < -screen_proj.half_world_extent.x) {
 							std::println("Player won");
 							// Signal end of game
 						}
-						if (pos.y > screen_proj.half_world_extent.x) {
+						if (ball.y_pos > screen_proj.half_world_extent.x) {
 							std::println("AI won");
 						}
 					});
@@ -301,7 +296,7 @@ void main()
 		void add_player(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			auto pad = entity_registry.create();
-			entity_registry.emplace<Player>(pad);
+			entity_registry.emplace<Player>(pad, Player{.speed = initial_ai_speed});
 			entity_registry.emplace<InputComponent>(pad, InputComponent{});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
 			auto& transform = entity_registry.emplace<vis::physics::Transformation>(pad, vis::physics::Transformation{
@@ -321,7 +316,7 @@ void main()
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			auto pad = entity_registry.create();
-			entity_registry.emplace<Ai>(pad);
+			entity_registry.emplace<Ai>(pad, Ai{.speed = initial_ai_speed});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
 
 			vis::physics::RigidBodyDef body_def;
@@ -331,8 +326,9 @@ void main()
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
-			vis::physics::ShapeDef wall_shape;
-			rigid_body.create_shape(wall_shape, wall_box);
+			auto shape = vis::physics::ShapeDef{} //
+											 .set_restitution(1.0f);
+			rigid_body.create_shape(shape, wall_box);
 		}
 
 		void add_ball(float radius, vis::vec2 pos, vis::vec2 vel, vis::vec4 color) {
@@ -346,19 +342,18 @@ void main()
 					.radius = radius,
 			};
 
-			vis::physics::RigidBodyDef body_def;
-			body_def.set_position(pos)
-					.set_body_type(vis::physics::BodyType::dynamic)
-					.set_linear_velocity(vel)
-					.set_is_bullet(true);
+			auto body_def = vis::physics::RigidBodyDef{} //
+													.set_position(pos)
+													.set_body_type(vis::physics::BodyType::dynamic)
+													.set_linear_velocity(vel)
+													.set_is_bullet(true);
 
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(ball, vis::physics::RigidBody{
 																																										world->create_body(body_def),
 																																								});
-			vis::physics::ShapeDef shape_def;
-			shape_def
-					.set_restitution(1.0) //
-					.set_friction(1.0f);
+			auto shape_def = vis::physics::ShapeDef{}	 //
+													 .set_restitution(1.0) //
+													 .set_friction(0.0f);
 			rigid_body.create_shape(shape_def, circle);
 		}
 
@@ -399,6 +394,9 @@ void main()
 		static constexpr auto pad_length = 3.0f;
 		static constexpr auto ball_radius = 0.4f;
 		static constexpr auto half_wall_thickness = 0.3f;
+
+		static constexpr auto initial_player_speed = 15.0f;
+		static constexpr auto initial_ai_speed = 10.0f;
 	};
 
 	} // namespace Game
