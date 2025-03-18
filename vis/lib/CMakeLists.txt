@@ -16,3 +16,4 @@ target_sources(vis_obj
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
 target_link_libraries(vis_obj PUBLIC SDL3::SDL3 EnTT::EnTT glm::glm GLEW::GLEW box2d::box2d)
+target_add_extra_warnings(vis_obj PUBLIC)

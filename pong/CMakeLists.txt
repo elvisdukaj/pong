@@ -7,3 +7,4 @@ target_sources(pong
         PUBLIC FILE_SET CXX_MODULES FILES game.cpp)
 
 target_link_libraries(pong PRIVATE vis::vis)
+target_add_extra_warnings(pong PUBLIC)

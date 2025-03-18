@@ -241,7 +241,7 @@ void main()
 					});
 		}
 
-		void update_physic_system(float t, float dt) {
+		void update_physic_system(float t, [[maybe_unused]] float dt) {
 			static float accumulated_time = 0.0f;
 			static constexpr float fixed_time_step = 1 / 30.0f;
 
@@ -262,7 +262,6 @@ void main()
 						}
 						if (pos.y > screen_proj.half_world_extent.x) {
 							std::println("AI won");
-							// Signal end of game
 						}
 					});
 		}
