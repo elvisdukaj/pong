@@ -105,7 +105,7 @@ struct VertexBufferObject {
 		using value_type = typename std::iterator_traits<ConstRandomIterator>::value_type;
 
 		constexpr auto value_type_size = sizeof(value_type);
-		const auto element_count = std::distance(begin, end);
+		const auto element_count = static_cast<std::size_t>(std::distance(begin, end));
 		const auto total_size_in_bytes = element_count * value_type_size;
 
 		data(total_size_in_bytes, &(*begin), usage);
@@ -203,7 +203,7 @@ private:
 
 		if (info_log_len > 0) {
 			std::string message;
-			message.resize(info_log_len + 1, '\0');
+			message.resize(static_cast<std::size_t>(info_log_len + 1), '\0');
 			glGetShaderInfoLog(id, info_log_len, nullptr, message.data());
 			CHECK_LAST_GL_CALL;
 
@@ -292,7 +292,7 @@ private:
 
 		if (info_log_len > 0) {
 			std::string message;
-			message.resize(info_log_len + 1, '\0');
+			message.resize(static_cast<std::size_t>(info_log_len + 1), '\0');
 
 			glGetProgramInfoLog(id, info_log_len, nullptr, message.data());
 			CHECK_LAST_GL_CALL;

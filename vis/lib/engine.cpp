@@ -35,11 +35,7 @@ public:
 	}
 
 private:
-	explicit Engine(SDL_Window* window, SDL_GLContext context) : window{window}, opengl_context{context} {}
-
-private:
-	SDL_Window* window = nullptr;
-	SDL_GLContext opengl_context = nullptr;
+	Engine() = default;
 };
 
 Engine create(SDL_Window* window) {
@@ -77,7 +73,7 @@ Engine create(SDL_Window* window) {
 		SDL_DestroyWindow(window);
 	}
 
-	return Engine(window, opengl_context);
+	return Engine();
 }
 
 } // namespace vis::engine

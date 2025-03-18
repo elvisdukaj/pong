@@ -15,12 +15,12 @@ export {
 
 	struct Ball {
 	private:
-		int unused;
+		[[maybe_unused]] int unused;
 	};
 	struct Player {};
 	struct Ai {
 	private:
-		int unused;
+		[[maybe_unused]] int unused;
 	};
 
 	struct InputComponent {
@@ -34,7 +34,7 @@ export {
 	class App {
 	public:
 		static App* create() {
-			srand(SDL_GetTicks());
+			srand(static_cast<unsigned int>(SDL_GetTicks()));
 			static SDL_Window* window = SDL_CreateWindow("Hello OpenGL", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
 
 			if (not window) {
@@ -104,15 +104,18 @@ export {
 			return static_cast<float>(SDL_GetTicks()) / 1000.0f;
 		}
 
+		float get_time() const {
+			return static_cast<float>(SDL_GetTicks()) / 1000.0f;
+		}
+
 		[[nodiscard]] SDL_AppResult update() noexcept {
-			static float previous_time = SDL_GetTicks() / 1000.0f;
-			static float ai_time = SDL_GetTicks() / 1000.0f;
+			static float now = get_time();
+			static float previous_time = now;
 
 			engine.clear();
 
-			const auto t = SDL_GetTicks() / 1000.0f;
+			const auto t = get_time();
 			const auto dt = t - previous_time;
-			static uint64_t frame_count = 0;
 
 			// if (ai_time > .3f) {
 			update_ai_system(t, dt);
@@ -126,7 +129,6 @@ export {
 			engine.render(window);
 
 			previous_time = t;
-			ai_time += dt;
 
 			return SDL_AppResult::SDL_APP_CONTINUE;
 		}
@@ -194,7 +196,7 @@ void main()
 			});
 		}
 
-		void update_input_system(float t, float dt) {
+		void update_input_system([[maybe_unused]] float t, float dt) {
 			const auto view = entity_registry.view<InputComponent, vis::physics::RigidBody>();
 			view.each([&](const InputComponent& input, vis::physics::RigidBody& rb) {
 				auto transform = rb.get_transform();
@@ -207,7 +209,7 @@ void main()
 			});
 		}
 
-		void update_ai_system(float t, float dt) {
+		void update_ai_system([[maybe_unused]] float t, float dt) {
 			entity_registry
 					.view<Ai, vis::physics::RigidBody>() //
 					.each([&](Ai&, vis::physics::RigidBody& ai_pad_rb) {
@@ -241,7 +243,7 @@ void main()
 					});
 		}
 
-		void update_physic_system(float t, [[maybe_unused]] float dt) {
+		void update_physic_system([[maybe_unused]] float t, [[maybe_unused]] float dt) {
 			static float accumulated_time = 0.0f;
 			static constexpr float fixed_time_step = 1 / 30.0f;
 

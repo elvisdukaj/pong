@@ -99,7 +99,7 @@ Mesh create_regular_shape(const vis::vec2& center, float radius, const vis::vec4
 	using VertexVector = std::vector<Vertex>;
 
 	VertexVector vertexes;
-	vertexes.reserve(num_vertices + 2); // plus one for the center, and one for closing
+	vertexes.reserve(static_cast<std::size_t>(num_vertices + 2)); // plus one for the center, and one for closing
 	vertexes.emplace_back(center, color);
 	for (int i = 0; i != num_vertices; i++) {
 		auto angle = -theta_step * static_cast<float>(i);

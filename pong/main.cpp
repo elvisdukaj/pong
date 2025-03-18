@@ -4,7 +4,7 @@ import Game;
 
 extern "C" {
 
-SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
+SDL_AppResult SDL_AppInit(void** appstate, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 	*appstate = Game::App::create();
 
 	if (*appstate == nullptr) {

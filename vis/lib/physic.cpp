@@ -282,8 +282,8 @@ public:
 		return *this;
 	}
 
-	ShapeDef& set_friction(float restitution) {
-		def.friction = 0.0f;
+	ShapeDef& set_friction(float friction) {
+		def.friction = friction;
 		return *this;
 	}
 

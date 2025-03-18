@@ -8,3 +8,4 @@ target_sources(pong
 
 target_link_libraries(pong PRIVATE vis::vis)
 target_add_extra_warnings(pong PUBLIC)
+target_set_warnings_as_error(pong)
