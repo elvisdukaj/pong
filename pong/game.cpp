@@ -4,6 +4,7 @@ module;
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
 #include <cstdlib>
+#include <print>
 
 export module Game;
 
@@ -96,32 +97,17 @@ export {
 			return SDL_AppResult::SDL_APP_CONTINUE;
 		}
 
-		static auto now() -> float {
-			return static_cast<float>(SDL_GetTicks()) / 1000.0f;
-		}
-
-		float get_time() const {
-			return static_cast<float>(SDL_GetTicks()) / 1000.0f;
-		}
-
 		[[nodiscard]] SDL_AppResult update() noexcept {
-			static float now = get_time();
-			static float previous_time = now;
+			const auto dt = timer.elapsed();
+			timer.reset();
 
 			engine.clear();
 
-			const auto t = get_time();
-			const auto dt = t - previous_time;
-
-			update_ai_system(t, dt);
-			update_input_system(t, dt);
-			update_physic_system(t, dt);
-
+			update_ai_system(dt);
+			update_input_system(dt);
+			update_physic_system(dt);
 			render_system();
-
 			engine.render(window);
-
-			previous_time = t;
 
 			return SDL_AppResult::SDL_APP_CONTINUE;
 		}
@@ -131,6 +117,8 @@ export {
 			initialize_video();
 			initialize_physics();
 			initialize_scene();
+
+			timer.reset();
 		}
 
 		void initialize_video() {
@@ -156,20 +144,20 @@ export {
 			mesh_shader.unbind();
 		}
 
-		void update_input_system([[maybe_unused]] float t, float dt) {
+		void update_input_system(vis::chrono::Clock::duration dt) {
 			const auto view = entity_registry.view<Player, InputComponent, vis::physics::RigidBody>();
 			view.each([&](const Player player, const InputComponent& input, vis::physics::RigidBody& rb) {
 				auto transform = rb.get_transform();
 				auto& pos = transform.position;
 
-				pos += input.direction * dt * player.speed;
+				pos += input.direction * dt.count() * player.speed;
 				pos.y = std::clamp(pos.y, -max_upper_bound(), max_upper_bound());
 
 				rb.set_transform(transform);
 			});
 		}
 
-		void update_ai_system([[maybe_unused]] float t, float dt) {
+		void update_ai_system(vis::chrono::Clock::duration dt) {
 			entity_registry
 					.view<Ai, vis::physics::RigidBody>() //
 					.each([&](Ai ai, vis::physics::RigidBody& ai_pad_rb) {
@@ -189,21 +177,21 @@ export {
 									const auto direction = (ball.y_pos > pad_pos.y) ? up : down;
 
 									// ai_pad_rb.set_linear_velocity(direction * 9.5f);
-									pad_pos += direction * dt * ai.speed; // TODO: set a variable here
+									pad_pos += direction * dt.count() * ai.speed; // TODO: set a variable here
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 									ai_pad_rb.set_transform(pad_transform);
 								});
 					});
 		}
 
-		void update_physic_system([[maybe_unused]] float t, [[maybe_unused]] float dt) {
-			static float accumulated_time = 0.0f;
-			static constexpr float fixed_time_step = 1 / 30.0f;
+		void update_physic_system(vis::chrono::Clock::duration dt) {
+			static vis::chrono::Clock::duration accumulated_time{0.0f};
+			static constexpr vis::chrono::Clock::duration fixed_time_step{1.0f / 30.0f};
 
 			accumulated_time += dt;
 
 			while (accumulated_time >= fixed_time_step) {
-				world->step(fixed_time_step, 4);
+				world->step(fixed_time_step.count(), 4);
 				accumulated_time -= fixed_time_step;
 			}
 
@@ -394,6 +382,8 @@ export {
 
 		static constexpr auto initial_player_speed = 15.0f;
 		static constexpr auto initial_ai_speed = 10.0f;
+
+		vis::chrono::Timer timer;
 	};
 
 	} // namespace Game
