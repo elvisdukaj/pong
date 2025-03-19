@@ -22,18 +22,6 @@ export {
 		float y_pos = 0.0;
 		float x_vel = 0.0;
 	};
-	//
-	// struct Ai {
-	// 	enum State { DEFEND, FOLLOWING, DIZZY };
-	//
-	// 	float speed = 0.0;
-	// 	State state = DEFEND;
-	// 	vis::chrono::Timer confusion_timer{};
-	//
-	// 	static constexpr vis::chrono::Clock::duration confusion_duration = 250.0_ms;
-	// };
-	//
-	// namespace ai {
 
 	struct Ai {
 		float speed = 0.0;
@@ -48,10 +36,15 @@ export {
 	};
 
 	struct FollowingEvent {
-		FollowingEvent(vis::vec2 pad_pos, Ball ball) : pad_pos{pad_pos}, ball{ball} {}
+		FollowingEvent(vis::vec2 pad_pos, float ball_y_pos) : pad_pos{pad_pos}, ball_y_pos{ball_y_pos} {}
 
 		vis::vec2 pad_pos;
-		Ball ball;
+		float ball_y_pos;
+	};
+
+	struct DizzyEvent {
+		vis::vec2 pad_pos;
+		float dizzy_y_pos;
 	};
 
 	struct GameOver {
@@ -66,28 +59,36 @@ export {
 		SDL_KeyboardEvent key;
 	};
 
-	auto null_action = []() { std::println("null action"); };
-	auto defend = [](const DefendEvent& event, vis::vec2& direction) {
+	struct AiContext {
+		vis::vec2 ai_direction;
+		vis::chrono::Timer dizzy_timer;
+	};
+
+	constexpr vis::vec2 up{0.0f, 1.0f};
+	constexpr vis::vec2 down{0.0f, -1.0f};
+
+	auto defend = [](const DefendEvent& event, AiContext& context) {
+		// std::println("defending");
 		const auto& [pad_pos] = event;
 		if (std::abs(pad_pos.y) < 0.3) {
-			direction = vis::vec2{0.0f, 0.0f};
+			context.ai_direction = vis::vec2{0.0f, 0.0f};
 			return;
 		}
 
-		constexpr vis::vec2 up{0.0f, 1.0f};
-		constexpr vis::vec2 down{0.0f, -1.0f};
-
-		direction = (pad_pos.y < 0.0f) ? up : down;
+		context.ai_direction = (pad_pos.y < 0.0f) ? up : down;
 
 		using namespace boost::sml;
 	};
-	auto follow = [](const FollowingEvent& event, vis::vec2& direction) {
-		const auto& [pad_pos, ball] = event;
 
-		constexpr vis::vec2 up{0.0f, 1.0f};
-		constexpr vis::vec2 down{0.0f, -1.0f};
+	auto follow = [](const FollowingEvent& event, AiContext& context) {
+		// std::println("following");
+		const auto& [pad_pos, ball_y_pos] = event;
+		context.ai_direction = (ball_y_pos > pad_pos.y) ? up : down;
+	};
 
-		direction = (ball.y_pos > pad_pos.y) ? up : down;
+	auto dizzy = [](const DizzyEvent& event, AiContext& context) {
+		const auto& [pad_pos, dizzy_y_pos] = event;
+		context.ai_direction = (dizzy_y_pos > pad_pos.y) ? up : down;
 	};
 
 	struct AiState {
@@ -98,14 +99,20 @@ export {
 					// clang-format off
 				* "defend"_s	+ event<FollowingEvent>		/ follow						= "follow"_s,
 					"defend"_s	+ event<DefendEvent>			/ defend						= "defend"_s,
+					"defend"_s	+ event<DizzyEvent>				/ dizzy							= "dizzy"_s,
 					"defend"_s	+ event<RestEvent>														= "rest"_s,
 					"defend"_s	+ event<GameOver>										 					= X,
 					"follow"_s	+ event<FollowingEvent>		/ follow			    	= "follow"_s,
 					"follow"_s	+ event<DefendEvent>			/ defend						= "defend"_s,
-					"follow"_s	+ event<GameOver>					/ null_action				= X,
+					"follow"_s	+ event<DizzyEvent>				/ dizzy							= "dizzy"_s,
+					"follow"_s	+ event<GameOver>															= X,
 					"rest"_s		+ event<FollowingEvent>		/ follow						= "rest"_s,
 					"rest"_s		+ event<DefendEvent>			/ defend						= "defend"_s,
-					"rest"_s		+ event<GameOver>		        									= X
+					"rest"_s		+ event<DizzyEvent>				/ dizzy							= "dizzy"_s,
+					"rest"_s		+ event<GameOver>															= "X"_s,
+					"rest"_s		+ event<GameOver>		        									= X,
+					"dizzy"_s		+ event<DefendEvent>			/ defend						= "defend"_s,
+					"dizzy"_s		+ event<GameOver>															= X
 					// clang-format on
 			);
 		}
@@ -239,20 +246,52 @@ export {
 									using namespace boost::sml;
 									using namespace vis::literals::chrono_literals;
 
+									static vis::chrono::Timer dizzy_timer;
+									constexpr auto dizzy_duration = 200.0_ms;
+
+									static vis::chrono::Timer dizzy_freq_timer;
+									constexpr auto dizzy_frequency = 5.0_s;
+
 									auto pad_transform = ai_pad_rb.get_transform();
 									auto& pad_pos = pad_transform.position;
 
-									if (ball.x_vel < 0.0f) {
-										ai_state_machine.process_event(FollowingEvent{pad_pos, ball});
+									auto predicted_ball_y = ball.y_pos + ball.x_vel * dt.count();
+
+									auto is_dizzy_expired = [&]() { return ai_context.dizzy_timer.elapsed() > dizzy_duration; };
+									auto should_rest = [&]() { return std::abs(ball.y_pos) < 0.3f; };
+									auto is_dizzy_time = [&]() { return dizzy_freq_timer.elapsed() > dizzy_frequency; };
+									auto get_rand = [](float min, float max) {
+										auto d = (max - min);
+										float r = static_cast<float>(std::rand());
+										return (r / static_cast<float>(RAND_MAX)) * d + min;
+									};
+
+									if (ai_state_machine.is("dizzy"_s)) {
+										if (is_dizzy_expired()) {
+											ai_state_machine.process_event(DefendEvent{pad_pos});
+										}
 									} else {
-										ai_state_machine.process_event(DefendEvent{pad_pos});
+										if (ball.x_vel < 0.0f) {
+											ai_state_machine.process_event(FollowingEvent{pad_pos, predicted_ball_y});
+										} else {
+											ai_state_machine.process_event(DefendEvent{pad_pos});
+										}
+
+										if (should_rest()) {
+											ai_state_machine.process_event(RestEvent{});
+										}
+
+										if (is_dizzy_time()) {
+											dizzy_freq_timer.reset();
+											ai_context.dizzy_timer.reset();
+											ai_state_machine.process_event(DizzyEvent{
+													.pad_pos = pad_pos,
+													.dizzy_y_pos = predicted_ball_y + get_rand(-.5f, +.5f),
+											});
+										}
 									}
 
-									if (std::abs(ball.y_pos) < 0.3f) {
-										ai_state_machine.process_event(RestEvent{});
-									}
-
-									pad_pos += ai_pad_direction * dt * ai.speed;
+									pad_pos += ai_context.ai_direction * dt * ai.speed;
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 									ai_pad_rb.set_transform(pad_transform);
 								});
@@ -261,7 +300,7 @@ export {
 
 		void update_physic_system(vis::chrono::seconds dt) {
 			static auto accumulated_time = 0.0_s;
-			constexpr auto fixed_time_step = 1.0_s / 60.0_s; // 0.016667_s; // 1/60 ms
+			constexpr auto fixed_time_step = 1.0_s / 30.0_s;
 
 			accumulated_time += dt;
 
@@ -279,11 +318,10 @@ export {
 						if (ball.y_pos < -screen_proj.half_world_extent.x) {
 							std::println("Player won");
 							ai_state_machine.process_event(GameOver{true});
-							// Signal end of game
 						}
 						if (ball.y_pos > screen_proj.half_world_extent.x) {
-							ai_state_machine.process_event(GameOver{false});
 							std::println("AI won");
+							ai_state_machine.process_event(GameOver{false});
 						}
 					});
 		}
@@ -458,12 +496,14 @@ export {
 		static constexpr auto half_wall_thickness = 0.3f;
 
 		static constexpr auto initial_player_speed = 15.0f;
-		static constexpr auto initial_ai_speed = 8.0f;
+		static constexpr auto initial_ai_speed = 11.0f;
+
+		static constexpr auto ball_acceleration = 1.01f;
 
 		vis::chrono::Timer timer;
 
-		vis::vec2 ai_pad_direction{};
-		boost::ext::sml::sm<AiState> ai_state_machine{ai_pad_direction};
+		AiContext ai_context;
+		boost::ext::sml::sm<AiState> ai_state_machine{ai_context};
 	};
 
 	} // namespace Game
