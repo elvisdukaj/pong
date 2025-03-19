@@ -14,17 +14,21 @@ import vis;
 export {
 	namespace Game {
 
+	using namespace vis::literals::chrono_literals;
+
 	struct Ball {
 		float y_pos = 0.0;
 		float x_vel = 0.0;
 	};
 
 	struct Ai {
-		float speed = 0.0;
-
 		enum State { DEFEND, FOLLOWING, DIZZY };
 
+		float speed = 0.0;
 		State state = DEFEND;
+		vis::chrono::Timer confusion_timer{};
+
+		static constexpr vis::chrono::Clock::duration confusion_duration = 250.0_ms;
 	};
 
 	struct InputComponent {
@@ -99,6 +103,7 @@ export {
 
 		[[nodiscard]] SDL_AppResult update() noexcept {
 			const auto dt = timer.elapsed();
+			std::println("dt: {}", dt);
 			timer.reset();
 
 			engine.clear();
@@ -144,20 +149,20 @@ export {
 			mesh_shader.unbind();
 		}
 
-		void update_input_system(vis::chrono::Clock::duration dt) {
+		void update_input_system(vis::chrono::seconds dt) {
 			const auto view = entity_registry.view<Player, InputComponent, vis::physics::RigidBody>();
 			view.each([&](const Player player, const InputComponent& input, vis::physics::RigidBody& rb) {
 				auto transform = rb.get_transform();
 				auto& pos = transform.position;
 
-				pos += input.direction * dt.count() * player.speed;
+				pos += input.direction * dt * player.speed;
 				pos.y = std::clamp(pos.y, -max_upper_bound(), max_upper_bound());
 
 				rb.set_transform(transform);
 			});
 		}
 
-		void update_ai_system(vis::chrono::Clock::duration dt) {
+		void update_ai_system(vis::chrono::seconds dt) {
 			entity_registry
 					.view<Ai, vis::physics::RigidBody>() //
 					.each([&](Ai ai, vis::physics::RigidBody& ai_pad_rb) {
@@ -177,21 +182,21 @@ export {
 									const auto direction = (ball.y_pos > pad_pos.y) ? up : down;
 
 									// ai_pad_rb.set_linear_velocity(direction * 9.5f);
-									pad_pos += direction * dt.count() * ai.speed; // TODO: set a variable here
+									pad_pos += direction * dt * ai.speed; // TODO: set a variable here
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 									ai_pad_rb.set_transform(pad_transform);
 								});
 					});
 		}
 
-		void update_physic_system(vis::chrono::Clock::duration dt) {
-			static vis::chrono::Clock::duration accumulated_time{0.0f};
-			static constexpr vis::chrono::Clock::duration fixed_time_step{1.0f / 30.0f};
+		void update_physic_system(vis::chrono::seconds dt) {
+			static auto accumulated_time = 0.0_s;
+			constexpr auto fixed_time_step = 1.0_s / 60.0_s; // 0.016667_s; // 1/60 ms
 
 			accumulated_time += dt;
 
 			while (accumulated_time >= fixed_time_step) {
-				world->step(fixed_time_step.count(), 4);
+				world->step(fixed_time_step, 4);
 				accumulated_time -= fixed_time_step;
 			}
 

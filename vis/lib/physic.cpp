@@ -7,6 +7,7 @@ export module vis:physic;
 
 import std;
 import :math;
+import :chrono;
 
 export namespace vis::physics {
 
@@ -230,8 +231,8 @@ public:
 		}
 	}
 
-	void step(float time_step, int sub_step_count) const {
-		b2World_Step(id, time_step, sub_step_count);
+	void step(chrono::seconds time_step, int sub_step_count) const {
+		b2World_Step(id, time_step.count(), sub_step_count);
 	}
 
 	RigidBody create_body(const RigidBodyDef& def) const {
