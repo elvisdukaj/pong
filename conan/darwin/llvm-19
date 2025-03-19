@@ -1,17 +1,15 @@
+# Assuming llvm is installed with brew
+
 include(default)
 include(../conf)
 include(../require)
 
 [settings]
-arch=x86_64
-build_type=Release
 compiler=clang
 compiler.cppstd=23
 compiler.cstd=99
 compiler.libcxx=libc++
 compiler.version=19
-os=Macos
-
 
 [buildenv]
 {% set LLVM_PATH = os.path.realpath("/usr/local/opt/llvm@19") %}
