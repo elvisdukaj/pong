@@ -3,6 +3,8 @@ module;
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
+#include <boost/sml.hpp>
+
 #include <cstdlib>
 #include <print>
 
@@ -20,23 +22,36 @@ export {
 		float y_pos = 0.0;
 		float x_vel = 0.0;
 	};
+	//
+	// struct Ai {
+	// 	enum State { DEFEND, FOLLOWING, DIZZY };
+	//
+	// 	float speed = 0.0;
+	// 	State state = DEFEND;
+	// 	vis::chrono::Timer confusion_timer{};
+	//
+	// 	static constexpr vis::chrono::Clock::duration confusion_duration = 250.0_ms;
+	// };
+	//
+	// namespace ai {
 
 	struct Ai {
-		enum State { DEFEND, FOLLOWING, DIZZY };
-
 		float speed = 0.0;
-		State state = DEFEND;
-		vis::chrono::Timer confusion_timer{};
-
-		static constexpr vis::chrono::Clock::duration confusion_duration = 250.0_ms;
 	};
 
-	struct InputComponent {
-		vis::vec2 direction{};
+	struct RestEvent {};
+
+	struct DefendEvent {
+		DefendEvent(vis::vec2 pad_pos) : pad_pos{pad_pos} {}
+
+		vis::vec2 pad_pos;
 	};
 
-	struct Player {
-		float speed = 0.0f;
+	struct FollowingEvent {
+		FollowingEvent(vis::vec2 pad_pos, Ball ball) : pad_pos{pad_pos}, ball{ball} {}
+
+		vis::vec2 pad_pos;
+		Ball ball;
 	};
 
 	struct GameOver {
@@ -49,6 +64,59 @@ export {
 
 	struct KeyUpEvent {
 		SDL_KeyboardEvent key;
+	};
+
+	auto null_action = []() { std::println("null action"); };
+	auto defend = [](const DefendEvent& event, vis::vec2& direction) {
+		const auto& [pad_pos] = event;
+		if (std::abs(pad_pos.y) < 0.3) {
+			direction = vis::vec2{0.0f, 0.0f};
+			return;
+		}
+
+		constexpr vis::vec2 up{0.0f, 1.0f};
+		constexpr vis::vec2 down{0.0f, -1.0f};
+
+		direction = (pad_pos.y < 0.0f) ? up : down;
+
+		using namespace boost::sml;
+	};
+	auto follow = [](const FollowingEvent& event, vis::vec2& direction) {
+		const auto& [pad_pos, ball] = event;
+
+		constexpr vis::vec2 up{0.0f, 1.0f};
+		constexpr vis::vec2 down{0.0f, -1.0f};
+
+		direction = (ball.y_pos > pad_pos.y) ? up : down;
+	};
+
+	struct AiState {
+		auto operator()() const {
+			using namespace boost::sml;
+
+			return make_transition_table(
+					// clang-format off
+				* "defend"_s	+ event<FollowingEvent>		/ follow						= "follow"_s,
+					"defend"_s	+ event<DefendEvent>			/ defend						= "defend"_s,
+					"defend"_s	+ event<RestEvent>														= "rest"_s,
+					"defend"_s	+ event<GameOver>										 					= X,
+					"follow"_s	+ event<FollowingEvent>		/ follow			    	= "follow"_s,
+					"follow"_s	+ event<DefendEvent>			/ defend						= "defend"_s,
+					"follow"_s	+ event<GameOver>					/ null_action				= X,
+					"rest"_s		+ event<FollowingEvent>		/ follow						= "rest"_s,
+					"rest"_s		+ event<DefendEvent>			/ defend						= "defend"_s,
+					"rest"_s		+ event<GameOver>		        									= X
+					// clang-format on
+			);
+		}
+	};
+
+	struct InputComponent {
+		vis::vec2 direction{};
+	};
+
+	struct Player {
+		float speed = 0.0f;
 	};
 
 	constexpr int SCREEN_HEIGHT = 600;
@@ -103,7 +171,6 @@ export {
 
 		[[nodiscard]] SDL_AppResult update() noexcept {
 			const auto dt = timer.elapsed();
-			std::println("dt: {}", dt);
 			timer.reset();
 
 			engine.clear();
@@ -169,20 +236,23 @@ export {
 						entity_registry
 								.view<Ball>() //
 								.each([&](Ball ball) {
+									using namespace boost::sml;
+									using namespace vis::literals::chrono_literals;
+
 									auto pad_transform = ai_pad_rb.get_transform();
 									auto& pad_pos = pad_transform.position;
 
-									if (ball.x_vel > 0.0f) {
-										return;
+									if (ball.x_vel < 0.0f) {
+										ai_state_machine.process_event(FollowingEvent{pad_pos, ball});
+									} else {
+										ai_state_machine.process_event(DefendEvent{pad_pos});
 									}
 
-									constexpr vis::vec2 up{0.0f, 1.0f};
-									constexpr vis::vec2 down{0.0f, -1.0f};
+									if (std::abs(ball.y_pos) < 0.3f) {
+										ai_state_machine.process_event(RestEvent{});
+									}
 
-									const auto direction = (ball.y_pos > pad_pos.y) ? up : down;
-
-									// ai_pad_rb.set_linear_velocity(direction * 9.5f);
-									pad_pos += direction * dt * ai.speed; // TODO: set a variable here
+									pad_pos += ai_pad_direction * dt * ai.speed;
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 									ai_pad_rb.set_transform(pad_transform);
 								});
@@ -208,9 +278,11 @@ export {
 
 						if (ball.y_pos < -screen_proj.half_world_extent.x) {
 							std::println("Player won");
+							ai_state_machine.process_event(GameOver{true});
 							// Signal end of game
 						}
 						if (ball.y_pos > screen_proj.half_world_extent.x) {
+							ai_state_machine.process_event(GameOver{false});
 							std::println("AI won");
 						}
 					});
@@ -386,9 +458,12 @@ export {
 		static constexpr auto half_wall_thickness = 0.3f;
 
 		static constexpr auto initial_player_speed = 15.0f;
-		static constexpr auto initial_ai_speed = 10.0f;
+		static constexpr auto initial_ai_speed = 8.0f;
 
 		vis::chrono::Timer timer;
+
+		vis::vec2 ai_pad_direction{};
+		boost::ext::sml::sm<AiState> ai_state_machine{ai_pad_direction};
 	};
 
 	} // namespace Game

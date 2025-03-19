@@ -30,18 +30,20 @@ struct Clock {
 
 class Timer {
 public:
-	Timer() : start_time_point(Clock::now()) {}
+	using clock = vis::chrono::Clock;
+
+	Timer() : start_time_point(clock::now()) {}
 
 	void reset() {
-		start_time_point = Clock::now();
+		start_time_point = clock::now();
 	}
 
-	Clock::duration elapsed() const {
+	clock::duration elapsed() const {
 		return Clock::now() - start_time_point;
 	}
 
 private:
-	Clock::time_point start_time_point;
+	clock::time_point start_time_point;
 };
 } // namespace chrono
 
