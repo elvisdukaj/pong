@@ -147,7 +147,7 @@ private:
 	::b2BodyDef def;
 };
 
-struct Transformation {
+struct Transform {
 	vec2 position{};
 	vec2 scale{1.0f, 1.0f};
 	Rotation rotation{};
@@ -206,8 +206,8 @@ public:
 	RigidBody& create_shape(const ShapeDef& shape, const Polygon& polygon);
 	RigidBody& create_shape(const ShapeDef& shape, const Circle& circle);
 
-	Transformation get_transform() const {
-		Transformation res;
+	Transform get_transform() const {
+		Transform res;
 		const auto& [p, q] = b2Body_GetTransform(id);
 		res.position = from_box2d(p);
 		res.rotation = {q.c, q.s};
@@ -223,7 +223,7 @@ public:
 		return *this;
 	}
 
-	RigidBody& set_transform(const Transformation& transformation) {
+	RigidBody& set_transform(const Transform& transformation) {
 		b2Body_SetTransform(id, to_box2d(transformation.position),
 												b2Rot{transformation.rotation.cos_angle, transformation.rotation.sin_angle});
 		return *this;

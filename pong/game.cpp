@@ -257,35 +257,34 @@ export {
 				world->step(fixed_time_step, 4);
 				accumulated_time -= fixed_time_step;
 			}
-
-			auto contacts = world->contacts();
-			std::println("begin: {}, end: {}, hit count: {}",
-									 contacts.beginCount, //
-									 contacts.endCount,		//
-									 contacts.hitCount);
-
-			for (int i = 0; i != contacts.hitCount; ++i) {
-				auto hit_event = contacts.hitEvents[i];
-
-				auto shape_a = hit_event.shapeIdA;
-				auto shape_b = hit_event.shapeIdB;
-				auto point = hit_event.point;
-				auto normal = hit_event.normal;
-
-				std::println("Contact Event, {} with {} at {{{}, {}}} with normal {{{},{}}}", shape_a.index1, shape_b.index1,
-										 point.x, point.y, normal.x, normal.y);
-			}
 		}
 
-		void update_ball_system(vis::chrono::seconds dt) {
+		void update_ball_system([[maybe_unused]] vis::chrono::seconds dt) {
+
+			auto sensor_events = world->get_sensor_events();
+			for (auto begin_touch_it = sensor_events.begin_begin_touch(); //
+					 begin_touch_it != sensor_events.end_begin_touch();				//
+					 ++begin_touch_it) {
+				auto sensor = begin_touch_it->sensor_shape_def();
+				auto body = begin_touch_it->visitor_shape_def();
+				std::println("visitor {} collided with {}", static_cast<uint64_t>(body->get_entity()),
+										 static_cast<uint64_t>(sensor->get_entity()));
+			}
+
 			entity_registry
 					.view<vis::physics::RigidBody, Ball>() //
 					.each([&](vis::physics::RigidBody& rb, Ball& ball) {
 						ball.position = rb.get_transform().position;
 						ball.velocity = rb.get_linear_velocity();
-						const auto acceleration = vis::normalize(ball.velocity) * ball_acceleration_magnitude;
 
-						rb.set_linear_velocity(ball.velocity + acceleration * dt);
+						using namespace vis::literals;
+
+						static vis::chrono::Timer acceleration_timer;
+						if (acceleration_timer.elapsed() > 2.0_s) {
+							const auto acceleration = vis::normalize(ball.velocity) * ball_acceleration_magnitude;
+							rb.set_linear_velocity(ball.velocity + acceleration);
+							acceleration_timer.reset();
+						}
 
 						if (ball.position.x < -screen_proj.half_world_extent.x) {
 							std::println("Player won");
@@ -331,9 +330,9 @@ export {
 			add_wall(vertical_half_extent, bottom_pos, white);
 
 			// this should be invisible
-			add_wall(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
+			add_goal(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
 							 black);
-			add_wall(horizontal_half_extent, right_pos + vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
+			add_goal(horizontal_half_extent, right_pos + vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
 							 black);
 
 			dispatcher.sink<KeyDownEvent>().connect<&App::on_key_down>(this);
@@ -379,9 +378,9 @@ export {
 			entity_registry.emplace<Player>(pad, Player{.speed = initial_player_speed});
 			entity_registry.emplace<InputComponent>(pad, InputComponent{});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
-			auto& transform = entity_registry.emplace<vis::physics::Transformation>(pad, vis::physics::Transformation{
-																																											 .position = pos,
-																																									 });
+			auto& transform = entity_registry.emplace<vis::physics::Transform>(pad, vis::physics::Transform{
+																																									.position = pos,
+																																							});
 			vis::physics::RigidBodyDef body_def;
 			body_def															//
 					.set_position(transform.position) //
@@ -435,7 +434,11 @@ export {
 													 .set_restitution(1.0) //
 													 .set_friction(0.0f);
 
-			rigid_body.create_shape(shape_def, circle);
+			rigid_body
+					.create_shape(shape_def, circle) //
+					.set_entity(ball);
+
+			std::println("ball entity has id {}", static_cast<uint64_t>(ball));
 		}
 
 		void add_wall(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -449,8 +452,30 @@ export {
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
-			vis::physics::ShapeDef wall_shape;
+			auto wall_shape = vis::physics::ShapeDef{} //
+														.set_friction(1.0f);
+
 			rigid_body.create_shape(wall_shape, wall_box);
+		}
+
+		void add_goal(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
+			constexpr auto origin = vis::vec2{0.0f, 0.0f};
+			auto wall = entity_registry.create();
+			entity_registry.emplace<vis::mesh::Mesh>(wall, vis::mesh::create_rectangle_shape(origin, half_extent, color));
+			auto body_def = vis::physics::RigidBodyDef{};
+			body_def
+					.set_position(pos) //
+					.set_body_type(vis::physics::BodyType::fixed);
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def));
+			auto wall_box = vis::physics::create_box2d(half_extent);
+			auto wall_shape = vis::physics::ShapeDef{} //
+														.set_is_sensor(true) //
+														.set_friction(1.0f);
+
+			// assign the
+			rigid_body.create_shape(wall_shape, wall_box);
+			rigid_body.set_entity(wall);
+			std::println("goal entity has id {}", static_cast<uint64_t>(wall));
 		}
 
 		float max_upper_bound() const {
@@ -477,10 +502,10 @@ export {
 		static constexpr auto ball_radius = 0.4f;
 		static constexpr auto half_wall_thickness = 0.3f;
 
-		static constexpr auto initial_player_speed = 50.0f;
-		static constexpr auto initial_ai_speed = 50.0f;
+		static constexpr auto initial_player_speed = 20.0f;
+		static constexpr auto initial_ai_speed = 20.0f;
 
-		static constexpr auto ball_acceleration_magnitude = 1.00001f;
+		static constexpr auto ball_acceleration_magnitude = 2.0f;
 
 		vis::chrono::Timer timer;
 
