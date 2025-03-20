@@ -1,7 +1,6 @@
 module;
 
 #include <box2d/box2d.h>
-#include <optional>
 
 export module vis:physic;
 
@@ -28,10 +27,83 @@ class World;
 class ShapeDef;
 class Polygon;
 struct Circle;
+class RigidBody;
 
 struct Rotation {
 	float cos_angle, sin_angle;
 };
+
+class SensorBeginTouchEvent {
+public:
+	SensorBeginTouchEvent() = default;
+
+	RigidBody* sensor_shape_def() const;
+	RigidBody* visitor_shape_def() const;
+
+private:
+	friend class SensorEvent;
+	explicit SensorBeginTouchEvent(const b2SensorBeginTouchEvent& event) : event{event} {}
+
+private:
+	b2SensorBeginTouchEvent event;
+};
+
+class SensorEndTouchEvent {
+public:
+	SensorEndTouchEvent() = default;
+
+	RigidBody* sensor_shape_def() const;
+	RigidBody* visitor_shape_def() const;
+
+private:
+	friend class SensorEvent;
+	explicit SensorEndTouchEvent(const b2SensorEndTouchEvent& event) : event{event} {}
+
+private:
+	b2SensorEndTouchEvent event;
+};
+
+class SensorEvent {
+public:
+	using SensorBeginTouchVector = std::vector<SensorBeginTouchEvent>;
+	using SensorEndTouchVector = std::vector<SensorEndTouchEvent>;
+
+	using SensorBeginTouchVectorValueType = SensorBeginTouchVector::value_type;
+	using SensorBeginTouchVectorIterator = SensorBeginTouchVector::iterator;
+	using SensorBeginTouchVectorConstIterator = SensorBeginTouchVector::const_iterator;
+	using SensorEndTouchVectorValueType = SensorEndTouchVector::value_type;
+	using SensorEndTouchVectorIterator = SensorEndTouchVector::iterator;
+	using SensorEndTouchVectorConstIterator = SensorEndTouchVector::const_iterator;
+
+	SensorBeginTouchVectorConstIterator begin_begin_touch() const {
+		return begin(begin_touch_events);
+	}
+
+	SensorBeginTouchVectorConstIterator end_begin_touch() const {
+		return end(begin_touch_events);
+	}
+
+	SensorEndTouchVectorConstIterator begin_end_touch() const {
+		return begin(end_touch_events);
+	}
+
+	SensorEndTouchVectorConstIterator end_end_touch() const {
+		return end(end_touch_events);
+	}
+
+private:
+	friend class World;
+	SensorEvent(const World& world);
+
+	SensorBeginTouchVector begin_touch_events;
+	SensorEndTouchVector end_touch_events;
+};
+
+// class SensorEvent {
+// public:
+// private:
+// 	b2SensorEvents
+// };
 
 enum class BodyType {
 	fixed = 0,
@@ -100,6 +172,8 @@ class RigidBody {
 
 public:
 	friend class World;
+	friend class SensorBeginTouchEvent;
+	friend class SensorEndTouchEvent;
 
 	RigidBody(RigidBody&) = delete;
 	RigidBody& operator=(RigidBody&) = delete;
@@ -169,6 +243,30 @@ private:
 	::b2BodyId id;
 	InternalUserData user_data;
 };
+
+RigidBody* SensorBeginTouchEvent::sensor_shape_def() const {
+	auto shape = event.sensorShapeId;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+RigidBody* SensorBeginTouchEvent::visitor_shape_def() const {
+	auto shape = event.visitorShapeId;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+RigidBody* SensorEndTouchEvent::sensor_shape_def() const {
+	auto shape = event.sensorShapeId;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+RigidBody* SensorEndTouchEvent::visitor_shape_def() const {
+	auto shape = event.visitorShapeId;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
 
 class PrismaticJointDef {
 public:
@@ -282,6 +380,10 @@ public:
 
 	std::optional<RayCastResult> cast_ray(vis::vec2 start, vis::vec2 end) const;
 
+	SensorEvent get_sensor_events() const {
+		return SensorEvent{*this};
+	}
+
 	explicit operator b2WorldId() const {
 		return id;
 	}
@@ -302,6 +404,21 @@ RigidBody::RigidBody(const World& world, const RigidBodyDef& def) {
 	id = b2CreateBody(static_cast<b2WorldId>(world), static_cast<const b2BodyDef*>(def));
 	user_data.self = this;
 	b2Body_SetUserData(id, &user_data);
+}
+
+SensorEvent::SensorEvent(const World& world) {
+	auto [beginEvents, endEvents, beginCount, endCount] = b2World_GetSensorEvents(static_cast<b2WorldId>(world));
+
+	begin_touch_events.resize(static_cast<std::size_t>(beginCount));
+	end_touch_events.resize(static_cast<std::size_t>(endCount));
+
+	std::transform(beginEvents, beginEvents + beginCount,
+								 begin(begin_touch_events), //
+								 [](const auto& e) { return SensorBeginTouchEvent{e}; });
+
+	std::transform(endEvents, endEvents + endCount,
+								 begin(end_touch_events), //
+								 [](const auto& e) { return SensorEndTouchEvent{e}; });
 }
 
 class Polygon {
@@ -332,6 +449,11 @@ public:
 
 	ShapeDef& set_friction(float friction) {
 		def.friction = friction;
+		return *this;
+	}
+
+	ShapeDef& set_is_sensor(bool is_sensor) {
+		def.isSensor = is_sensor;
 		return *this;
 	}
 
