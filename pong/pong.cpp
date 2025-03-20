@@ -289,13 +289,15 @@ export {
 			entity_registry.emplace<Player>(player, Player{.speed = initial_player_speed});
 			entity_registry.emplace<InputComponent>(player, InputComponent{});
 			entity_registry.emplace<vis::mesh::Mesh>(player, vis::mesh::create_rectangle_shape(origin, half_extent, color));
+
 			auto body_def = vis::physics::RigidBodyDef{} //
 													.set_position(pos)			 //
 													.set_body_type(vis::physics::BodyType::kinematic);
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(player, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
-			vis::physics::ShapeDef wall_shape;
+			auto wall_shape = vis::physics::ShapeDef{} //
+														.set_friction(1.0);
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
@@ -312,6 +314,7 @@ export {
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto shape = vis::physics::ShapeDef{} //
+											 .set_friction(1.0f)	//
 											 .set_restitution(1.0f);
 			rigid_body
 					.create_shape(shape, wall_box) //
