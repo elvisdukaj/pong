@@ -9,6 +9,19 @@ import std;
 import :math;
 import :chrono;
 
+// non exported
+namespace vis::physics {
+
+b2Vec2 to_box2d(vis::vec2 v) {
+	return {v.x, v.y};
+}
+
+vis::vec2 from_box2d(b2Vec2 v) {
+	return {v.x, v.y};
+}
+
+} // namespace vis::physics
+
 export namespace vis::physics {
 
 class World;
@@ -36,11 +49,11 @@ public:
 	}
 
 	RigidBodyDef& set_position(vis::vec2 pos) {
-		def.position = b2Vec2(pos.x, pos.y);
+		def.position = to_box2d(pos);
 		return *this;
 	}
 	RigidBodyDef& set_linear_velocity(vis::vec2 vel) {
-		def.linearVelocity = b2Vec2(vel.x, vel.y);
+		def.linearVelocity = to_box2d(vel);
 		return *this;
 	}
 
@@ -109,23 +122,22 @@ public:
 	Transformation get_transform() const {
 		Transformation res;
 		const auto& [p, q] = b2Body_GetTransform(id);
-		res.position = vec2{p.x, p.y};
+		res.position = from_box2d(p);
 		res.rotation = {q.c, q.s};
 		return res;
 	}
 
 	vec2 get_linear_velocity() const {
-		auto v = b2Body_GetLinearVelocity(id);
-		return vis::vec2(v.x, v.y);
+		return from_box2d(b2Body_GetLinearVelocity(id));
 	}
 
 	RigidBody& set_linear_velocity(vis::vec2 vel) {
-		b2Body_SetLinearVelocity(id, b2Vec2{vel.x, vel.y});
+		b2Body_SetLinearVelocity(id, to_box2d(vel));
 		return *this;
 	}
 
 	RigidBody& set_transform(const Transformation& transformation) {
-		b2Body_SetTransform(id, b2Vec2{transformation.position.x, transformation.position.y},
+		b2Body_SetTransform(id, to_box2d(transformation.position),
 												b2Rot{transformation.rotation.cos_angle, transformation.rotation.sin_angle});
 		return *this;
 	}
@@ -196,7 +208,7 @@ public:
 	}
 
 	void set_gravity(vec2 g) {
-		def.gravity = b2Vec2(g.x, g.y);
+		def.gravity = to_box2d(g);
 	}
 
 	explicit operator const b2WorldDef*() const {
