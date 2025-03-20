@@ -193,6 +193,33 @@ export {
 		}
 
 		void update_ball_system() {
+			auto contacts = world->get_hit_events();
+			for (auto& contact : contacts) {
+				auto entity_a = contact.entity_a();
+				auto entity_b = contact.entity_b();
+
+				bool is_ball = entity_a == ball_entity || entity_b == ball_entity;
+				bool is_pad = entity_a == ai_entity || entity_b == ai_entity;
+				bool is_player = entity_a == player_entity || entity_b == player_entity;
+
+				if (not is_ball)
+					return;
+
+				if (!(is_player or is_pad))
+					return;
+
+				// ball-pad collision
+
+				vis::physics::RigidBody& ball_rb = entity_registry.get<vis::physics::RigidBody>(ball_entity);
+				auto ball_vel = vis::normalize(ball_rb.get_linear_velocity());
+
+				auto norm = contact.normal();
+				auto new_vel_mag = vis::get_random(ball_vel_min_speed, ball_vel_max_speed);
+				auto new_direction = vis::get_random_direction(vis::reflect(ball_vel, norm), //
+																											 ball_angle_min, ball_angle_max);
+
+				ball_rb.set_linear_velocity(new_direction * new_vel_mag);
+			}
 
 			entity_registry
 					.view<vis::physics::RigidBody, Ball>() //
@@ -249,7 +276,7 @@ export {
 		}
 
 		void on_key_down(const KeyDownEvent& event) {
-			auto& input_component = entity_registry.get<InputComponent>(player);
+			auto& input_component = entity_registry.get<InputComponent>(player_entity);
 
 			switch (event.key.key) {
 			case SDLK_DOWN:
@@ -262,7 +289,7 @@ export {
 		}
 
 		void on_key_up(const KeyUpEvent& event) {
-			auto& input_component = entity_registry.get<InputComponent>(player);
+			auto& input_component = entity_registry.get<InputComponent>(player_entity);
 			switch (event.key.key) {
 			case SDLK_DOWN:
 			case SDLK_UP:
@@ -272,15 +299,17 @@ export {
 		}
 
 		void add_player(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
-			player = entity_registry.create();
-			entity_registry.emplace<Player>(player, Player{.speed = initial_player_speed});
-			entity_registry.emplace<InputComponent>(player, InputComponent{});
-			entity_registry.emplace<vis::mesh::Mesh>(player, vis::mesh::create_rectangle_shape(origin, half_extent, color));
+			player_entity = entity_registry.create();
+			entity_registry.emplace<Player>(player_entity, Player{.speed = initial_player_speed});
+			entity_registry.emplace<InputComponent>(player_entity, InputComponent{});
+			entity_registry.emplace<vis::mesh::Mesh>(player_entity,
+																							 vis::mesh::create_rectangle_shape(origin, half_extent, color));
 
 			auto body_def = vis::physics::RigidBodyDef{} //
 													.set_position(pos)			 //
 													.set_body_type(vis::physics::BodyType::kinematic);
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(player, world->create_body(body_def, player));
+			auto& rigid_body =
+					entity_registry.emplace<vis::physics::RigidBody>(player_entity, world->create_body(body_def, player_entity));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
@@ -290,21 +319,22 @@ export {
 		}
 
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
-			auto pad = entity_registry.create();
-			entity_registry.emplace<Ai>(pad, Ai{.speed = initial_ai_speed});
-			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
+			ai_entity = entity_registry.create();
+			entity_registry.emplace<Ai>(ai_entity, Ai{.speed = initial_ai_speed});
+			entity_registry.emplace<vis::mesh::Mesh>(ai_entity,
+																							 vis::mesh::create_rectangle_shape(origin, half_extent, color));
 
 			auto body_def = vis::physics::RigidBodyDef{}
 													.set_position(pos) //
 													.set_body_type(vis::physics::BodyType::kinematic);
 
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def, pad));
+			auto& rigid_body =
+					entity_registry.emplace<vis::physics::RigidBody>(ai_entity, world->create_body(body_def, ai_entity));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
-			auto shape = vis::physics::ShapeDef{}		//
-											 .set_restitution(1.0f) //
+			auto shape = vis::physics::ShapeDef{} //
+											 .set_restitution(1.0f)
 											 .set_friction(friction);
-
 			rigid_body.create_shape(shape, wall_box);
 		}
 
@@ -330,10 +360,10 @@ export {
 					entity_registry.emplace<vis::physics::RigidBody>(ball_entity, vis::physics::RigidBody{
 																																						world->create_body(body_def, ball_entity),
 																																				});
-			auto shape_def = vis::physics::ShapeDef{}	 //
-													 .set_restitution(1.0) //
-													 .set_friction(friction);
-
+			auto shape_def = vis::physics::ShapeDef{} //
+													 .set_restitution(1.0)
+													 .set_friction(friction)
+													 .enable_hit_events(true);
 			rigid_body.create_shape(shape_def, circle);
 		}
 
@@ -352,7 +382,6 @@ export {
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_restitution(1.0f)
 														.set_friction(friction);
-			;
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
@@ -368,8 +397,6 @@ export {
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_is_sensor(true);
-
-			// assign the
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
@@ -397,10 +424,11 @@ export {
 		bool is_playing = true;
 		bool win = false;
 		bool is_pausing = false;
-		vis::ecs::entity ball_entity;
 		vis::ecs::entity ai_sensor;
 		vis::ecs::entity player_sensor;
-		vis::ecs::entity player;
+		vis::ecs::entity ball_entity;
+		vis::ecs::entity player_entity;
+		vis::ecs::entity ai_entity;
 
 		int win_games = 0;
 		int lost_games = 0;
