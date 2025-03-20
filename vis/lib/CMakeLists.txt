@@ -13,6 +13,7 @@ target_sources(vis_obj
         mesh.cpp
         physic.cpp
         time.cpp
+        utility.cpp
 )
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
