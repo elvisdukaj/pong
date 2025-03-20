@@ -6,7 +6,12 @@ add_executable(pong)
 
 target_sources(pong
         PUBLIC main.cpp
-        PUBLIC FILE_SET CXX_MODULES FILES game.cpp)
+        PUBLIC FILE_SET CXX_MODULES
+        FILES
+        game.cpp
+        events.cpp
+        pong.cpp
+)
 
 target_link_libraries(pong PRIVATE vis::vis sml::sml)
 target_add_extra_warnings(pong PUBLIC)

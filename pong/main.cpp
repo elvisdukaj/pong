@@ -1,6 +1,6 @@
 #include <SDL3/SDL_main.h>
 
-import Game;
+import game;
 
 extern "C" {
 
