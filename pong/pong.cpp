@@ -9,7 +9,6 @@ module;
 export module game:app;
 
 import :events;
-import :ai;
 import :components;
 import :constants;
 
@@ -153,7 +152,7 @@ export {
 		}
 
 		void update_ai_system(vis::chrono::seconds dt) {
-			const auto& ball = entity_registry.get<Ball>(ball_entity);
+			const Ball& ball = entity_registry.get<Ball>(ball_entity);
 
 			entity_registry
 					.view<Ai, vis::physics::RigidBody>() //
@@ -163,21 +162,16 @@ export {
 						auto pad_transform = ai_pad_rb.get_transform();
 						auto& pad_pos = pad_transform.position;
 
-						auto predicted_ball_pos = ball.position + ball.velocity * dt;
-						auto y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
+						const auto y_pad_ball_distance = pad_pos.y - ball.position.y;
+						const auto direction = (ball.position.y > pad_pos.y) ? up : down;
 
-						if (ball.velocity.x < 0.0f) {
-							ai_state_machine.process_event(FollowingEvent{pad_pos, predicted_ball_pos.y});
-						} else {
-							ai_state_machine.process_event(DefendEvent{pad_pos});
-						}
+						pad_pos += direction * dt * ai.speed;
 
-						pad_pos += ai_context.ai_direction * dt * ai.speed;
-						auto new_y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
+						auto new_y_pad_ball_distance = pad_pos.y - ball.position.y;
 
-						if (new_y_pad_ball_distance * y_pad_ball_distance < 0.0f) {
+						if (std::signbit(new_y_pad_ball_distance) != std::signbit(y_pad_ball_distance)) {
 							// clamp the y
-							pad_pos.y = predicted_ball_pos.y; // avoid to run too fast
+							pad_pos.y = ball.position.y; // avoid to run too fast
 						}
 
 						pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
@@ -410,9 +404,6 @@ export {
 		std::optional<vis::physics::World> world;
 
 		vis::chrono::Timer timer;
-
-		AiContext ai_context;
-		sm<AiState> ai_state_machine{ai_context};
 
 		bool is_playing = true;
 		bool win = false;

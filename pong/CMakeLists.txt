@@ -11,7 +11,6 @@ target_sources(pong
         game.cpp
         events.cpp
         pong.cpp
-        ai.cpp
         components.cpp
         constants.cpp
 )
