@@ -45,6 +45,7 @@ public:
 
 	RigidBody* sensor_shape_def() const;
 	RigidBody* visitor_shape_def() const;
+	vis::ecs::entity get_sensor_entity() const;
 
 private:
 	friend class SensorEvent;
@@ -60,6 +61,7 @@ public:
 
 	RigidBody* sensor_shape_def() const;
 	RigidBody* visitor_shape_def() const;
+	vis::ecs::entity get_sensor_entity() const;
 
 private:
 	friend class SensorEvent;
@@ -267,6 +269,12 @@ RigidBody* SensorBeginTouchEvent::visitor_shape_def() const {
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
+vis::ecs::entity SensorBeginTouchEvent::get_sensor_entity() const {
+	auto shape = event.sensorShapeId;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self->get_entity();
+}
+
 RigidBody* SensorEndTouchEvent::sensor_shape_def() const {
 	auto shape = event.sensorShapeId;
 	auto body = b2Shape_GetBody(shape);
@@ -277,6 +285,12 @@ RigidBody* SensorEndTouchEvent::visitor_shape_def() const {
 	auto shape = event.visitorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+vis::ecs::entity SensorEndTouchEvent::get_sensor_entity() const {
+	auto shape = event.sensorShapeId;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self->get_entity();
 }
 
 class PrismaticJointDef {

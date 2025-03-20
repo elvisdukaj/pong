@@ -4,6 +4,7 @@ module;
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
 #include <cstdlib>
+#include <print>
 
 export module game:app;
 
@@ -78,6 +79,8 @@ export {
 			engine.render(window);
 
 			if (not is_playing) {
+				std::println("You {}!", win ? "win" : "lose");
+				std::println("Player {} - Computer {}", win_games, lost_games);
 				reset_scene();
 				is_playing = true;
 			}
@@ -102,14 +105,15 @@ export {
 		void reset_scene() {
 			entity_registry.clear();
 			world = std::nullopt;
+
 			initialize_game();
 		}
 
 		void initialize_video() {
 			engine.print_info();
-			engine.set_clear_color(vis::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+			engine.set_clear_color(colors::black);
 			engine.set_viewport(0, 0, screen_width, screen_height);
-			screen_proj = vis::orthogonal_matrix(screen_width, screen_height, 20.0f, 20.0f);
+			screen_proj = vis::orthogonal_matrix(screen_width, screen_height, world_width, world_height);
 		}
 
 		void render_system() {
@@ -130,51 +134,49 @@ export {
 		}
 
 		void update_input_system(vis::chrono::seconds dt) {
-			const auto view = entity_registry.view<Player, InputComponent, vis::physics::RigidBody>();
-			view.each([&](const Player player, const InputComponent& input, vis::physics::RigidBody& rb) {
-				auto transform = rb.get_transform();
-				auto& pos = transform.position;
+			entity_registry
+					.view<Player, InputComponent, vis::physics::RigidBody>() //
+					.each([&](const Player player_component, const InputComponent& input, vis::physics::RigidBody& rb) {
+						auto transform = rb.get_transform();
+						auto& pos = transform.position;
 
-				pos += input.direction * dt * player.speed;
-				pos.y = std::clamp(pos.y, -max_upper_bound(), max_upper_bound());
+						pos += input.direction * dt * player_component.speed;
+						pos.y = std::clamp(pos.y, -max_upper_bound(), max_upper_bound());
 
-				rb.set_transform(transform);
-			});
+						rb.set_transform(transform);
+					});
 		}
 
 		void update_ai_system(vis::chrono::seconds dt) {
+			const auto& ball = entity_registry.get<Ball>(ball_entity);
+
 			entity_registry
 					.view<Ai, vis::physics::RigidBody>() //
 					.each([&](Ai ai, vis::physics::RigidBody& ai_pad_rb) {
-						entity_registry
-								.view<Ball>() //
-								.each([&](Ball ball) {
-									using namespace vis::literals::chrono_literals;
+						using namespace vis::literals::chrono_literals;
 
-									auto pad_transform = ai_pad_rb.get_transform();
-									auto& pad_pos = pad_transform.position;
+						auto pad_transform = ai_pad_rb.get_transform();
+						auto& pad_pos = pad_transform.position;
 
-									auto predicted_ball_pos = ball.position + ball.velocity * dt;
-									auto y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
+						auto predicted_ball_pos = ball.position + ball.velocity * dt;
+						auto y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
 
-									if (ball.velocity.x < 0.0f) {
-										ai_state_machine.process_event(FollowingEvent{pad_pos, predicted_ball_pos.y});
-									} else {
-										ai_state_machine.process_event(DefendEvent{pad_pos});
-									}
+						if (ball.velocity.x < 0.0f) {
+							ai_state_machine.process_event(FollowingEvent{pad_pos, predicted_ball_pos.y});
+						} else {
+							ai_state_machine.process_event(DefendEvent{pad_pos});
+						}
 
-									pad_pos += ai_context.ai_direction * dt * ai.speed;
-									auto new_y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
+						pad_pos += ai_context.ai_direction * dt * ai.speed;
+						auto new_y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
 
-									if (new_y_pad_ball_distance * y_pad_ball_distance < 0.0f) {
-										// clamp the y
-										pad_pos.y = predicted_ball_pos.y; // avoid to run too fast
-										pad_pos.y = predicted_ball_pos.y; // avoid to run too fast
-									}
+						if (new_y_pad_ball_distance * y_pad_ball_distance < 0.0f) {
+							// clamp the y
+							pad_pos.y = predicted_ball_pos.y; // avoid to run too fast
+						}
 
-									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
-									ai_pad_rb.set_transform(pad_transform);
-								});
+						pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
+						ai_pad_rb.set_transform(pad_transform);
 					});
 		}
 
@@ -196,16 +198,12 @@ export {
 					 begin_touch_it != sensor_events.end_begin_touch();				//
 					 ++begin_touch_it) {
 				is_playing = false;
-				auto sensor = begin_touch_it->sensor_shape_def();
-				auto visitor = begin_touch_it->visitor_shape_def();
 
-				auto sensor_entity = sensor->get_entity();
-				auto visitor_entity = visitor->get_entity();
+				auto sensor_entity = begin_touch_it->get_sensor_entity();
 
 				win = sensor_entity == ai_sensor;
-
-				std::println("Game Over! visitor {} collided with sensor {}", static_cast<uint64_t>(visitor_entity),
-										 static_cast<uint64_t>(sensor_entity));
+				win_games += win;
+				lost_games += !win;
 			}
 
 			entity_registry
@@ -222,13 +220,6 @@ export {
 							rb.set_linear_velocity(ball.velocity + acceleration);
 							acceleration_timer.reset();
 						}
-
-						if (ball.position.x < -screen_proj.half_world_extent.x) {
-							std::println("Player won");
-						}
-						if (ball.position.x > screen_proj.half_world_extent.x) {
-							std::println("AI won");
-						}
 					});
 		}
 
@@ -239,9 +230,6 @@ export {
 		}
 
 		void initialize_scene() {
-			constexpr auto white = vis::vec4{1.0f, 1.0f, 1.0f, 1.0f};
-			constexpr auto black = vis::vec4{0.0f, 0.0f, 1.0f, 1.0f};
-
 			const auto half_screen_extent = screen_proj.half_world_extent;
 			constexpr auto half_pad_thickness = pad_thickness / 2.0f;
 			constexpr auto offset_magnitude = 0.2f;
@@ -256,67 +244,56 @@ export {
 			const auto vertical_half_extent = vis::vec2{half_screen_extent.x, half_wall_thickness};
 			const auto horizontal_half_extent = vis::vec2{half_wall_thickness, half_screen_extent.y};
 
-			add_pad(half_pad_extent, left_pos, white);
-			add_player(half_pad_extent, right_pos, white);
+			add_pad(half_pad_extent, left_pos, colors::white);
+			add_player(half_pad_extent, right_pos, colors::white);
 
-			add_ball(ball_radius, {}, {-10.0f, 10.0f}, white);
+			add_ball(ball_radius, {}, {-10.0f, 10.0f}, colors::white);
 
-			add_wall(vertical_half_extent, top_pos, white);
-			add_wall(vertical_half_extent, bottom_pos, white);
+			add_wall(vertical_half_extent, top_pos, colors::white);
+			add_wall(vertical_half_extent, bottom_pos, colors::white);
 
-			// this should be invisible
-			add_goal(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f}, black,
-							 IsPlayer::no);
+			add_goal(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
+							 colors::black, IsPlayer::no);
 			add_goal(horizontal_half_extent, right_pos + vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
-							 black, IsPlayer::yes);
+							 colors::black, IsPlayer::yes);
 
 			dispatcher.sink<KeyDownEvent>().connect<&App::on_key_down>(this);
 			dispatcher.sink<KeyUpEvent>().connect<&App::on_key_up>(this);
 		}
 
 		void on_key_down(const KeyDownEvent& event) {
+			auto& input_component = entity_registry.get<InputComponent>(player);
+
 			switch (event.key.key) {
 			case SDLK_DOWN:
-				entity_registry
-						.view<InputComponent>() //
-						.each([](InputComponent& input) { input.direction.y = -1.0f; });
+				input_component.direction = down;
 				break;
 			case SDLK_UP:
-				entity_registry
-						.view<InputComponent>() //
-						.each([](InputComponent& input) { input.direction.y = 1.0f; });
+				input_component.direction = up;
 				break;
 			}
 		}
 
 		void on_key_up(const KeyUpEvent& event) {
+			auto& input_component = entity_registry.get<InputComponent>(player);
 			switch (event.key.key) {
 			case SDLK_DOWN:
-				entity_registry
-						.view<InputComponent>() //
-						.each([](InputComponent& input) { input.direction.y = .0f; });
-				break;
 			case SDLK_UP:
-				entity_registry
-						.view<InputComponent>() //
-						.each([](InputComponent& input) { input.direction.y = .0f; });
-				break;
-
-			default:
+				input_component.direction = vis::vec2{};
 				break;
 			}
 		}
 
 		void add_player(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			constexpr auto origin = vis::vec2{0.0f, 0.0f};
-			auto pad = entity_registry.create();
-			entity_registry.emplace<Player>(pad, Player{.speed = initial_player_speed});
-			entity_registry.emplace<InputComponent>(pad, InputComponent{});
-			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
+			player = entity_registry.create();
+			entity_registry.emplace<Player>(player, Player{.speed = initial_player_speed});
+			entity_registry.emplace<InputComponent>(player, InputComponent{});
+			entity_registry.emplace<vis::mesh::Mesh>(player, vis::mesh::create_rectangle_shape(origin, half_extent, color));
 			auto body_def = vis::physics::RigidBodyDef{} //
 													.set_position(pos)			 //
 													.set_body_type(vis::physics::BodyType::kinematic);
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(player, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			vis::physics::ShapeDef wall_shape;
@@ -369,8 +346,6 @@ export {
 			rigid_body
 					.create_shape(shape_def, circle) //
 					.set_entity(ball_entity);
-
-			std::println("ball entity has id {}", static_cast<uint64_t>(ball_entity));
 		}
 
 		void add_wall(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -412,7 +387,6 @@ export {
 			// assign the
 			rigid_body.create_shape(wall_shape, wall_box);
 			rigid_body.set_entity(entity);
-			std::println("goal entity has id {}", static_cast<uint64_t>(entity));
 		}
 
 		float max_upper_bound() const {
@@ -444,6 +418,10 @@ export {
 		vis::ecs::entity ball_entity;
 		vis::ecs::entity ai_sensor;
 		vis::ecs::entity player_sensor;
+		vis::ecs::entity player;
+
+		int win_games = 0;
+		int lost_games = 0;
 	};
 
 	} // namespace Game

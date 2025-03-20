@@ -24,4 +24,12 @@ constexpr auto initial_player_speed = 20.0f;
 constexpr auto initial_ai_speed = 20.0f;
 constexpr auto ball_acceleration_magnitude = 2.0f;
 
+constexpr auto world_width = 20.0f;
+constexpr auto world_height = 20.0f * static_cast<float>(ASPECT_RATIO.num) / static_cast<float>(ASPECT_RATIO.den);
+
+namespace colors {
+constexpr auto black = vis::vec4{0.0f, 0.0f, 0.0f, 1.0f};
+constexpr auto white = vis::vec4{1.0f, 1.0f, 1.0f, 1.0f};
+} // namespace colors
+
 } // namespace Game
