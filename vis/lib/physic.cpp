@@ -178,17 +178,21 @@ public:
 	RigidBody(RigidBody&) = delete;
 	RigidBody& operator=(RigidBody&) = delete;
 
-	RigidBody(RigidBody&& rhs) : id{rhs.id} {
-		rhs.id = b2_nullBodyId;
-		user_data = rhs.user_data;
+	RigidBody(RigidBody&& rhs) : id{rhs.id}, user_data{.self = this, .entity = rhs.user_data.entity} {
 		b2Body_SetUserData(id, &user_data);
+
+		rhs.id = b2_nullBodyId;
+		rhs.user_data = InternalUserData{};
 	}
 
 	RigidBody& operator=(RigidBody&& rhs) {
 		id = rhs.id;
-		rhs.id = b2_nullBodyId;
-		user_data = rhs.user_data;
+		user_data = InternalUserData{.self = this, .entity = rhs.user_data.entity};
 		b2Body_SetUserData(id, &user_data);
+
+		rhs.id = b2_nullBodyId;
+		rhs.user_data = InternalUserData{};
+
 		return *this;
 	}
 
