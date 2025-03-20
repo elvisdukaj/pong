@@ -11,25 +11,14 @@ export module game:app;
 
 import :events;
 import :ai;
+import :components;
+
 import std;
 import vis;
 
 export {
 	namespace Game {
 	using namespace vis::literals::chrono_literals;
-
-	struct Ball {
-		vis::vec2 position;
-		vis::vec2 velocity;
-	};
-
-	struct InputComponent {
-		vis::vec2 direction{};
-	};
-
-	struct Player {
-		float speed = 0.0f;
-	};
 
 	constexpr int SCREEN_HEIGHT = 600;
 	constexpr std::ratio<4, 3> ASPECT_RATIO;

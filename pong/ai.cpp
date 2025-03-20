@@ -13,10 +13,6 @@ constexpr vis::vec2 down{0.0f, -1.0f};
 
 export namespace Game {
 
-struct Ai {
-	float speed = 0.0;
-};
-
 struct AiContext {
 	vis::vec2 ai_direction;
 };
