@@ -285,7 +285,6 @@ export {
 		}
 
 		void add_player(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
-			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			player = entity_registry.create();
 			entity_registry.emplace<Player>(player, Player{.speed = initial_player_speed});
 			entity_registry.emplace<InputComponent>(player, InputComponent{});
@@ -301,7 +300,6 @@ export {
 		}
 
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
-			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			auto pad = entity_registry.create();
 			entity_registry.emplace<Ai>(pad, Ai{.speed = initial_ai_speed});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
@@ -349,7 +347,6 @@ export {
 		}
 
 		void add_wall(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
-			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			auto wall = entity_registry.create();
 
 			entity_registry.emplace<vis::mesh::Mesh>(wall, vis::mesh::create_rectangle_shape(origin, half_extent, color));
@@ -368,9 +365,6 @@ export {
 		}
 
 		void add_goal(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color, IsPlayer is_player) {
-
-			constexpr auto origin = vis::vec2{0.0f, 0.0f};
-
 			auto& entity = is_player == IsPlayer::yes ? player_sensor : ai_sensor;
 			entity = entity_registry.create();
 

@@ -9,6 +9,7 @@ export namespace Game {
 
 constexpr vis::vec2 up{0.0f, 1.0f};
 constexpr vis::vec2 down{0.0f, -1.0f};
+constexpr auto origin = vis::vec2{0.0f, 0.0f};
 
 constexpr int SCREEN_HEIGHT = 600;
 constexpr int SCREEN_WIDTH = 800;
