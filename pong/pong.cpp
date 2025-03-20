@@ -135,19 +135,6 @@ export {
 						mesh.unbind();
 					});
 
-			entity_registry
-					.view<vis::mesh::SpecialCircleMesh, vis::physics::RigidBody>() //
-					.each([&](const vis::mesh::SpecialCircleMesh& mesh, const vis::physics::RigidBody& rb) {
-						mesh.bind();
-						const vis::mat4 model_view = rb.get_model();
-						const auto model_view_projection = screen_proj.projection * model_view;
-						mesh_shader.set_model_view_projection(model_view_projection);
-						mesh.draw(mesh_shader);
-						mesh.unbind();
-					});
-
-			// SpecialCircleMesh
-			// TODO: maybe a ScopedBinder<MeshBinder> _{mesh_shader} ?
 			mesh_shader.unbind();
 		}
 
@@ -315,8 +302,11 @@ export {
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
+														.set_restitution(1.0f)
 														.set_friction(friction);
-			rigid_body.create_shape(wall_shape, wall_box);
+			rigid_body
+					.create_shape(wall_shape, wall_box) //
+					.set_entity(player);
 		}
 
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -331,9 +321,10 @@ export {
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
-			auto shape = vis::physics::ShapeDef{}		 //
-											 .set_friction(friction) //
-											 .set_restitution(1.0f);
+			auto shape = vis::physics::ShapeDef{}		//
+											 .set_restitution(1.0f) //
+											 .set_friction(friction);
+
 			rigid_body
 					.create_shape(shape, wall_box) //
 					.set_entity(pad);
@@ -343,8 +334,7 @@ export {
 			ball_entity = entity_registry.create();
 			entity_registry.emplace<Ball>(ball_entity);
 
-			entity_registry.emplace<vis::mesh::SpecialCircleMesh>(ball_entity,
-																														vis::mesh::SpecialCircleMesh{origin, radius, color, 10});
+			entity_registry.emplace<vis::mesh::Mesh>(ball_entity, vis::mesh::create_regular_shape(origin, radius, color, 10));
 
 			auto circle = vis::physics::Circle{
 					.center = {},
@@ -383,6 +373,7 @@ export {
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
+														.set_restitution(1.0f)
 														.set_friction(friction);
 			;
 			rigid_body.create_shape(wall_shape, wall_box);
@@ -399,8 +390,8 @@ export {
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(entity, world->create_body(body_def));
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
-														.set_is_sensor(true) //
-					;
+														.set_is_sensor(true);
+
 			// assign the
 			rigid_body.create_shape(wall_shape, wall_box);
 			rigid_body.set_entity(entity);

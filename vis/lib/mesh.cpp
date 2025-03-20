@@ -259,32 +259,4 @@ Mesh create_rectangle_shape(const vis::vec2& center, const vis::vec2& half_exten
 	return Mesh{vertexes, vertex_descriptions, draw_description};
 }
 
-class SpecialCircleMesh {
-public:
-	SpecialCircleMesh(const vis::vec2& center, float radius, const vis::vec4& color, int num_vertices = 6)
-			: circle_mesh{create_regular_shape(center, radius, color, num_vertices)},
-				radius_mesh{create_line_mesh(center, center + vis::vec2{radius, 0.0f}, vis::vec4{1.0f, 0.0f, 0.0f, 1.0f})} {}
-
-	void bind() const {
-		circle_mesh.bind();
-		radius_mesh.bind();
-	}
-
-	void unbind() const {
-		circle_mesh.unbind();
-		radius_mesh.unbind();
-	}
-
-	void draw([[maybe_unused]] const MeshShader& mesh_shader) const {
-		bind();
-		circle_mesh.draw(mesh_shader);
-		radius_mesh.draw(mesh_shader);
-		unbind();
-	}
-
-private:
-	Mesh circle_mesh;
-	Mesh radius_mesh;
-};
-
 } // namespace vis::mesh
