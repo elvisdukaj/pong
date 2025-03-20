@@ -8,7 +8,7 @@ export module vis:physic;
 import std;
 import :math;
 import :chrono;
-
+import :ecs;
 // non exported
 namespace vis::physics {
 
@@ -93,6 +93,11 @@ struct Transformation {
 };
 
 class RigidBody {
+	struct InternalUserData {
+		RigidBody* self;
+		vis::ecs::entity entity;
+	};
+
 public:
 	friend class World;
 
@@ -101,13 +106,15 @@ public:
 
 	RigidBody(RigidBody&& rhs) : id{rhs.id} {
 		rhs.id = b2_nullBodyId;
-		b2Body_SetUserData(id, this);
+		user_data = rhs.user_data;
+		b2Body_SetUserData(id, &user_data);
 	}
 
 	RigidBody& operator=(RigidBody&& rhs) {
 		id = rhs.id;
 		rhs.id = b2_nullBodyId;
-		b2Body_SetUserData(id, this);
+		user_data = rhs.user_data;
+		b2Body_SetUserData(id, &user_data);
 		return *this;
 	}
 
@@ -144,6 +151,15 @@ public:
 		return *this;
 	}
 
+	vis::ecs::entity get_entity() const {
+		return user_data.entity;
+	}
+
+	RigidBody& set_entity(vis::ecs::entity entity) {
+		user_data.entity = entity;
+		return *this;
+	}
+
 	explicit operator b2BodyId() const {
 		return id;
 	}
@@ -151,6 +167,7 @@ public:
 private:
 	RigidBody(const World& world, const RigidBodyDef& def);
 	::b2BodyId id;
+	InternalUserData user_data;
 };
 
 class PrismaticJointDef {
@@ -283,7 +300,8 @@ std::optional<World> create_world(const WorldDef& world_def) {
 
 RigidBody::RigidBody(const World& world, const RigidBodyDef& def) {
 	id = b2CreateBody(static_cast<b2WorldId>(world), static_cast<const b2BodyDef*>(def));
-	b2Body_SetUserData(id, this);
+	user_data.self = this;
+	b2Body_SetUserData(id, &user_data);
 }
 
 class Polygon {
@@ -356,7 +374,7 @@ std::optional<RayCastResult> World::cast_ray(vis::vec2 start, vis::vec2 end) con
 		return std::nullopt;
 
 	auto bodyId = b2Shape_GetBody(res.shapeId);
-	auto body = static_cast<RigidBody*>(b2Body_GetUserData(bodyId));
+	auto body = static_cast<RigidBody*>(b2Body_GetUserData(bodyId))->user_data.self;
 
 	return RayCastResult{
 			.body = std::ref(*body),
