@@ -1,9 +1,6 @@
-
 module;
 
-#include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
-#include <boost/sml.hpp>
 
 export module game:events;
 
