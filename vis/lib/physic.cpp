@@ -101,11 +101,13 @@ public:
 
 	RigidBody(RigidBody&& rhs) : id{rhs.id} {
 		rhs.id = b2_nullBodyId;
+		b2Body_SetUserData(id, this);
 	}
 
 	RigidBody& operator=(RigidBody&& rhs) {
 		id = rhs.id;
 		rhs.id = b2_nullBodyId;
+		b2Body_SetUserData(id, this);
 		return *this;
 	}
 
@@ -161,7 +163,7 @@ public:
 	}
 
 	PrismaticJointDef& set_body_b(const vec2& axe) {
-		def.localAxisA = b2Vec2{axe.x, axe.y};
+		def.localAxisA = to_box2d(axe);
 		return *this;
 	}
 
@@ -219,6 +221,12 @@ private:
 	b2WorldDef def;
 };
 
+struct RayCastResult {
+	std::reference_wrapper<RigidBody> body;
+	vec2 position;
+	vec2 normal;
+};
+
 class World {
 public:
 	friend std::optional<World> create_world(const WorldDef& world_def);
@@ -247,9 +255,15 @@ public:
 		b2World_Step(id, time_step.count(), sub_step_count);
 	}
 
+	auto contacts() const {
+		return b2World_GetContactEvents(id);
+	}
+
 	RigidBody create_body(const RigidBodyDef& def) const {
 		return RigidBody{*this, def};
 	}
+
+	std::optional<RayCastResult> cast_ray(vis::vec2 start, vis::vec2 end) const;
 
 	explicit operator b2WorldId() const {
 		return id;
@@ -269,6 +283,7 @@ std::optional<World> create_world(const WorldDef& world_def) {
 
 RigidBody::RigidBody(const World& world, const RigidBodyDef& def) {
 	id = b2CreateBody(static_cast<b2WorldId>(world), static_cast<const b2BodyDef*>(def));
+	b2Body_SetUserData(id, this);
 }
 
 class Polygon {
@@ -288,7 +303,9 @@ private:
 
 class ShapeDef {
 public:
-	ShapeDef() : def{b2DefaultShapeDef()} {}
+	ShapeDef() : def{b2DefaultShapeDef()} {
+		def.userData = this;
+	}
 
 	ShapeDef& set_restitution(float restitution) {
 		def.restitution = restitution;
@@ -330,6 +347,22 @@ RigidBody& RigidBody::create_shape(const ShapeDef& shape, const Polygon& polygon
 RigidBody& RigidBody::create_shape(const ShapeDef& shape, const Circle& circle) {
 	b2CreateCircleShape(id, static_cast<const b2ShapeDef*>(shape), static_cast<const b2Circle*>(circle));
 	return *this;
+}
+
+std::optional<RayCastResult> World::cast_ray(vis::vec2 start, vis::vec2 end) const {
+	auto translation = end - start;
+	auto res = b2World_CastRayClosest(id, to_box2d(start), to_box2d(translation), b2DefaultQueryFilter());
+	if (res.hit == false)
+		return std::nullopt;
+
+	auto bodyId = b2Shape_GetBody(res.shapeId);
+	auto body = static_cast<RigidBody*>(b2Body_GetUserData(bodyId));
+
+	return RayCastResult{
+			.body = std::ref(*body),
+			.position = from_box2d(res.point),
+			.normal = from_box2d(res.normal),
+	};
 }
 
 } // namespace vis::physics
