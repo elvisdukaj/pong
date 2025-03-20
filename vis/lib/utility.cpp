@@ -4,6 +4,8 @@ export module vis:utility;
 
 import std;
 
+import :math;
+
 export namespace vis {
 // Function to generate a random float between min and max
 inline float get_random(float min, float max) {
@@ -16,4 +18,8 @@ inline float get_random(float val) {
 	return get_random(-val, +val);
 }
 
+inline vis::vec2 get_random_direction(float min_angle, float max_angle) {
+	float a = get_random(min_angle, max_angle);
+	return vis::vec2(std::cos(a), std::sin(a));
+}
 } // namespace vis

@@ -77,7 +77,8 @@ export {
 				update_physic_system(dt);
 				update_ai_system(dt);
 				update_input_system(dt);
-				update_ball_system(dt);
+				update_ball_system();
+				update_game_logic();
 			}
 			render_system();
 			engine.render(window);
@@ -191,7 +192,17 @@ export {
 			}
 		}
 
-		void update_ball_system([[maybe_unused]] vis::chrono::seconds dt) {
+		void update_ball_system() {
+
+			entity_registry
+					.view<vis::physics::RigidBody, Ball>() //
+					.each([&](vis::physics::RigidBody& rb, Ball& ball) {
+						ball.position = rb.get_transform().position;
+						ball.velocity = rb.get_linear_velocity();
+					});
+		}
+
+		void update_game_logic() {
 			auto sensor_events = world->get_sensor_events();
 			for (auto begin_touch_it = sensor_events.begin_begin_touch(); //
 					 begin_touch_it != sensor_events.end_begin_touch();				//
@@ -204,22 +215,6 @@ export {
 				win_games += win;
 				lost_games += !win;
 			}
-
-			entity_registry
-					.view<vis::physics::RigidBody, Ball>() //
-					.each([&](vis::physics::RigidBody& rb, Ball& ball) {
-						ball.position = rb.get_transform().position;
-						ball.velocity = rb.get_linear_velocity();
-
-						using namespace vis::literals;
-
-						static vis::chrono::Timer acceleration_timer;
-						if (acceleration_timer.elapsed() > 2.0_s) {
-							const auto acceleration = vis::normalize(ball.velocity) * ball_acceleration_magnitude;
-							rb.set_linear_velocity(ball.velocity + acceleration);
-							acceleration_timer.reset();
-						}
-					});
 		}
 
 		void initialize_physics() {
