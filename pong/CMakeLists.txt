@@ -13,6 +13,7 @@ target_sources(pong
         pong.cpp
         ai.cpp
         components.cpp
+        constants.cpp
 )
 
 target_link_libraries(pong PRIVATE vis::vis sml::sml)

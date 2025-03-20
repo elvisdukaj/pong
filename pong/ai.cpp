@@ -4,12 +4,11 @@ module;
 
 export module game:ai;
 
+import :events;
+import :constants;
+
 import std;
 import vis;
-import :events;
-
-constexpr vis::vec2 up{0.0f, 1.0f};
-constexpr vis::vec2 down{0.0f, -1.0f};
 
 export namespace Game {
 
@@ -47,4 +46,10 @@ struct AiState {
 	}
 };
 
+template <typename T> using sm = boost::sml::sm<T>;
+
 } // namespace Game
+
+export {
+	using ::boost::sml::operator""_s;
+}

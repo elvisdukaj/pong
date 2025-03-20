@@ -3,8 +3,6 @@ module;
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
-#include <boost/sml.hpp>
-
 #include <cstdlib>
 
 export module game:app;
@@ -12,6 +10,7 @@ export module game:app;
 import :events;
 import :ai;
 import :components;
+import :constants;
 
 import std;
 import vis;
@@ -20,14 +19,9 @@ export {
 	namespace Game {
 	using namespace vis::literals::chrono_literals;
 
-	constexpr int SCREEN_HEIGHT = 600;
-	constexpr std::ratio<4, 3> ASPECT_RATIO;
-	constexpr int SCREEN_WIDTH = 800; // SCREEN_HEIGHT * ASPECT_RATIO.num / ASPECT_RATIO.den;
-
 	class App {
 	public:
 		static App* create() {
-			srand(static_cast<unsigned int>(SDL_GetTicks()));
 			static SDL_Window* window = SDL_CreateWindow("Hello OpenGL", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
 
 			if (not window) {
@@ -146,7 +140,6 @@ export {
 						entity_registry
 								.view<Ball>() //
 								.each([&](Ball ball) {
-									using namespace boost::sml;
 									using namespace vis::literals::chrono_literals;
 
 									auto pad_transform = ai_pad_rb.get_transform();
@@ -432,20 +425,10 @@ export {
 
 		std::optional<vis::physics::World> world;
 
-		static constexpr auto pad_thickness = 0.6f;
-		static constexpr auto pad_length = 3.0f;
-		static constexpr auto ball_radius = 0.4f;
-		static constexpr auto half_wall_thickness = 0.3f;
-
-		static constexpr auto initial_player_speed = 20.0f;
-		static constexpr auto initial_ai_speed = 20.0f;
-
-		static constexpr auto ball_acceleration_magnitude = 2.0f;
-
 		vis::chrono::Timer timer;
 
 		AiContext ai_context;
-		boost::ext::sml::sm<AiState> ai_state_machine{ai_context};
+		sm<AiState> ai_state_machine{ai_context};
 
 		bool is_playing = true;
 		bool win = false;
