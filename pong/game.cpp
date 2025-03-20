@@ -19,15 +19,13 @@ export {
 	using namespace vis::literals::chrono_literals;
 
 	struct Ball {
-		float y_pos = 0.0;
-		float x_vel = 0.0;
+		vis::vec2 position;
+		vis::vec2 velocity;
 	};
 
 	struct Ai {
 		float speed = 0.0;
 	};
-
-	struct RestEvent {};
 
 	struct DefendEvent {
 		DefendEvent(vis::vec2 pad_pos) : pad_pos{pad_pos} {}
@@ -40,11 +38,6 @@ export {
 
 		vis::vec2 pad_pos;
 		float ball_y_pos;
-	};
-
-	struct DizzyEvent {
-		vis::vec2 pad_pos;
-		float dizzy_y_pos;
 	};
 
 	struct GameOver {
@@ -61,14 +54,12 @@ export {
 
 	struct AiContext {
 		vis::vec2 ai_direction;
-		vis::chrono::Timer dizzy_timer;
 	};
 
 	constexpr vis::vec2 up{0.0f, 1.0f};
 	constexpr vis::vec2 down{0.0f, -1.0f};
 
 	auto defend = [](const DefendEvent& event, AiContext& context) {
-		// std::println("defending");
 		const auto& [pad_pos] = event;
 		if (std::abs(pad_pos.y) < 0.3) {
 			context.ai_direction = vis::vec2{0.0f, 0.0f};
@@ -76,19 +67,11 @@ export {
 		}
 
 		context.ai_direction = (pad_pos.y < 0.0f) ? up : down;
-
-		using namespace boost::sml;
 	};
 
 	auto follow = [](const FollowingEvent& event, AiContext& context) {
-		// std::println("following");
 		const auto& [pad_pos, ball_y_pos] = event;
 		context.ai_direction = (ball_y_pos > pad_pos.y) ? up : down;
-	};
-
-	auto dizzy = [](const DizzyEvent& event, AiContext& context) {
-		const auto& [pad_pos, dizzy_y_pos] = event;
-		context.ai_direction = (dizzy_y_pos > pad_pos.y) ? up : down;
 	};
 
 	struct AiState {
@@ -99,20 +82,10 @@ export {
 					// clang-format off
 				* "defend"_s	+ event<FollowingEvent>		/ follow						= "follow"_s,
 					"defend"_s	+ event<DefendEvent>			/ defend						= "defend"_s,
-					"defend"_s	+ event<DizzyEvent>				/ dizzy							= "dizzy"_s,
-					"defend"_s	+ event<RestEvent>														= "rest"_s,
 					"defend"_s	+ event<GameOver>										 					= X,
 					"follow"_s	+ event<FollowingEvent>		/ follow			    	= "follow"_s,
 					"follow"_s	+ event<DefendEvent>			/ defend						= "defend"_s,
-					"follow"_s	+ event<DizzyEvent>				/ dizzy							= "dizzy"_s,
-					"follow"_s	+ event<GameOver>															= X,
-					"rest"_s		+ event<FollowingEvent>		/ follow						= "rest"_s,
-					"rest"_s		+ event<DefendEvent>			/ defend						= "defend"_s,
-					"rest"_s		+ event<DizzyEvent>				/ dizzy							= "dizzy"_s,
-					"rest"_s		+ event<GameOver>															= "X"_s,
-					"rest"_s		+ event<GameOver>		        									= X,
-					"dizzy"_s		+ event<DefendEvent>			/ defend						= "defend"_s,
-					"dizzy"_s		+ event<GameOver>															= X
+					"follow"_s	+ event<GameOver>															= X
 					// clang-format on
 			);
 		}
@@ -185,6 +158,7 @@ export {
 			update_ai_system(dt);
 			update_input_system(dt);
 			update_physic_system(dt);
+			update_ball_system(dt);
 			render_system();
 			engine.render(window);
 
@@ -246,59 +220,34 @@ export {
 									using namespace boost::sml;
 									using namespace vis::literals::chrono_literals;
 
-									static vis::chrono::Timer dizzy_timer;
-									constexpr auto dizzy_duration = 200.0_ms;
-
-									static vis::chrono::Timer dizzy_freq_timer;
-									constexpr auto dizzy_frequency = 5.0_s;
-
 									auto pad_transform = ai_pad_rb.get_transform();
 									auto& pad_pos = pad_transform.position;
 
-									auto predicted_ball_y = ball.y_pos + ball.x_vel * dt.count();
+									auto predicted_ball_pos = ball.position + ball.velocity * dt;
+									auto y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
 
-									auto is_dizzy_expired = [&]() { return ai_context.dizzy_timer.elapsed() > dizzy_duration; };
-									auto should_rest = [&]() { return std::abs(ball.y_pos) < 0.3f; };
-									auto is_dizzy_time = [&]() { return dizzy_freq_timer.elapsed() > dizzy_frequency; };
-									auto get_rand = [](float min, float max) {
-										auto d = (max - min);
-										float r = static_cast<float>(std::rand());
-										return (r / static_cast<float>(RAND_MAX)) * d + min;
-									};
-
-									if (ai_state_machine.is("dizzy"_s)) {
-										if (is_dizzy_expired()) {
-											ai_state_machine.process_event(DefendEvent{pad_pos});
-										}
+									if (ball.velocity.x < 0.0f) {
+										ai_state_machine.process_event(FollowingEvent{pad_pos, predicted_ball_pos.y});
 									} else {
-										if (ball.x_vel < 0.0f) {
-											ai_state_machine.process_event(FollowingEvent{pad_pos, predicted_ball_y});
-										} else {
-											ai_state_machine.process_event(DefendEvent{pad_pos});
-										}
-
-										if (should_rest()) {
-											ai_state_machine.process_event(RestEvent{});
-										}
-
-										if (is_dizzy_time()) {
-											dizzy_freq_timer.reset();
-											ai_context.dizzy_timer.reset();
-											ai_state_machine.process_event(DizzyEvent{
-													.pad_pos = pad_pos,
-													.dizzy_y_pos = predicted_ball_y + get_rand(-.5f, +.5f),
-											});
-										}
+										ai_state_machine.process_event(DefendEvent{pad_pos});
 									}
 
 									pad_pos += ai_context.ai_direction * dt * ai.speed;
+									auto new_y_pad_ball_distance = pad_pos.y - predicted_ball_pos.y;
+
+									if (new_y_pad_ball_distance * y_pad_ball_distance < 0.0f) {
+										// clamp the y
+										pad_pos.y = predicted_ball_pos.y; // avoid to run too fast
+										pad_pos.y = predicted_ball_pos.y; // avoid to run too fast
+									}
+
 									pad_pos.y = std::clamp(pad_pos.y, -max_upper_bound(), max_upper_bound());
 									ai_pad_rb.set_transform(pad_transform);
 								});
 					});
 		}
 
-		void update_physic_system(vis::chrono::seconds dt) {
+		void update_physic_system(vis::chrono::seconds dt) const {
 			static auto accumulated_time = 0.0_s;
 			constexpr auto fixed_time_step = 1.0_s / 30.0_s;
 
@@ -309,17 +258,40 @@ export {
 				accumulated_time -= fixed_time_step;
 			}
 
+			auto contacts = world->contacts();
+			std::println("begin: {}, end: {}, hit count: {}",
+									 contacts.beginCount, //
+									 contacts.endCount,		//
+									 contacts.hitCount);
+
+			for (int i = 0; i != contacts.hitCount; ++i) {
+				auto hit_event = contacts.hitEvents[i];
+
+				auto shape_a = hit_event.shapeIdA;
+				auto shape_b = hit_event.shapeIdB;
+				auto point = hit_event.point;
+				auto normal = hit_event.normal;
+
+				std::println("Contact Event, {} with {} at {{{}, {}}} with normal {{{},{}}}", shape_a.index1, shape_b.index1,
+										 point.x, point.y, normal.x, normal.y);
+			}
+		}
+
+		void update_ball_system(vis::chrono::seconds dt) {
 			entity_registry
 					.view<vis::physics::RigidBody, Ball>() //
-					.each([&](const vis::physics::RigidBody& rb, Ball& ball) {
-						ball.y_pos = rb.get_transform().position.y;
-						ball.x_vel = rb.get_linear_velocity().x;
+					.each([&](vis::physics::RigidBody& rb, Ball& ball) {
+						ball.position = rb.get_transform().position;
+						ball.velocity = rb.get_linear_velocity();
+						const auto acceleration = vis::normalize(ball.velocity) * ball_acceleration_magnitude;
 
-						if (ball.y_pos < -screen_proj.half_world_extent.x) {
+						rb.set_linear_velocity(ball.velocity + acceleration * dt);
+
+						if (ball.position.x < -screen_proj.half_world_extent.x) {
 							std::println("Player won");
 							ai_state_machine.process_event(GameOver{true});
 						}
-						if (ball.y_pos > screen_proj.half_world_extent.x) {
+						if (ball.position.x > screen_proj.half_world_extent.x) {
 							std::println("AI won");
 							ai_state_machine.process_event(GameOver{false});
 						}
@@ -334,10 +306,12 @@ export {
 
 		void initialize_scene() {
 			constexpr auto white = vis::vec4{1.0f, 1.0f, 1.0f, 1.0f};
+			constexpr auto black = vis::vec4{0.0f, 0.0f, 1.0f, 1.0f};
 
 			const auto half_screen_extent = screen_proj.half_world_extent;
 			constexpr auto half_pad_thickness = pad_thickness / 2.0f;
-			constexpr auto x_offset = vis::vec2{half_pad_thickness, 0.0f} + 0.2f;
+			constexpr auto offset_magnitude = 0.2f;
+			constexpr auto x_offset = vis::vec2{half_pad_thickness, 0.0f} + offset_magnitude;
 			constexpr auto y_offset = vis::vec2{0.0f, half_pad_thickness};
 			constexpr auto half_pad_extent = vis::vec2{half_pad_thickness, pad_length / 2.0f};
 			const auto left_pos = vis::vec2{-half_screen_extent.x, 0.0f} + x_offset;
@@ -350,10 +324,17 @@ export {
 
 			add_pad(half_pad_extent, left_pos, white);
 			add_player(half_pad_extent, right_pos, white);
+
 			add_ball(ball_radius, {}, {-10.0f, 10.0f}, white);
 
 			add_wall(vertical_half_extent, top_pos, white);
 			add_wall(vertical_half_extent, bottom_pos, white);
+
+			// this should be invisible
+			add_wall(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
+							 black);
+			add_wall(horizontal_half_extent, right_pos + vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
+							 black);
 
 			dispatcher.sink<KeyDownEvent>().connect<&App::on_key_down>(this);
 			dispatcher.sink<KeyUpEvent>().connect<&App::on_key_up>(this);
@@ -395,7 +376,7 @@ export {
 		void add_player(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			auto pad = entity_registry.create();
-			entity_registry.emplace<Player>(pad, Player{.speed = initial_ai_speed});
+			entity_registry.emplace<Player>(pad, Player{.speed = initial_player_speed});
 			entity_registry.emplace<InputComponent>(pad, InputComponent{});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
 			auto& transform = entity_registry.emplace<vis::physics::Transformation>(pad, vis::physics::Transformation{
@@ -453,6 +434,7 @@ export {
 			auto shape_def = vis::physics::ShapeDef{}	 //
 													 .set_restitution(1.0) //
 													 .set_friction(0.0f);
+
 			rigid_body.create_shape(shape_def, circle);
 		}
 
@@ -495,10 +477,10 @@ export {
 		static constexpr auto ball_radius = 0.4f;
 		static constexpr auto half_wall_thickness = 0.3f;
 
-		static constexpr auto initial_player_speed = 15.0f;
-		static constexpr auto initial_ai_speed = 11.0f;
+		static constexpr auto initial_player_speed = 50.0f;
+		static constexpr auto initial_ai_speed = 50.0f;
 
-		static constexpr auto ball_acceleration = 1.01f;
+		static constexpr auto ball_acceleration_magnitude = 1.00001f;
 
 		vis::chrono::Timer timer;
 
