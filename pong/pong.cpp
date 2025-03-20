@@ -70,14 +70,17 @@ export {
 
 			engine.clear();
 
-			if (is_playing) {
-				update_physic_system(dt);
-				update_ai_system(dt);
-				update_input_system(dt);
-				update_ball_system(dt);
-			}
+			update_physic_system(dt);
+			update_ai_system(dt);
+			update_input_system(dt);
+			update_ball_system(dt);
 			render_system();
 			engine.render(window);
+
+			if (not is_playing) {
+				reset_scene();
+				is_playing = true;
+			}
 
 			return SDL_AppResult::SDL_APP_CONTINUE;
 		}
@@ -94,6 +97,12 @@ export {
 			initialize_physics();
 			initialize_scene();
 			timer.reset();
+		}
+
+		void reset_scene() {
+			entity_registry.clear();
+			world = std::nullopt;
+			initialize_game();
 		}
 
 		void initialize_video() {
