@@ -236,11 +236,6 @@ export {
 
 		void initialize_scene() {
 			const auto half_screen_extent = screen_proj.half_world_extent;
-			constexpr auto half_pad_thickness = pad_thickness / 2.0f;
-			constexpr auto offset_magnitude = 0.2f;
-			constexpr auto x_offset = vis::vec2{half_pad_thickness, 0.0f} + offset_magnitude;
-			constexpr auto y_offset = vis::vec2{0.0f, half_pad_thickness};
-			constexpr auto half_pad_extent = vis::vec2{half_pad_thickness, pad_length / 2.0f};
 			const auto left_pos = vis::vec2{-half_screen_extent.x, 0.0f} + x_offset;
 			const auto right_pos = vis::vec2{+half_screen_extent.x, 0.0f} - x_offset;
 			const auto top_pos = vis::vec2{0.0f, +half_screen_extent.y} - y_offset;
@@ -251,16 +246,14 @@ export {
 
 			add_pad(half_pad_extent, left_pos, colors::white);
 			add_player(half_pad_extent, right_pos, colors::white);
-
-			add_ball(ball_radius, {}, {-10.0f, 10.0f}, colors::white);
-
+			add_ball(ball_radius, origin, {-10.0f, 10.0f}, colors::white);
 			add_wall(vertical_half_extent, top_pos, colors::white);
 			add_wall(vertical_half_extent, bottom_pos, colors::white);
 
-			add_goal(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
-							 colors::black, IsPlayer::no);
-			add_goal(horizontal_half_extent, right_pos + vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
-							 colors::black, IsPlayer::yes);
+			add_goal(horizontal_half_extent, left_pos - vis::vec2{wall_thickness + offset_magnitude, 0.0f}, colors::black,
+							 IsPlayer::no);
+			add_goal(horizontal_half_extent, right_pos + vis::vec2{wall_thickness + offset_magnitude, 0.0f}, colors::black,
+							 IsPlayer::yes);
 
 			dispatcher.sink<KeyDownEvent>().connect<&App::on_key_down>(this);
 			dispatcher.sink<KeyUpEvent>().connect<&App::on_key_up>(this);

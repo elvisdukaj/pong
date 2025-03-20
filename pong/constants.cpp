@@ -18,9 +18,11 @@ constexpr std::ratio<4, 3> ASPECT_RATIO;
 
 constexpr auto pad_thickness = 0.6f;
 constexpr auto pad_length = 3.0f;
+constexpr auto half_pad_length = pad_length / 2.0f;
 constexpr auto ball_radius = 0.4f;
 
-constexpr auto half_wall_thickness = 0.3f;
+constexpr auto wall_thickness = 0.6f;
+constexpr auto half_wall_thickness = wall_thickness / 2.0f;
 constexpr auto initial_player_speed = 20.0f;
 constexpr auto initial_ai_speed = 20.0f;
 constexpr auto ball_acceleration_magnitude = 2.0f;
@@ -28,7 +30,13 @@ constexpr auto ball_acceleration_magnitude = 2.0f;
 constexpr auto world_width = 20.0f;
 constexpr auto world_height = 20.0f * static_cast<float>(ASPECT_RATIO.num) / static_cast<float>(ASPECT_RATIO.den);
 
-constexpr auto friction = 0.01f;
+constexpr auto friction = 0.04f;
+
+constexpr auto half_pad_thickness = pad_thickness / 2.0f;
+constexpr auto offset_magnitude = 0.2f;
+constexpr auto x_offset = vis::vec2{half_pad_thickness, 0.0f} + offset_magnitude;
+constexpr auto y_offset = vis::vec2{0.0f, half_pad_thickness};
+constexpr auto half_pad_extent = vis::vec2{half_pad_thickness, half_pad_length};
 
 namespace colors {
 constexpr auto black = vis::vec4{0.0f, 0.0f, 0.0f, 1.0f};
