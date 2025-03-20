@@ -52,6 +52,9 @@ export {
 				switch (event->key.key) {
 				case SDLK_ESCAPE:
 					return SDL_AppResult::SDL_APP_SUCCESS;
+
+				case SDLK_P:
+					is_pausing = !is_pausing;
 				}
 			} break;
 
@@ -71,10 +74,12 @@ export {
 
 			engine.clear();
 
-			update_physic_system(dt);
-			update_ai_system(dt);
-			update_input_system(dt);
-			update_ball_system(dt);
+			if (not is_pausing) {
+				update_physic_system(dt);
+				update_ai_system(dt);
+				update_input_system(dt);
+				update_ball_system(dt);
+			}
 			render_system();
 			engine.render(window);
 
@@ -122,6 +127,7 @@ export {
 			entity_registry
 					.view<vis::mesh::Mesh, vis::physics::RigidBody>() //
 					.each([&](const vis::mesh::Mesh& mesh, const vis::physics::RigidBody& rb) {
+						mesh.bind();
 						const vis::mat4 model_view = rb.get_model();
 						const auto model_view_projection = screen_proj.projection * model_view;
 						mesh_shader.set_model_view_projection(model_view_projection);
@@ -129,6 +135,18 @@ export {
 						mesh.unbind();
 					});
 
+			entity_registry
+					.view<vis::mesh::SpecialCircleMesh, vis::physics::RigidBody>() //
+					.each([&](const vis::mesh::SpecialCircleMesh& mesh, const vis::physics::RigidBody& rb) {
+						mesh.bind();
+						const vis::mat4 model_view = rb.get_model();
+						const auto model_view_projection = screen_proj.projection * model_view;
+						mesh_shader.set_model_view_projection(model_view_projection);
+						mesh.draw(mesh_shader);
+						mesh.unbind();
+					});
+
+			// SpecialCircleMesh
 			// TODO: maybe a ScopedBinder<MeshBinder> _{mesh_shader} ?
 			mesh_shader.unbind();
 		}
@@ -297,7 +315,7 @@ export {
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
-														.set_friction(1.0);
+														.set_friction(friction);
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
@@ -313,8 +331,8 @@ export {
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
-			auto shape = vis::physics::ShapeDef{} //
-											 .set_friction(1.0f)	//
+			auto shape = vis::physics::ShapeDef{}		 //
+											 .set_friction(friction) //
 											 .set_restitution(1.0f);
 			rigid_body
 					.create_shape(shape, wall_box) //
@@ -324,7 +342,9 @@ export {
 		void add_ball(float radius, vis::vec2 pos, vis::vec2 vel, vis::vec4 color) {
 			ball_entity = entity_registry.create();
 			entity_registry.emplace<Ball>(ball_entity);
-			entity_registry.emplace<vis::mesh::Mesh>(ball_entity, vis::mesh::create_regular_shape({}, radius, color, 10));
+
+			entity_registry.emplace<vis::mesh::SpecialCircleMesh>(ball_entity,
+																														vis::mesh::SpecialCircleMesh{origin, radius, color, 10});
 
 			auto circle = vis::physics::Circle{
 					.center = {},
@@ -335,6 +355,7 @@ export {
 													.set_position(pos)
 													.set_body_type(vis::physics::BodyType::dynamic)
 													.set_linear_velocity(vel)
+													.set_fixed_rotation(false)
 													.set_is_bullet(true);
 
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(ball_entity, vis::physics::RigidBody{
@@ -342,7 +363,7 @@ export {
 																																											 });
 			auto shape_def = vis::physics::ShapeDef{}	 //
 													 .set_restitution(1.0) //
-													 .set_friction(0.0f);
+													 .set_friction(friction);
 
 			rigid_body
 					.create_shape(shape_def, circle) //
@@ -362,8 +383,8 @@ export {
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
-														.set_friction(1.0f);
-
+														.set_friction(friction);
+			;
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
@@ -379,8 +400,7 @@ export {
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_is_sensor(true) //
-														.set_friction(1.0f);
-
+					;
 			// assign the
 			rigid_body.create_shape(wall_shape, wall_box);
 			rigid_body.set_entity(entity);
@@ -412,6 +432,7 @@ export {
 
 		bool is_playing = true;
 		bool win = false;
+		bool is_pausing = false;
 		vis::ecs::entity ball_entity;
 		vis::ecs::entity ai_sensor;
 		vis::ecs::entity player_sensor;

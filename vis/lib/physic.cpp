@@ -154,6 +154,11 @@ public:
 		return *this;
 	}
 
+	RigidBodyDef set_fixed_rotation(bool rotation) {
+		def.fixedRotation = rotation;
+		return *this;
+	}
+
 	explicit operator const b2BodyDef*() const {
 		return &def;
 	}
