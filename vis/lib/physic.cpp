@@ -33,6 +33,12 @@ struct Rotation {
 	float cos_angle, sin_angle;
 };
 
+struct Transform {
+	vec2 position{};
+	Rotation rotation{};
+	vec2 scale{1.0f, 1.0f};
+};
+
 class SensorBeginTouchEvent {
 public:
 	SensorBeginTouchEvent() = default;
@@ -120,10 +126,17 @@ public:
 		return *this;
 	}
 
+	RigidBodyDef& set_transform(const Transform& t) {
+		def.position = to_box2d(t.position);
+		def.rotation = b2Rot{.c = t.rotation.cos_angle, .s = t.rotation.sin_angle};
+		return *this;
+	}
+
 	RigidBodyDef& set_position(vis::vec2 pos) {
 		def.position = to_box2d(pos);
 		return *this;
 	}
+
 	RigidBodyDef& set_linear_velocity(vis::vec2 vel) {
 		def.linearVelocity = to_box2d(vel);
 		return *this;
@@ -146,24 +159,6 @@ public:
 private:
 	::b2BodyDef def;
 };
-
-struct Transform {
-	vec2 position{};
-	vec2 scale{1.0f, 1.0f};
-	Rotation rotation{};
-
-	mat4 get_model() const {
-		auto model = vis::ext::identity<vis::mat4>();
-		model[0][0] = rotation.cos_angle;
-		model[1][0] = -rotation.sin_angle;
-		model[0][1] = rotation.sin_angle;
-		model[1][1] = rotation.cos_angle;
-		model[3][0] = position.x;
-		model[3][1] = position.y;
-		return model;
-	}
-};
-
 class RigidBody {
 	struct InternalUserData {
 		RigidBody* self;
@@ -194,6 +189,18 @@ public:
 		rhs.user_data = InternalUserData{};
 
 		return *this;
+	}
+
+	mat4 get_model() const {
+		const auto t = get_transform();
+		auto model = vis::ext::identity<vis::mat4>();
+		model[0][0] = t.rotation.cos_angle;
+		model[1][0] = -t.rotation.sin_angle;
+		model[0][1] = t.rotation.sin_angle;
+		model[1][1] = t.rotation.cos_angle;
+		model[3][0] = t.position.x;
+		model[3][1] = t.position.y;
+		return model;
 	}
 
 	~RigidBody() {

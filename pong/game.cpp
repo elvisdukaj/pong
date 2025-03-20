@@ -15,7 +15,6 @@ import vis;
 
 export {
 	namespace Game {
-
 	using namespace vis::literals::chrono_literals;
 
 	struct Ball {
@@ -155,10 +154,12 @@ export {
 
 			engine.clear();
 
-			update_ai_system(dt);
-			update_input_system(dt);
-			update_physic_system(dt);
-			update_ball_system(dt);
+			if (is_playing) {
+				update_physic_system(dt);
+				update_ai_system(dt);
+				update_input_system(dt);
+				update_ball_system(dt);
+			}
 			render_system();
 			engine.render(window);
 
@@ -166,11 +167,16 @@ export {
 		}
 
 	private:
+		enum class IsPlayer : bool { yes = true, no = false };
+
 		explicit App(SDL_Window* window, vis::engine::Engine& engine) : window{window}, engine(engine) {
 			initialize_video();
+			initialize_game();
+		}
+
+		void initialize_game() {
 			initialize_physics();
 			initialize_scene();
-
 			timer.reset();
 		}
 
@@ -182,16 +188,17 @@ export {
 		}
 
 		void render_system() {
-			const auto view = entity_registry.view<vis::mesh::Mesh, vis::physics::RigidBody>();
 			mesh_shader.bind();
 
-			view.each([&](const vis::mesh::Mesh& mesh, const vis::physics::RigidBody& rb) {
-				const vis::mat4 model_view = rb.get_transform().get_model();
-				const auto model_view_projection = screen_proj.projection * model_view;
-				mesh_shader.set_model_view_projection(model_view_projection);
-				mesh.draw(mesh_shader);
-				mesh.unbind();
-			});
+			entity_registry
+					.view<vis::mesh::Mesh, vis::physics::RigidBody>() //
+					.each([&](const vis::mesh::Mesh& mesh, const vis::physics::RigidBody& rb) {
+						const vis::mat4 model_view = rb.get_model();
+						const auto model_view_projection = screen_proj.projection * model_view;
+						mesh_shader.set_model_view_projection(model_view_projection);
+						mesh.draw(mesh_shader);
+						mesh.unbind();
+					});
 
 			// TODO: maybe a ScopedBinder<MeshBinder> _{mesh_shader} ?
 			mesh_shader.unbind();
@@ -247,7 +254,7 @@ export {
 					});
 		}
 
-		void update_physic_system(vis::chrono::seconds dt) const {
+		void update_physic_system(vis::chrono::seconds dt) {
 			static auto accumulated_time = 0.0_s;
 			constexpr auto fixed_time_step = 1.0_s / 30.0_s;
 
@@ -260,15 +267,21 @@ export {
 		}
 
 		void update_ball_system([[maybe_unused]] vis::chrono::seconds dt) {
-
 			auto sensor_events = world->get_sensor_events();
 			for (auto begin_touch_it = sensor_events.begin_begin_touch(); //
 					 begin_touch_it != sensor_events.end_begin_touch();				//
 					 ++begin_touch_it) {
+				is_playing = false;
 				auto sensor = begin_touch_it->sensor_shape_def();
-				auto body = begin_touch_it->visitor_shape_def();
-				std::println("visitor {} collided with {}", static_cast<uint64_t>(body->get_entity()),
-										 static_cast<uint64_t>(sensor->get_entity()));
+				auto visitor = begin_touch_it->visitor_shape_def();
+
+				auto sensor_entity = sensor->get_entity();
+				auto visitor_entity = visitor->get_entity();
+
+				win = sensor_entity == ai_sensor;
+
+				std::println("Game Over! visitor {} collided with sensor {}", static_cast<uint64_t>(visitor_entity),
+										 static_cast<uint64_t>(sensor_entity));
 			}
 
 			entity_registry
@@ -330,10 +343,10 @@ export {
 			add_wall(vertical_half_extent, bottom_pos, white);
 
 			// this should be invisible
-			add_goal(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
-							 black);
+			add_goal(horizontal_half_extent, left_pos - vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f}, black,
+							 IsPlayer::no);
 			add_goal(horizontal_half_extent, right_pos + vis::vec2{2.0f * half_wall_thickness + offset_magnitude, 0.0f},
-							 black);
+							 black, IsPlayer::yes);
 
 			dispatcher.sink<KeyDownEvent>().connect<&App::on_key_down>(this);
 			dispatcher.sink<KeyUpEvent>().connect<&App::on_key_up>(this);
@@ -378,13 +391,9 @@ export {
 			entity_registry.emplace<Player>(pad, Player{.speed = initial_player_speed});
 			entity_registry.emplace<InputComponent>(pad, InputComponent{});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
-			auto& transform = entity_registry.emplace<vis::physics::Transform>(pad, vis::physics::Transform{
-																																									.position = pos,
-																																							});
-			vis::physics::RigidBodyDef body_def;
-			body_def															//
-					.set_position(transform.position) //
-					.set_body_type(vis::physics::BodyType::kinematic);
+			auto body_def = vis::physics::RigidBodyDef{} //
+													.set_position(pos)			 //
+													.set_body_type(vis::physics::BodyType::kinematic);
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
@@ -398,23 +407,24 @@ export {
 			entity_registry.emplace<Ai>(pad, Ai{.speed = initial_ai_speed});
 			entity_registry.emplace<vis::mesh::Mesh>(pad, vis::mesh::create_rectangle_shape(origin, half_extent, color));
 
-			vis::physics::RigidBodyDef body_def;
-			body_def							 //
-					.set_position(pos) //
-					.set_body_type(vis::physics::BodyType::kinematic);
+			auto body_def = vis::physics::RigidBodyDef{}
+													.set_position(pos) //
+													.set_body_type(vis::physics::BodyType::kinematic);
+
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto shape = vis::physics::ShapeDef{} //
 											 .set_restitution(1.0f);
-			rigid_body.create_shape(shape, wall_box);
+			rigid_body
+					.create_shape(shape, wall_box) //
+					.set_entity(pad);
 		}
 
 		void add_ball(float radius, vis::vec2 pos, vis::vec2 vel, vis::vec4 color) {
-			auto ball = entity_registry.create();
-
-			entity_registry.emplace<Ball>(ball);
-			entity_registry.emplace<vis::mesh::Mesh>(ball, vis::mesh::create_regular_shape({}, radius, color, 10));
+			ball_entity = entity_registry.create();
+			entity_registry.emplace<Ball>(ball_entity);
+			entity_registry.emplace<vis::mesh::Mesh>(ball_entity, vis::mesh::create_regular_shape({}, radius, color, 10));
 
 			auto circle = vis::physics::Circle{
 					.center = {},
@@ -427,28 +437,30 @@ export {
 													.set_linear_velocity(vel)
 													.set_is_bullet(true);
 
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(ball, vis::physics::RigidBody{
-																																										world->create_body(body_def),
-																																								});
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(ball_entity, vis::physics::RigidBody{
+																																													 world->create_body(body_def),
+																																											 });
 			auto shape_def = vis::physics::ShapeDef{}	 //
 													 .set_restitution(1.0) //
 													 .set_friction(0.0f);
 
 			rigid_body
 					.create_shape(shape_def, circle) //
-					.set_entity(ball);
+					.set_entity(ball_entity);
 
-			std::println("ball entity has id {}", static_cast<uint64_t>(ball));
+			std::println("ball entity has id {}", static_cast<uint64_t>(ball_entity));
 		}
 
 		void add_wall(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			constexpr auto origin = vis::vec2{0.0f, 0.0f};
 			auto wall = entity_registry.create();
+
 			entity_registry.emplace<vis::mesh::Mesh>(wall, vis::mesh::create_rectangle_shape(origin, half_extent, color));
-			auto body_def = vis::physics::RigidBodyDef{};
-			body_def
-					.set_position(pos) //
-					.set_body_type(vis::physics::BodyType::fixed);
+
+			auto body_def = vis::physics::RigidBodyDef{}
+													.set_position(pos) //
+													.set_body_type(vis::physics::BodyType::fixed);
+
 			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
@@ -458,15 +470,18 @@ export {
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
-		void add_goal(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
+		void add_goal(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color, IsPlayer is_player) {
+
 			constexpr auto origin = vis::vec2{0.0f, 0.0f};
-			auto wall = entity_registry.create();
-			entity_registry.emplace<vis::mesh::Mesh>(wall, vis::mesh::create_rectangle_shape(origin, half_extent, color));
-			auto body_def = vis::physics::RigidBodyDef{};
-			body_def
-					.set_position(pos) //
-					.set_body_type(vis::physics::BodyType::fixed);
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def));
+
+			auto& entity = is_player == IsPlayer::yes ? player_sensor : ai_sensor;
+			entity = entity_registry.create();
+
+			entity_registry.emplace<vis::mesh::Mesh>(entity, vis::mesh::create_rectangle_shape(origin, half_extent, color));
+			auto body_def = vis::physics::RigidBodyDef{}
+													.set_position(pos) //
+													.set_body_type(vis::physics::BodyType::fixed);
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(entity, world->create_body(body_def));
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_is_sensor(true) //
@@ -474,8 +489,8 @@ export {
 
 			// assign the
 			rigid_body.create_shape(wall_shape, wall_box);
-			rigid_body.set_entity(wall);
-			std::println("goal entity has id {}", static_cast<uint64_t>(wall));
+			rigid_body.set_entity(entity);
+			std::println("goal entity has id {}", static_cast<uint64_t>(entity));
 		}
 
 		float max_upper_bound() const {
@@ -511,6 +526,12 @@ export {
 
 		AiContext ai_context;
 		boost::ext::sml::sm<AiState> ai_state_machine{ai_context};
+
+		bool is_playing = true;
+		bool win = false;
+		vis::ecs::entity ball_entity;
+		vis::ecs::entity ai_sensor;
+		vis::ecs::entity player_sensor;
 	};
 
 	} // namespace Game
