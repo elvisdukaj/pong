@@ -280,15 +280,13 @@ export {
 			auto body_def = vis::physics::RigidBodyDef{} //
 													.set_position(pos)			 //
 													.set_body_type(vis::physics::BodyType::kinematic);
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(player, world->create_body(body_def));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(player, world->create_body(body_def, player));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_restitution(1.0f)
 														.set_friction(friction);
-			rigid_body
-					.create_shape(wall_shape, wall_box) //
-					.set_entity(player);
+			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -300,16 +298,14 @@ export {
 													.set_position(pos) //
 													.set_body_type(vis::physics::BodyType::kinematic);
 
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(pad, world->create_body(body_def, pad));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto shape = vis::physics::ShapeDef{}		//
 											 .set_restitution(1.0f) //
 											 .set_friction(friction);
 
-			rigid_body
-					.create_shape(shape, wall_box) //
-					.set_entity(pad);
+			rigid_body.create_shape(shape, wall_box);
 		}
 
 		void add_ball(float radius, vis::vec2 pos, vis::vec2 vel, vis::vec4 color) {
@@ -330,16 +326,15 @@ export {
 													.set_fixed_rotation(false)
 													.set_is_bullet(true);
 
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(ball_entity, vis::physics::RigidBody{
-																																													 world->create_body(body_def),
-																																											 });
+			auto& rigid_body =
+					entity_registry.emplace<vis::physics::RigidBody>(ball_entity, vis::physics::RigidBody{
+																																						world->create_body(body_def, ball_entity),
+																																				});
 			auto shape_def = vis::physics::ShapeDef{}	 //
 													 .set_restitution(1.0) //
 													 .set_friction(friction);
 
-			rigid_body
-					.create_shape(shape_def, circle) //
-					.set_entity(ball_entity);
+			rigid_body.create_shape(shape_def, circle);
 		}
 
 		void add_wall(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -351,7 +346,7 @@ export {
 													.set_position(pos) //
 													.set_body_type(vis::physics::BodyType::fixed);
 
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def, wall));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
@@ -369,14 +364,13 @@ export {
 			auto body_def = vis::physics::RigidBodyDef{}
 													.set_position(pos) //
 													.set_body_type(vis::physics::BodyType::fixed);
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(entity, world->create_body(body_def));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(entity, world->create_body(body_def, entity));
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_is_sensor(true);
 
 			// assign the
 			rigid_body.create_shape(wall_shape, wall_box);
-			rigid_body.set_entity(entity);
 		}
 
 		float max_upper_bound() const {

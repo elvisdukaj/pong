@@ -319,11 +319,6 @@ public:
 		return user_data.entity;
 	}
 
-	RigidBody& set_entity(vis::ecs::entity entity) {
-		user_data.entity = entity;
-		return *this;
-	}
-
 	RigidBody& set_enable_hit_events(bool enable) {
 		b2Body_EnableHitEvents(id, enable);
 		return *this;
@@ -334,7 +329,7 @@ public:
 	}
 
 private:
-	RigidBody(const World& world, const RigidBodyDef& def);
+	RigidBody(const World& world, const RigidBodyDef& def, ecs::entity entity);
 	::b2BodyId id;
 	InternalUserData user_data;
 };
@@ -533,8 +528,8 @@ public:
 		return b2World_GetContactEvents(id);
 	}
 
-	RigidBody create_body(const RigidBodyDef& def) const {
-		return RigidBody{*this, def};
+	RigidBody create_body(const RigidBodyDef& def, ecs::entity entity) const {
+		return RigidBody{*this, def, entity};
 	}
 
 	std::optional<RayCastResult> cast_ray(vis::vec2 start, vis::vec2 end) const;
@@ -559,9 +554,9 @@ std::optional<World> create_world(const WorldDef& world_def) {
 	return std::optional<World>{std::move(w)};
 }
 
-RigidBody::RigidBody(const World& world, const RigidBodyDef& def) {
+RigidBody::RigidBody(const World& world, const RigidBodyDef& def, ecs::entity entity)
+		: user_data{.self = this, .entity = entity} {
 	id = b2CreateBody(static_cast<b2WorldId>(world), static_cast<const b2BodyDef*>(def));
-	user_data.self = this;
 	b2Body_SetUserData(id, &user_data);
 }
 
