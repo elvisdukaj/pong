@@ -9,6 +9,7 @@ module;
 #include <glm/gtc/matrix_transform.hpp>
 
 export module vis:math;
+export import std;
 
 export namespace vis {
 // Base types
@@ -2729,3 +2730,35 @@ ScreenProjection orthogonal_matrix(int screen_width, int screen_height, float wo
 	};
 }
 } // namespace vis
+
+export namespace std {
+template <> struct formatter<vis::vec2> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(const vis::vec2& v, std::format_context& ctx) const {
+		return std::format_to(ctx.out(), "{{{}, {}}}", v.x, v.y);
+	}
+};
+
+template <> struct formatter<vis::vec3> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(const vis::vec3& v, std::format_context& ctx) const {
+		return std::format_to(ctx.out(), "{{{}, {}, {}}}", v.x, v.y, v.z);
+	}
+};
+
+template <> struct formatter<vis::vec4> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(const vis::vec4& v, std::format_context& ctx) const {
+		return std::format_to(ctx.out(), "{{{}, {}, {}, {}}}", v.x, v.y, v.z, v.w);
+	}
+};
+} // namespace std
