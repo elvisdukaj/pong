@@ -81,3 +81,25 @@ export {
 		return vis::chrono::milliseconds{lhs.count() / rhs.count()};
 	}
 }
+
+export namespace std {
+template <> struct formatter<vis::chrono::milliseconds> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(vis::chrono::milliseconds t, std::format_context& ctx) const {
+		return std::format_to(ctx.out(), "{}ms", t.count());
+	}
+};
+
+template <> struct formatter<vis::chrono::seconds> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(vis::chrono::seconds t, std::format_context& ctx) const {
+		return std::format_to(ctx.out(), "{}s", t.count());
+	}
+};
+} // namespace std
