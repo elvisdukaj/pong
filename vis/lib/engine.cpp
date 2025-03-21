@@ -14,24 +14,24 @@ class Engine {
 public:
 	friend Engine create(SDL_Window* window);
 
-	static void set_clear_color(const vis::vec4& color) {
-		vis::opengl::renderer_set_clear_color(color);
+	static void set_clear_color(const vec4& color) {
+		opengl::renderer_set_clear_color(color);
 	}
 
 	static void clear() {
-		vis::opengl::renderer_clear();
+		opengl::renderer_clear();
 	}
 
 	static void render(SDL_Window* window) {
-		vis::opengl::renderer_render(window);
+		opengl::renderer_render(window);
 	}
 
 	static void set_viewport(int x, int y, int width, int height) {
-		vis::opengl::renderer_set_viewport(x, y, width, height);
+		opengl::renderer_set_viewport(x, y, width, height);
 	}
 
 	static void print_info() {
-		std::println("{}: ", vis::opengl::renderer_print_info());
+		std::println("{}: ", opengl::renderer_print_info());
 	}
 
 private:
@@ -65,7 +65,7 @@ Engine create(SDL_Window* window) {
 		throw std::runtime_error{std::format("It's not possible to init the graphic")};
 	}
 
-	vis::opengl::renderer_init();
+	opengl::renderer_init();
 
 	if (not SDL_GL_SetSwapInterval(1)) {
 		std::println("It's not possible to set the vsync");

@@ -26,8 +26,8 @@ import :opengl;
 export namespace vis::mesh {
 
 struct Vertex {
-	vis::vec2 pos;
-	vis::vec4 color;
+	vec2 pos;
+	vec4 color;
 };
 
 struct VertexDescription {
@@ -48,8 +48,8 @@ struct DrawDescription {
 class MeshShader {
 public:
 	MeshShader()
-			: program{*vis::opengl::ProgramBuilder{}
-										 .add_shader(vis::opengl::Shader::create(vis::opengl::ShaderType::vertex, R"(
+			: program{*opengl::ProgramBuilder{}
+										 .add_shader(opengl::Shader::create(opengl::ShaderType::vertex, R"(
 #version 410 core
 layout (location = 0) in vec2 pos;
 layout (location = 1) in vec4 col;
@@ -64,7 +64,7 @@ void main()
 		vertex_color = col;
 }
 )"))
-										 .add_shader(vis::opengl::Shader::create(vis::opengl::ShaderType::fragment, R"(
+										 .add_shader(opengl::Shader::create(opengl::ShaderType::fragment, R"(
 #version 410 core
 
 in vec4 vertex_color;
@@ -84,7 +84,7 @@ void main()
 	MeshShader(MeshShader&&) = default;
 	MeshShader& operator=(MeshShader&&) = default;
 
-	MeshShader& set_model_view_projection(const vis::mat4& m) {
+	MeshShader& set_model_view_projection(const mat4& m) {
 		program.set_uniform("model_view_projection", m);
 		return *this;
 	}
@@ -98,7 +98,7 @@ void main()
 	}
 
 private:
-	vis::opengl::Program program;
+	opengl::Program program;
 };
 
 class Mesh {
@@ -143,13 +143,13 @@ public:
 	}
 
 private:
-	vis::opengl::VertexArrayObject vao;
-	vis::opengl::VertexBufferObject vbo;
+	opengl::VertexArrayObject vao;
+	opengl::VertexBufferObject vbo;
 	std::vector<VertexDescription> vertex_descriptors;
 	DrawDescription draw_descriptor;
 };
 
-Mesh create_line_mesh(vis::vec2 p1, vis::vec2 p2, const vis::vec4& color) {
+Mesh create_line_mesh(vec2 p1, vec2 p2, const vec4& color) {
 	std::vector<Vertex> vertexes = {{p1, color}, {p2, color}};
 
 	auto draw_description = DrawDescription{
@@ -172,13 +172,13 @@ Mesh create_line_mesh(vis::vec2 p1, vis::vec2 p2, const vis::vec4& color) {
 					.type = GL_FLOAT,
 					.normalized = GL_FALSE,
 					.stride = sizeof(Vertex),
-					.pointer = reinterpret_cast<void*>(sizeof(vis::vec2)),
+					.pointer = reinterpret_cast<void*>(sizeof(vec2)),
 			},
 	};
 	return Mesh{vertexes, vertex_descriptions, draw_description};
 }
 
-Mesh create_regular_shape(const vis::vec2& center, float radius, const vis::vec4& color, int num_vertices = 6) {
+Mesh create_regular_shape(const vec2& center, float radius, const vec4& color, int num_vertices = 6) {
 	const float theta_step = 2.0f * std::numbers::pi_v<float> / static_cast<float>(num_vertices);
 
 	using VertexVector = std::vector<Vertex>;
@@ -188,9 +188,9 @@ Mesh create_regular_shape(const vis::vec2& center, float radius, const vis::vec4
 	vertexes.emplace_back(center, color);
 	for (int i = 0; i != num_vertices; i++) {
 		auto angle = -theta_step * static_cast<float>(i);
-		vertexes.emplace_back(vis::vec2{std::cos(angle), std::sin(angle)} * radius + center, color);
+		vertexes.emplace_back(vec2{std::cos(angle), std::sin(angle)} * radius + center, color);
 	};
-	vertexes.emplace_back(vis::vec2{center.x + radius, center.y}, color);
+	vertexes.emplace_back(vec2{center.x + radius, center.y}, color);
 
 	auto draw_description = DrawDescription{
 			.mode = GL_TRIANGLE_FAN,
@@ -212,17 +212,17 @@ Mesh create_regular_shape(const vis::vec2& center, float radius, const vis::vec4
 					.type = GL_FLOAT,
 					.normalized = GL_FALSE,
 					.stride = sizeof(Vertex),
-					.pointer = reinterpret_cast<void*>(sizeof(vis::vec2)),
+					.pointer = reinterpret_cast<void*>(sizeof(vec2)),
 			},
 	};
 	return Mesh{vertexes, vertex_descriptions, draw_description};
 }
 
-Mesh create_rectangle_shape(const vis::vec2& center, const vis::vec2& half_extent, vis::vec4 color = vis::vec4{}) {
-	vis::vec2 up = vis::vec2(0.0f, half_extent.y);
-	vis::vec2 down = vis::vec2(0.0f, -half_extent.y);
-	vis::vec2 left = vis::vec2(-half_extent.x, 0.0f);
-	vis::vec2 right = vis::vec2(half_extent.x, 0.0f);
+Mesh create_rectangle_shape(const vec2& center, const vec2& half_extent, vec4 color = vec4{}) {
+	vec2 up = vec2(0.0f, half_extent.y);
+	vec2 down = vec2(0.0f, -half_extent.y);
+	vec2 left = vec2(-half_extent.x, 0.0f);
+	vec2 right = vec2(half_extent.x, 0.0f);
 
 	std::vector<Vertex> vertexes;
 	vertexes.reserve(6);
@@ -253,7 +253,7 @@ Mesh create_rectangle_shape(const vis::vec2& center, const vis::vec2& half_exten
 					.type = GL_FLOAT,
 					.normalized = GL_FALSE,
 					.stride = sizeof(Vertex),
-					.pointer = reinterpret_cast<void*>(sizeof(vis::vec2)),
+					.pointer = reinterpret_cast<void*>(sizeof(vec2)),
 			},
 	};
 	return Mesh{vertexes, vertex_descriptions, draw_description};

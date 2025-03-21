@@ -18,10 +18,10 @@ inline float get_random(float val) {
 	return get_random(-val, +val);
 }
 
-inline vis::vec2 get_random_direction(vec2 vec, float min_angle, float max_angle) {
+inline vec2 get_random_direction(vec2 vec, float min_angle, float max_angle) {
 	float a = get_random(min_angle, max_angle);
 
-	mat4 rot = vis::gtc::identity<mat4>();
+	mat4 rot = gtc::identity<mat4>();
 	rot = gtc::rotate(rot, a, vec3{vec.x, vec.y, 0.0f});
 	auto rotated = vec4{vec.x, vec.y, 0.0f, 1.0f} * rot;
 

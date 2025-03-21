@@ -11,11 +11,11 @@ import :ecs;
 // non exported
 namespace vis::physics {
 
-b2Vec2 to_box2d(vis::vec2 v) {
+b2Vec2 to_box2d(vec2 v) {
 	return {v.x, v.y};
 }
 
-vis::vec2 from_box2d(b2Vec2 v) {
+vec2 from_box2d(b2Vec2 v) {
 	return {v.x, v.y};
 }
 
@@ -45,7 +45,7 @@ public:
 
 	RigidBody* sensor_shape_def() const;
 	RigidBody* visitor_shape_def() const;
-	vis::ecs::entity get_sensor_entity() const;
+	ecs::entity get_sensor_entity() const;
 
 private:
 	friend class SensorEvent;
@@ -61,7 +61,7 @@ public:
 
 	RigidBody* sensor_shape_def() const;
 	RigidBody* visitor_shape_def() const;
-	vis::ecs::entity get_sensor_entity() const;
+	ecs::entity get_sensor_entity() const;
 
 private:
 	friend class SensorEvent;
@@ -78,8 +78,8 @@ public:
 	RigidBody* body_a() const;
 	RigidBody* body_b() const;
 
-	vis::ecs::entity entity_a() const;
-	vis::ecs::entity entity_b() const;
+	ecs::entity entity_a() const;
+	ecs::entity entity_b() const;
 
 	vec2 position() const;
 	vec2 normal() const;
@@ -173,7 +173,7 @@ public:
 		return *this;
 	}
 
-	RigidBodyDef& set_position(vis::vec2 pos) {
+	RigidBodyDef& set_position(vec2 pos) {
 		def.position = to_box2d(pos);
 		return *this;
 	}
@@ -183,7 +183,7 @@ public:
 		return *this;
 	}
 
-	RigidBodyDef& set_linear_velocity(vis::vec2 vel) {
+	RigidBodyDef& set_linear_velocity(vec2 vel) {
 		def.linearVelocity = to_box2d(vel);
 		return *this;
 	}
@@ -209,7 +209,7 @@ private:
 class RigidBody {
 	struct InternalUserData {
 		RigidBody* self;
-		vis::ecs::entity entity;
+		ecs::entity entity;
 	};
 
 public:
@@ -249,7 +249,7 @@ public:
 
 	mat4 get_model() const {
 		const auto t = get_transform();
-		auto model = vis::ext::identity<vis::mat4>();
+		auto model = ext::identity<mat4>();
 		model[0][0] = t.rotation.cos_angle;
 		model[1][0] = -t.rotation.sin_angle;
 		model[0][1] = t.rotation.sin_angle;
@@ -274,7 +274,7 @@ public:
 		return from_box2d(b2Body_GetLinearVelocity(id));
 	}
 
-	RigidBody& set_linear_velocity(vis::vec2 vel) {
+	RigidBody& set_linear_velocity(vec2 vel) {
 		b2Body_SetLinearVelocity(id, to_box2d(vel));
 		return *this;
 	}
@@ -285,7 +285,7 @@ public:
 		return *this;
 	}
 
-	vis::ecs::entity get_entity() const {
+	ecs::entity get_entity() const {
 		return user_data.entity;
 	}
 
@@ -319,7 +319,7 @@ RigidBody* SensorBeginTouchEvent::visitor_shape_def() const {
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
-vis::ecs::entity SensorBeginTouchEvent::get_sensor_entity() const {
+ecs::entity SensorBeginTouchEvent::get_sensor_entity() const {
 	auto shape = event.sensorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self->get_entity();
@@ -340,7 +340,7 @@ RigidBody* SensorEndTouchEvent::visitor_shape_def() const {
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
-vis::ecs::entity SensorEndTouchEvent::get_sensor_entity() const {
+ecs::entity SensorEndTouchEvent::get_sensor_entity() const {
 	auto shape = event.sensorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self->get_entity();
@@ -361,11 +361,11 @@ RigidBody* ContactHitEvent::body_b() const {
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
-vis::ecs::entity ContactHitEvent::entity_a() const {
+ecs::entity ContactHitEvent::entity_a() const {
 	return body_a()->get_entity();
 }
 
-vis::ecs::entity ContactHitEvent::entity_b() const {
+ecs::entity ContactHitEvent::entity_b() const {
 	return body_b()->get_entity();
 }
 
@@ -483,7 +483,7 @@ public:
 		return RigidBody{*this, def, entity};
 	}
 
-	std::optional<RayCastResult> cast_ray(vis::vec2 start, vis::vec2 end) const;
+	std::optional<RayCastResult> cast_ray(vec2 start, vec2 end) const;
 
 	ContactHitEvents get_hit_events() const {
 		return ContactHitEvents{*this};
@@ -542,7 +542,7 @@ ContactHitEvents::ContactHitEvents(const World& world) {
 
 class Polygon {
 public:
-	friend Polygon create_box2d(vis::vec2 half_extent);
+	friend Polygon create_box2d(vec2 half_extent);
 
 	explicit operator const b2Polygon*() const {
 		return &poly;
@@ -594,7 +594,7 @@ private:
 	b2ShapeDef def;
 };
 
-Polygon create_box2d(vis::vec2 half_extent) {
+Polygon create_box2d(vec2 half_extent) {
 	auto poly = ::b2MakeBox(half_extent.x, half_extent.y);
 	return Polygon{poly};
 }
@@ -618,7 +618,7 @@ RigidBody& RigidBody::create_shape(const ShapeDef& shape, const Circle& circle) 
 	return *this;
 }
 
-std::optional<RayCastResult> World::cast_ray(vis::vec2 start, vis::vec2 end) const {
+std::optional<RayCastResult> World::cast_ray(vec2 start, vec2 end) const {
 	auto translation = end - start;
 	auto res = b2World_CastRayClosest(id, to_box2d(start), to_box2d(translation), b2DefaultQueryFilter());
 	if (res.hit == false)
