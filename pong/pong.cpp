@@ -68,6 +68,7 @@ export {
 		}
 
 		[[nodiscard]] SDL_AppResult update() noexcept {
+			static vis::chrono::Timer game_timer;
 			const auto dt = timer.elapsed();
 			timer.reset();
 
@@ -77,7 +78,7 @@ export {
 				update_physic_system(dt);
 				update_ai_system(dt);
 				update_input_system(dt);
-				update_ball_system();
+				update_ball_system(game_timer.elapsed());
 				update_game_logic();
 			}
 			render_system();
@@ -192,7 +193,7 @@ export {
 			}
 		}
 
-		void update_ball_system() {
+		void update_ball_system(vis::chrono::milliseconds t) {
 			auto contacts = world->get_hit_events();
 			for (auto& contact : contacts) {
 				auto entity_a = contact.entity_a();
@@ -213,10 +214,13 @@ export {
 				vis::physics::RigidBody& ball_rb = entity_registry.get<vis::physics::RigidBody>(ball_entity);
 				auto ball_vel = vis::normalize(ball_rb.get_linear_velocity());
 
-				auto norm = contact.normal();
+				// const auto& norm = is_player ? right_norm : left_norm;
+				const auto norm = contact.normal();
+				auto old_direction = vis::reflect(ball_vel, norm);
+				auto new_direction = vis::get_random_direction(old_direction, ball_angle_min, ball_angle_max);
 				auto new_vel_mag = vis::get_random(ball_vel_min_speed, ball_vel_max_speed);
-				auto new_direction = vis::get_random_direction(vis::reflect(ball_vel, norm), //
-																											 ball_angle_min, ball_angle_max);
+
+				std::println("[{}] normal: {}, old_dir = {}, new_dire: {}", t, norm, old_direction, new_direction);
 
 				ball_rb.set_linear_velocity(new_direction * new_vel_mag);
 			}
@@ -262,7 +266,7 @@ export {
 
 			add_pad(half_pad_extent, left_pos, colors::white);
 			add_player(half_pad_extent, right_pos, colors::white);
-			add_ball(ball_radius, origin, {-10.0f, 10.0f}, colors::white);
+			add_ball(ball_radius, origin, colors::white);
 			add_wall(vertical_half_extent, top_pos, colors::white);
 			add_wall(vertical_half_extent, bottom_pos, colors::white);
 
@@ -280,9 +284,11 @@ export {
 
 			switch (event.key.key) {
 			case SDLK_DOWN:
+			case SDLK_RIGHT:
 				input_component.direction = down;
 				break;
 			case SDLK_UP:
+			case SDLK_LEFT:
 				input_component.direction = up;
 				break;
 			}
@@ -293,6 +299,8 @@ export {
 			switch (event.key.key) {
 			case SDLK_DOWN:
 			case SDLK_UP:
+			case SDLK_RIGHT:
+			case SDLK_LEFT:
 				input_component.direction = vis::vec2{};
 				break;
 			}
@@ -338,7 +346,11 @@ export {
 			rigid_body.create_shape(shape, wall_box);
 		}
 
-		void add_ball(float radius, vis::vec2 pos, vis::vec2 vel, vis::vec4 color) {
+		void add_ball(float radius, vis::vec2 pos, vis::vec4 color) {
+			const auto vel_mag = vis::get_random(ball_vel_min_speed, ball_vel_max_speed);
+			const auto direction = vis::get_random_direction(vis::vec2{-1.0f, 0.0f}, ball_angle_min, ball_angle_max);
+			const auto vel = direction * vel_mag;
+
 			ball_entity = entity_registry.create();
 			entity_registry.emplace<Ball>(ball_entity);
 
