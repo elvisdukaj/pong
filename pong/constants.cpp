@@ -16,10 +16,10 @@ constexpr int SCREEN_WIDTH = 800;
 
 constexpr std::ratio<4, 3> ASPECT_RATIO;
 
-constexpr auto pad_thickness = 0.6f;
-constexpr auto pad_length = 6.0f;
+constexpr auto pad_thickness = 1.0f;
+constexpr auto pad_length = 4.5f;
 constexpr auto half_pad_length = pad_length / 2.0f;
-constexpr auto ball_radius = 0.4f;
+constexpr auto ball_radius = 0.6f;
 
 constexpr auto wall_thickness = 0.6f;
 constexpr auto half_wall_thickness = wall_thickness / 2.0f;
@@ -27,8 +27,8 @@ constexpr auto initial_player_speed = 30.0f;
 constexpr auto initial_ai_speed = 30.0f;
 constexpr auto ball_vel_min_speed = 20.0f;
 constexpr auto ball_vel_max_speed = 60.0f;
-constexpr auto ball_angle_min = vis::radians(-45.0f);
-constexpr auto ball_angle_max = vis::radians(+45.0f);
+constexpr auto ball_angle_min = vis::radians(-30.0f);
+constexpr auto ball_angle_max = vis::radians(+30.0f);
 
 constexpr auto world_width = 20.0f;
 constexpr auto world_height = 20.0f * static_cast<float>(ASPECT_RATIO.num) / static_cast<float>(ASPECT_RATIO.den);
