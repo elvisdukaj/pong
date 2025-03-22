@@ -1,8 +1,6 @@
 module;
 
 #include <SDL3/SDL.h>
-#include <memory>
-#include <optional>
 
 export module vis:window;
 
@@ -13,10 +11,11 @@ export namespace vis {
 class Window {
 public:
 	using Pointer = std::unique_ptr<Window>;
-	static Pointer create(std::string_view title, int width, int height, SDL_WindowFlags flags) {
+	static std::expected<Pointer, std::string> create(std::string_view title, int width, int height,
+																										SDL_WindowFlags flags) {
 		auto window = SDL_CreateWindow(title.data(), width, height, flags);
 		if (not window)
-			return nullptr;
+			return std::unexpected(std::format("Unable to create window: {}", SDL_GetError()));
 
 		return Pointer{new Window{window}};
 	}

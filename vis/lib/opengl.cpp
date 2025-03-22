@@ -2,11 +2,8 @@ module;
 
 #include <GL/glew.h>
 #include <SDL3/SDL.h>
-#include <string>
 
-#ifndef NDEBUG
 #include <cassert>
-#endif
 
 #ifdef NDEBUG
 #define CHECK_LAST_GL_CALL
@@ -346,7 +343,7 @@ struct DrawDescription {
 class OpenGLRenderer {
 public:
 	using Pointer = std::shared_ptr<OpenGLRenderer>;
-	static Pointer create(vis::Window* window) {
+	static std::expected<Pointer, std::string> create(vis::Window* window) {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -366,20 +363,17 @@ public:
 
 		if (not SDL_GL_MakeCurrent(*window, opengl_context)) {
 			SDL_GL_DestroyContext(opengl_context);
-			// return std::unexpected("It's not possible to init the graphic");
-			return nullptr;
+			return std::unexpected("It's not possible to init the graphic");
 		}
 
 		auto glewStatus = glewInit();
 		if (glewStatus != GLEW_OK) {
-			// return std::unexpected("Unable to initialize OpenGL");
-			return nullptr;
+			return std::unexpected("Unable to initialize OpenGL");
 		}
 
 		if (not SDL_GL_SetSwapInterval(1)) {
-			std::println("It's not possible to set the vsync");
 			SDL_GL_DestroyContext(opengl_context);
-			return nullptr;
+			std::unexpected("It's not possible to set the vsync");
 		}
 
 		return Pointer{new OpenGLRenderer{window, opengl_context}};
