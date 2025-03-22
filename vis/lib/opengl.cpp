@@ -345,7 +345,8 @@ struct DrawDescription {
 
 class OpenGLRenderer {
 public:
-	static std::expected<OpenGLRenderer, std::string> create(Window& window) {
+	using Pointer = std::shared_ptr<OpenGLRenderer>;
+	static Pointer create(vis::Window* window) {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -357,28 +358,31 @@ public:
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 
-		SDL_GLContext opengl_context = SDL_GL_CreateContext(window);
+		SDL_GLContext opengl_context = SDL_GL_CreateContext(*window);
 		if (not opengl_context) {
-			return std::unexpected(std::format("Unable to initialize OpenGL: {}", SDL_GetError()));
+			// return std::unexpected(std::format("Unable to initialize OpenGL: {}", SDL_GetError()));
+			return nullptr;
 		}
 
-		if (not SDL_GL_MakeCurrent(window, opengl_context)) {
+		if (not SDL_GL_MakeCurrent(*window, opengl_context)) {
 			SDL_GL_DestroyContext(opengl_context);
-			return std::unexpected("It's not possible to init the graphic");
+			// return std::unexpected("It's not possible to init the graphic");
+			return nullptr;
 		}
 
 		auto glewStatus = glewInit();
 		if (glewStatus != GLEW_OK) {
-			return std::unexpected("Unable to initialize OpenGL");
+			// return std::unexpected("Unable to initialize OpenGL");
+			return nullptr;
 		}
 
 		if (not SDL_GL_SetSwapInterval(1)) {
 			std::println("It's not possible to set the vsync");
 			SDL_GL_DestroyContext(opengl_context);
-			SDL_DestroyWindow(window);
+			return nullptr;
 		}
 
-		return OpenGLRenderer{&window, opengl_context};
+		return Pointer{new OpenGLRenderer{window, opengl_context}};
 	}
 
 	~OpenGLRenderer() {
@@ -415,7 +419,7 @@ public:
 		CHECK_LAST_GL_CALL;
 	}
 
-	void render() {
+	void render() const {
 		SDL_GL_SwapWindow(*window);
 	}
 
@@ -435,10 +439,10 @@ public:
 	}
 
 private:
-	OpenGLRenderer(Window* window, SDL_GLContext context) : window{window}, context(context) {}
+	OpenGLRenderer(vis::Window* window, SDL_GLContext context) : window{window}, context(context) {}
 
 private:
-	Window* window;
+	vis::Window* window;
 	SDL_GLContext context;
 };
 
