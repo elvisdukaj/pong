@@ -2,10 +2,10 @@ module;
 
 #include <GL/glew.h>
 #include <SDL3/SDL.h>
+#include <string>
 
 #ifndef NDEBUG
 #include <cassert>
-#include <print>
 #endif
 
 #ifdef NDEBUG
@@ -25,6 +25,7 @@ export module vis:opengl;
 
 import std;
 import :math;
+import :window;
 
 export namespace vis::opengl {
 
@@ -342,40 +343,103 @@ struct DrawDescription {
 	GLsizei vertex_count;
 };
 
-void renderer_init() {
-	auto glewStatus = glewInit();
-	if (glewStatus != GLEW_OK) {
-		throw std::runtime_error("Unable to initialize OpenGL");
+class OpenGLRenderer {
+public:
+	static std::expected<OpenGLRenderer, std::string> create(Window& window) {
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+#ifndef NDEBUG
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+#endif
+
+		SDL_GLContext opengl_context = SDL_GL_CreateContext(window);
+		if (not opengl_context) {
+			return std::unexpected(std::format("Unable to initialize OpenGL: {}", SDL_GetError()));
+		}
+
+		if (not SDL_GL_MakeCurrent(window, opengl_context)) {
+			SDL_GL_DestroyContext(opengl_context);
+			return std::unexpected("It's not possible to init the graphic");
+		}
+
+		auto glewStatus = glewInit();
+		if (glewStatus != GLEW_OK) {
+			return std::unexpected("Unable to initialize OpenGL");
+		}
+
+		if (not SDL_GL_SetSwapInterval(1)) {
+			std::println("It's not possible to set the vsync");
+			SDL_GL_DestroyContext(opengl_context);
+			SDL_DestroyWindow(window);
+		}
+
+		return OpenGLRenderer{&window, opengl_context};
 	}
-}
 
-void renderer_set_clear_color(const vec4& color) {
-	glClearColor(color.r, color.g, color.b, color.a);
-	CHECK_LAST_GL_CALL;
-}
+	~OpenGLRenderer() {
+		if (context) {
+			SDL_GL_DestroyContext(context);
+			context = nullptr;
+		}
+	}
 
-void renderer_clear() {
-	glClear(GL_COLOR_BUFFER_BIT);
-	CHECK_LAST_GL_CALL;
-}
+	OpenGLRenderer(OpenGLRenderer&) = delete;
+	OpenGLRenderer& operator=(OpenGLRenderer&) = delete;
 
-void renderer_render(SDL_Window* window) {
-	SDL_GL_SwapWindow(window);
-}
+	OpenGLRenderer(OpenGLRenderer&& rhs) : window{rhs.window}, context{rhs.context} {
+		rhs.window = nullptr;
+		rhs.context = nullptr;
+	}
 
-void renderer_set_viewport(int x, int y, int width, int height) {
-	glViewport(x, y, width, height);
-	CHECK_LAST_GL_CALL;
-}
+	OpenGLRenderer& operator=(OpenGLRenderer&& rhs) {
+		window = rhs.window;
+		context = rhs.context;
 
-std::string renderer_print_info() {
-	auto renderer = (const char*)glGetString(GL_RENDERER);
-	auto version = (const char*)glGetString(GL_VERSION);
+		rhs.window = nullptr;
+		rhs.context = nullptr;
+		return *this;
+	}
 
-	return std::format("viz engine version 0.1\n"
-										 "Renderer {}\n"
-										 "OpenGL version supported {}",
-										 renderer, version);
-}
+	void set_clear_color(const vec4& color) {
+		glClearColor(color.r, color.g, color.b, color.a);
+		CHECK_LAST_GL_CALL;
+	}
+
+	void clear() {
+		glClear(GL_COLOR_BUFFER_BIT);
+		CHECK_LAST_GL_CALL;
+	}
+
+	void render() {
+		SDL_GL_SwapWindow(*window);
+	}
+
+	void set_viewport(int x, int y, int width, int height) {
+		glViewport(x, y, width, height);
+		CHECK_LAST_GL_CALL;
+	}
+
+	std::string show_info() {
+		auto renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+		auto version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+
+		return std::format("viz engine version 0.1\n"
+											 "Renderer {}\n"
+											 "OpenGL version supported {}",
+											 renderer, version);
+	}
+
+private:
+	OpenGLRenderer(Window* window, SDL_GLContext context) : window{window}, context(context) {}
+
+private:
+	Window* window;
+	SDL_GLContext context;
+};
 
 } // namespace vis::opengl

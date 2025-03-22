@@ -6,7 +6,6 @@ add_library(vis_obj::vis_obj ALIAS vis_obj)
 target_sources(vis_obj
         PUBLIC FILE_SET CXX_MODULES FILES
         opengl.cpp
-        engine.cpp
         vis.cpp
         math.cpp
         entt.cpp
@@ -14,6 +13,7 @@ target_sources(vis_obj
         physic.cpp
         time.cpp
         utility.cpp
+        window.cpp
 )
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)

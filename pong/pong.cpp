@@ -22,14 +22,22 @@ export {
 	class App {
 	public:
 		static App* create() {
-			static SDL_Window* window = SDL_CreateWindow("Hello OpenGL", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
+			static App* app = nullptr;
 
-			if (not window) {
-				throw std::runtime_error(std::format("Unable to create the window: {}", SDL_GetError()));
+			if (app != nullptr) {
+				return app;
 			}
 
-			static auto engine = vis::engine::create(window);
-			return new App{window, engine};
+			static auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
+			if (not window)
+				return nullptr;
+
+			static auto renderer = vis::opengl::OpenGLRenderer::create(*window);
+			if (not renderer)
+				return nullptr;
+
+			app = new App{*window, *renderer};
+			return app;
 		}
 
 		~App() {
@@ -60,7 +68,8 @@ export {
 			case SDL_EVENT_WINDOW_RESIZED:
 				screen_width = event->window.data1;
 				screen_height = event->window.data2;
-				engine.set_viewport(0, 0, screen_width, screen_height);
+				// engine.set_viewport(0, 0, screen_width, screen_height);
+				renderer.set_viewport(0, 0, screen_width, screen_height);
 				screen_proj = vis::orthogonal_matrix(screen_width, screen_height, 20.0f, 20.0f);
 			}
 
@@ -72,7 +81,7 @@ export {
 			const auto dt = timer.elapsed();
 			timer.reset();
 
-			engine.clear();
+			renderer.clear();
 
 			if (not is_pausing) {
 				update_physic_system(dt);
@@ -82,7 +91,7 @@ export {
 				update_game_logic();
 			}
 			render_system();
-			engine.render(window);
+			renderer.render();
 
 			if (not is_playing) {
 				std::println("You {}!", win ? "win" : "lose");
@@ -97,7 +106,7 @@ export {
 	private:
 		enum class IsPlayer : bool { yes = true, no = false };
 
-		explicit App(SDL_Window* window, vis::engine::Engine& engine) : window{window}, engine(engine) {
+		explicit App(vis::Window& window, vis::opengl::OpenGLRenderer& renderer) : window{window}, renderer(renderer) {
 			initialize_video();
 			initialize_game();
 		}
@@ -116,9 +125,9 @@ export {
 		}
 
 		void initialize_video() {
-			engine.print_info();
-			engine.set_clear_color(colors::black);
-			engine.set_viewport(0, 0, screen_width, screen_height);
+			std::println("{}", renderer.show_info());
+			renderer.set_clear_color(colors::black);
+			renderer.set_viewport(0, 0, screen_width, screen_height);
 			screen_proj = vis::orthogonal_matrix(screen_width, screen_height, world_width, world_height);
 		}
 
@@ -417,8 +426,8 @@ export {
 		}
 
 	private:
-		SDL_Window* window = nullptr;
-		vis::engine::Engine& engine;
+		vis::Window& window;
+		vis::opengl::OpenGLRenderer& renderer;
 
 		int screen_width = SCREEN_WIDTH;
 		int screen_height = SCREEN_HEIGHT;
