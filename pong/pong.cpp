@@ -25,12 +25,11 @@ export {
 			auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
 			if (not window)
 				return nullptr;
-
-			auto renderer = vis::opengl::OpenGLRenderer::create(window.get());
+			auto renderer = vis::opengl::OpenGLRenderer::create(window.value().get());
 			if (not renderer)
 				return nullptr;
 
-			return new App{std::move(window), std::move(renderer)};
+			return new App{std::move(window.value()), std::move(renderer.value())};
 		}
 
 		[[nodiscard]] SDL_AppResult processEvent(const SDL_Event* event) noexcept {
@@ -140,8 +139,8 @@ export {
 
 		void update_input_system(vis::chrono::seconds dt) {
 			entity_registry
-					.view<Player, InputComponent, vis::physics::RigidBody>() //
-					.each([&](const Player player_component, const InputComponent& input, vis::physics::RigidBody& rb) {
+					.view<PlayerSpeed, InputComponent, vis::physics::RigidBody>() //
+					.each([&](const PlayerSpeed player_component, const InputComponent& input, vis::physics::RigidBody& rb) {
 						auto transform = rb.get_transform();
 						auto& pos = transform.position;
 
@@ -153,11 +152,11 @@ export {
 		}
 
 		void update_ai_system(vis::chrono::seconds dt) {
-			const Ball& ball = entity_registry.get<Ball>(ball_entity);
+			const BallComponent& ball = entity_registry.get<BallComponent>(ball_entity);
 
 			entity_registry
-					.view<Ai, vis::physics::RigidBody>() //
-					.each([&](Ai ai, vis::physics::RigidBody& ai_pad_rb) {
+					.view<AiComponent, vis::physics::RigidBody>() //
+					.each([&](AiComponent ai, vis::physics::RigidBody& ai_pad_rb) {
 						using namespace vis::literals::chrono_literals;
 
 						auto pad_transform = ai_pad_rb.get_transform();
@@ -225,8 +224,8 @@ export {
 			}
 
 			entity_registry
-					.view<vis::physics::RigidBody, Ball>() //
-					.each([&](vis::physics::RigidBody& rb, Ball& ball) {
+					.view<vis::physics::RigidBody, BallComponent>() //
+					.each([&](vis::physics::RigidBody& rb, BallComponent& ball) {
 						ball.position = rb.get_transform().position;
 						ball.velocity = rb.get_linear_velocity();
 					});
@@ -307,7 +306,7 @@ export {
 
 		void add_player(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			player_entity = entity_registry.create();
-			entity_registry.emplace<Player>(player_entity, Player{.speed = initial_player_speed});
+			entity_registry.emplace<PlayerSpeed>(player_entity, PlayerSpeed{.speed = initial_player_speed});
 			entity_registry.emplace<InputComponent>(player_entity, InputComponent{});
 			entity_registry.emplace<vis::mesh::Mesh>(player_entity,
 																							 vis::mesh::create_rectangle_shape(origin, half_extent, color));
@@ -327,7 +326,7 @@ export {
 
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
 			ai_entity = entity_registry.create();
-			entity_registry.emplace<Ai>(ai_entity, Ai{.speed = initial_ai_speed});
+			entity_registry.emplace<AiComponent>(ai_entity, AiComponent{.speed = initial_ai_speed});
 			entity_registry.emplace<vis::mesh::Mesh>(ai_entity,
 																							 vis::mesh::create_rectangle_shape(origin, half_extent, color));
 
@@ -351,7 +350,7 @@ export {
 			const auto vel = direction * vel_mag;
 
 			ball_entity = entity_registry.create();
-			entity_registry.emplace<Ball>(ball_entity);
+			entity_registry.emplace<BallComponent>(ball_entity);
 
 			entity_registry.emplace<vis::mesh::Mesh>(ball_entity, vis::mesh::create_regular_shape(origin, radius, color, 10));
 

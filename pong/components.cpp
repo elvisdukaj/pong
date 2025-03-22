@@ -12,22 +12,21 @@ import vis;
 
 export namespace Game {
 
-
-struct Ai {
+struct AiComponent {
 	float speed = 0.0;
 };
 
-	struct Ball {
-		vis::vec2 position;
-		vis::vec2 velocity;
-	};
+struct BallComponent {
+	vis::vec2 position;
+	vis::vec2 velocity;
+};
 
-	struct InputComponent {
-		vis::vec2 direction{};
-	};
+struct InputComponent {
+	vis::vec2 direction{};
+};
 
-	struct Player {
-		float speed = 0.0f;
-	};
+struct PlayerSpeed {
+	float speed = 0.0f;
+};
 
-}
+} // namespace Game
