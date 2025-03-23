@@ -8,13 +8,15 @@ target_sources(pong
         PUBLIC main.cpp
         PUBLIC FILE_SET CXX_MODULES
         FILES
-        game.cpp
-        events.cpp
-        pong.cpp
         components.cpp
         constants.cpp
+        events.cpp
+        game.cpp
+        pong.cpp
+        pong_scene.cpp
+        scene.cpp
 )
 
-target_link_libraries(pong PRIVATE vis::vis sml::sml)
+target_link_libraries(pong PRIVATE vis::vis)
 target_add_extra_warnings(pong PUBLIC)
 target_set_warnings_as_error(pong)
