@@ -46,10 +46,10 @@ vis::win::Event from_sdl(SDL_Event& event) {
 // The following variables are external and should be defined to the main.cpp file and shouldn't be attached to this
 // module
 extern "C++" {
-export extern vis::app::OnInit on_init;
-export extern vis::app::OnEvent on_event;
-export extern vis::app::OnIterate on_iterate;
-export extern vis::app::OnQuit on_quit;
+export extern vis::app::AppResult on_init(void** appstate, int argc, char** argv);
+export extern vis::app::AppResult on_event(void* appstate, const vis::win::Event& event);
+export extern vis::app::AppResult on_iterate(void* appstate);
+export extern void on_quit(void* appstate);
 }
 
 extern "C" {

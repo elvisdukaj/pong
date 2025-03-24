@@ -22,11 +22,11 @@ struct FollowingEvent {
 };
 
 struct KeyDownEvent {
-	SDL_KeyboardEvent key;
+	vis::win::VirtualKey key;
 };
 
 struct KeyUpEvent {
-	SDL_KeyboardEvent key;
+	vis::win::VirtualKey key;
 };
 
 } // namespace Game

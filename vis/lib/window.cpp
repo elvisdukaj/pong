@@ -59,7 +59,7 @@ export namespace vis::win {
 
 enum class Pressed : bool { no = false, yes = true };
 enum class Repeated : bool { no = false, yes = true };
-enum class VirtualKey { up = SDLK_UP, down = SDLK_DOWN, escape = SDLK_ESCAPE };
+enum class VirtualKey { up = SDLK_UP, down = SDLK_DOWN, left = SDLK_LEFT, right = SDLK_RIGHT, escape = SDLK_ESCAPE };
 enum class KeyMode : std::uint32_t {};
 
 struct KeyboardEvent {

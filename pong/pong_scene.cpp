@@ -16,6 +16,11 @@ import :scene;
 import std;
 import vis;
 
+// helper type for the visitor
+template <class... Ts> struct overloads : Ts... {
+	using Ts::operator()...;
+};
+
 export {
 	namespace Game {
 	using namespace vis::literals::chrono_literals;
@@ -27,23 +32,27 @@ export {
 			initialize_game();
 		}
 
-		[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& /*event*/) noexcept override {
-			// switch (event.type) {
-			// case vis::win::EventType::quit:
-			// 	return vis::win::AppResult::success;
+		[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& event) noexcept override {
+			// clang-format off
+			return std::visit(overloads{
+				[&](const vis::win::QuitEvent&) { return vis::app::AppResult::success; },
+				[&](const vis::win::KeyboardEvent& event) {
+					if (event.type == vis::win::KeyboardEvent::key_down) {
+						if (event.key == vis::win::VirtualKey::escape) {
+							return vis::app::AppResult::success;
+						}
 
-			// case vis::win::EventType::key_up:
-			// 	dispatcher.trigger<KeyUpEvent>({event->key});
-			// 	break;
+						dispatcher.trigger<KeyDownEvent>({event.key});
+					}
+					else {
+						dispatcher.trigger<KeyUpEvent>({event.key});
+					}
 
-			// case vis::win::EventType::key_down: {
-			// 	dispatcher.trigger<KeyDownEvent>({event->key});
-			// 	switch (event->key.key) {
-
-			// 	case SDLK_P:
-			// 		is_pausing = !is_pausing;
-			// 	}
-			// } break;
+					return vis::app::AppResult::app_continue;
+				}
+				// [&](const auto&) { return vis::app::AppResult::success; }
+			}, event);
+			// clang-format on
 
 			// case SDL_EVENT_WINDOW_RESIZED:
 			// 	screen_width = event->window.data1;
@@ -265,26 +274,33 @@ export {
 		void on_key_down(const KeyDownEvent& event) {
 			auto& input_component = entity_registry.get<InputComponent>(player_entity);
 
-			switch (event.key.key) {
-			case SDLK_DOWN:
-			case SDLK_RIGHT:
+			switch (event.key) {
+			case vis::win::VirtualKey::down:
+			case vis::win::VirtualKey::right:
 				input_component.direction = down;
 				break;
-			case SDLK_UP:
-			case SDLK_LEFT:
+
+			case vis::win::VirtualKey::up:
+			case vis::win::VirtualKey::left:
 				input_component.direction = up;
+				break;
+
+			default:
 				break;
 			}
 		}
 
 		void on_key_up(const KeyUpEvent& event) {
 			auto& input_component = entity_registry.get<InputComponent>(player_entity);
-			switch (event.key.key) {
-			case SDLK_DOWN:
-			case SDLK_UP:
-			case SDLK_RIGHT:
-			case SDLK_LEFT:
+			switch (event.key) {
+			case vis::win::VirtualKey::down:
+			case vis::win::VirtualKey::up:
+			case vis::win::VirtualKey::right:
+			case vis::win::VirtualKey::left:
 				input_component.direction = vis::vec2{};
+				break;
+
+			default:
 				break;
 			}
 		}
