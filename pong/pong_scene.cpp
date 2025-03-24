@@ -27,21 +27,18 @@ export {
 			initialize_game();
 		}
 
-		[[nodiscard]] SDL_AppResult processEvent(const SDL_Event* event) noexcept override {
-			if (event->type == SDL_EVENT_QUIT) {
-				return SDL_AppResult::SDL_APP_SUCCESS;
-			}
+		[[nodiscard]] vis::win::AppResult process_event(const vis::win::Event event) noexcept override {
+			switch (event.type) {
+			case vis::win::EventType::quit:
+				return vis::win::AppResult::success;
 
-			switch (event->type) {
-			case SDL_EVENT_KEY_UP:
+			case vis::win::EventType::key_up:
 				dispatcher.trigger<KeyUpEvent>({event->key});
 				break;
 
-			case SDL_EVENT_KEY_DOWN: {
+			case vis::win::EventType::key_down: {
 				dispatcher.trigger<KeyDownEvent>({event->key});
 				switch (event->key.key) {
-				case SDLK_ESCAPE:
-					return SDL_AppResult::SDL_APP_SUCCESS;
 
 				case SDLK_P:
 					is_pausing = !is_pausing;
@@ -55,7 +52,7 @@ export {
 				screen_proj = vis::orthogonal_matrix(screen_width, screen_height, 20.0f, 20.0f);
 			}
 
-			return SDL_AppResult::SDL_APP_CONTINUE;
+			return vis::win::AppResult::app_continue;
 		}
 
 		[[nodiscard]] SDL_AppResult update() noexcept override {

@@ -16,7 +16,7 @@ SDL_AppResult SDL_AppInit(void** appstate, [[maybe_unused]] int argc, [[maybe_un
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 	Game::App& app = *static_cast<Game::App*>(appstate);
-	return app.processEvent(event);
+	return app.process_event(event);
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {

@@ -1,8 +1,6 @@
 
 module;
 
-#include <SDL3/SDL.h>
-
 export module game:scene;
 
 import :events;
@@ -18,8 +16,8 @@ class Scene {
 public:
 	virtual ~Scene() = default;
 
-	[[nodiscard]] virtual SDL_AppResult processEvent(const SDL_Event* event) noexcept = 0;
-	[[nodiscard]] virtual SDL_AppResult update() noexcept = 0;
+	[[nodiscard]] virtual vis::win::AppResult process_event(const vis::win::Event* event) noexcept = 0;
+	[[nodiscard]] virtual vis::win::AppResult update() noexcept = 0;
 };
 
 } // namespace Game
