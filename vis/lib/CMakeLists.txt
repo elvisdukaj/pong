@@ -5,6 +5,7 @@ add_library(vis_obj::vis_obj ALIAS vis_obj)
 
 target_sources(vis_obj
         PUBLIC FILE_SET CXX_MODULES FILES
+        app.cpp
         opengl.cpp
         vis.cpp
         math.cpp

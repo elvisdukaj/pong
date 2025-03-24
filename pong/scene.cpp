@@ -16,8 +16,8 @@ class Scene {
 public:
 	virtual ~Scene() = default;
 
-	[[nodiscard]] virtual vis::win::AppResult process_event(const vis::win::Event* event) noexcept = 0;
-	[[nodiscard]] virtual vis::win::AppResult update() noexcept = 0;
+	[[nodiscard]] virtual vis::app::AppResult process_event(const vis::win::Event& event) noexcept = 0;
+	[[nodiscard]] virtual vis::app::AppResult update() noexcept = 0;
 };
 
 } // namespace Game

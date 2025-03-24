@@ -1,31 +1,26 @@
 #include <SDL3/SDL_main.h>
 
 import game;
+import vis;
 
-extern "C" {
-
-SDL_AppResult SDL_AppInit(void** appstate, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+vis::app::OnInit on_init = [](void** appstate, [[maybe_unused]] int argc,
+															[[maybe_unused]] char** argv) -> vis::app::AppResult {
 	*appstate = Game::App::create();
 
-	if (*appstate == nullptr) {
-		return SDL_AppResult::SDL_APP_FAILURE;
-	}
+	if (*appstate == nullptr)
+		return vis::app::AppResult::failure;
 
-	return SDL_AppResult::SDL_APP_CONTINUE;
-}
+	return vis::app::AppResult::app_continue;
+};
 
-SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
+vis::app::OnEvent on_event = [](void* appstate, const vis::win::Event& event) -> vis::app::AppResult {
 	Game::App& app = *static_cast<Game::App*>(appstate);
 	return app.process_event(event);
-}
+};
 
-SDL_AppResult SDL_AppIterate(void* appstate) {
+vis::app::OnIterate on_iterate = [](void* appstate) -> vis::app::AppResult {
 	Game::App& app = *static_cast<Game::App*>(appstate);
 	return app.update();
-}
+};
 
-void SDL_AppQuit(void* appstate, SDL_AppResult) {
-	delete static_cast<Game::App*>(appstate);
-}
-
-} // extern "C"
+vis::app::OnQuit on_quit = [](void* appstate) -> void { delete static_cast<Game::App*>(appstate); };

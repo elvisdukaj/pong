@@ -27,35 +27,35 @@ export {
 			initialize_game();
 		}
 
-		[[nodiscard]] vis::win::AppResult process_event(const vis::win::Event event) noexcept override {
-			switch (event.type) {
-			case vis::win::EventType::quit:
-				return vis::win::AppResult::success;
+		[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& /*event*/) noexcept override {
+			// switch (event.type) {
+			// case vis::win::EventType::quit:
+			// 	return vis::win::AppResult::success;
 
-			case vis::win::EventType::key_up:
-				dispatcher.trigger<KeyUpEvent>({event->key});
-				break;
+			// case vis::win::EventType::key_up:
+			// 	dispatcher.trigger<KeyUpEvent>({event->key});
+			// 	break;
 
-			case vis::win::EventType::key_down: {
-				dispatcher.trigger<KeyDownEvent>({event->key});
-				switch (event->key.key) {
+			// case vis::win::EventType::key_down: {
+			// 	dispatcher.trigger<KeyDownEvent>({event->key});
+			// 	switch (event->key.key) {
 
-				case SDLK_P:
-					is_pausing = !is_pausing;
-				}
-			} break;
+			// 	case SDLK_P:
+			// 		is_pausing = !is_pausing;
+			// 	}
+			// } break;
 
-			case SDL_EVENT_WINDOW_RESIZED:
-				screen_width = event->window.data1;
-				screen_height = event->window.data2;
-				renderer.set_viewport(0, 0, screen_width, screen_height);
-				screen_proj = vis::orthogonal_matrix(screen_width, screen_height, 20.0f, 20.0f);
-			}
+			// case SDL_EVENT_WINDOW_RESIZED:
+			// 	screen_width = event->window.data1;
+			// 	screen_height = event->window.data2;
+			// 	renderer.set_viewport(0, 0, screen_width, screen_height);
+			// 	screen_proj = vis::orthogonal_matrix(screen_width, screen_height, 20.0f, 20.0f);
+			// }
 
-			return vis::win::AppResult::app_continue;
+			return vis::app::AppResult::app_continue;
 		}
 
-		[[nodiscard]] SDL_AppResult update() noexcept override {
+		[[nodiscard]] vis::app::AppResult update() noexcept override {
 			static vis::chrono::Timer game_timer;
 			const auto dt = timer.elapsed();
 			timer.reset();
@@ -79,7 +79,7 @@ export {
 				is_playing = true;
 			}
 
-			return SDL_AppResult::SDL_APP_CONTINUE;
+			return vis::app::AppResult::app_continue;
 		}
 
 	private:

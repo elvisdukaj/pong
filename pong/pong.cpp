@@ -30,11 +30,11 @@ public:
 		return new App{std::move(window.value()), std::move(renderer.value())};
 	}
 
-	[[nodiscard]] SDL_AppResult process_event(const vis::win::Event* event) noexcept {
+	[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& event) noexcept {
 		return pong_scene.process_event(event);
 	}
 
-	[[nodiscard]] SDL_AppResult update() noexcept {
+	[[nodiscard]] vis::app::AppResult update() noexcept {
 		return pong_scene.update();
 	}
 
