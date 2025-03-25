@@ -29,13 +29,24 @@ vis::win::Event from_sdl(SDL_Event& event) {
 		return vis::win::QuitEvent{};
 
 	case SDL_EVENT_KEY_DOWN:
-	case SDL_EVENT_KEY_UP:
 		return vis::win::KeyboardEvent{
-				.type = event.type == SDL_EVENT_KEY_DOWN ? vis::win::KeyboardEvent::key_down : vis::win::KeyboardEvent::key_up,
+				.type = vis::win::KeyboardEvent::key_down,
 				.key = static_cast<vis::win::VirtualKey>(event.key.key),
 				.pressed = event.key.down ? vis::win::Pressed::yes : vis::win::Pressed::no,
 				.repeated = event.key.repeat ? vis::win::Repeated::yes : vis::win::Repeated::no,
 		};
+		break;
+
+	case SDL_EVENT_KEY_UP:
+		return vis::win::KeyboardEvent{
+				.type = vis::win::KeyboardEvent::key_up,
+				.key = static_cast<vis::win::VirtualKey>(event.key.key),
+				.pressed = event.key.down ? vis::win::Pressed::yes : vis::win::Pressed::no,
+				.repeated = event.key.repeat ? vis::win::Repeated::yes : vis::win::Repeated::no,
+		};
+
+	default:
+		return vis::win::QuitEvent{};
 	}
 
 	return vis::win::QuitEvent{};
@@ -55,18 +66,15 @@ export extern void on_quit(void* appstate);
 extern "C" {
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
-	auto result = ::on_init(appstate, argc, argv);
-	return ::to_sdl(result);
+	return ::to_sdl(::on_init(appstate, argc, argv));
 }
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
-	auto result = ::on_event(appstate, ::from_sdl(*event));
-	return ::to_sdl(result);
+	return ::to_sdl(::on_event(appstate, ::from_sdl(*event)));
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
-	auto result = ::on_iterate(appstate);
-	return ::to_sdl(result);
+	return ::to_sdl(::on_iterate(appstate));
 }
 
 void SDL_AppQuit(void* appstate) {
