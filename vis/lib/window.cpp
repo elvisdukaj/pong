@@ -38,7 +38,7 @@ enum class WindowsFlags : std::uint64_t {
 	window_pos_centered = SDL_WINDOWPOS_CENTERED,
 };
 
-WindowsFlags operator|(WindowsFlags lhs, WindowsFlags rhs) {
+constexpr WindowsFlags operator|(WindowsFlags lhs, WindowsFlags rhs) {
 	using underlying = std::underlying_type<WindowsFlags>::type;
 	return static_cast<WindowsFlags>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
 }
@@ -125,3 +125,5 @@ struct WindowsResized {
 using Event = std::variant<KeyboardKeyDownEvent, KeyboardKeyUpEvent, QuitEvent, WindowsResized, NullEvent>;
 
 } // namespace vis::win
+
+using vis::operator|;
