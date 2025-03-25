@@ -1,11 +1,6 @@
 
 module;
 
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_events.h>
-#include <cstdlib>
-#include <print>
-
 export module game:pong_scene;
 
 import :events;
@@ -33,36 +28,31 @@ export {
 		}
 
 		[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& event) noexcept override {
-			// clang-format off
-			return std::visit(overloads{
-				[&](const vis::win::QuitEvent&) { return vis::app::AppResult::success; },
-				[&](const vis::win::KeyboardEvent& event) {
-					if (event.type == vis::win::KeyboardEvent::key_down) {
-						if (event.key == vis::win::VirtualKey::escape) {
-							return vis::app::AppResult::success;
-						}
-
-						dispatcher.trigger<KeyDownEvent>({event.key});
-					}
-					else {
-						dispatcher.trigger<KeyUpEvent>({event.key});
-					}
-
-					return vis::app::AppResult::app_continue;
-				}
-				// [&](const auto&) { return vis::app::AppResult::success; }
-			}, event);
-			// clang-format on
-
-			// case SDL_EVENT_WINDOW_RESIZED:
-			// 	screen_width = event->window.data1;
-			// 	screen_height = event->window.data2;
-			// 	renderer.set_viewport(0, 0, screen_width, screen_height);
-			// 	screen_proj = vis::orthogonal_matrix(screen_width, screen_height, 20.0f, 20.0f);
-			// }
-
-			return vis::app::AppResult::app_continue;
-		}
+			return std::visit(
+					overloads{
+							[&](const vis::win::QuitEvent&) { return vis::app::AppResult::success; },
+							[&](const vis::win::KeyboardKeyDownEvent& event) {
+								if (event.key == vis::win::VirtualKey::escape) {
+									return vis::app::AppResult::success;
+								}
+								dispatcher.trigger<KeyDownEvent>({event.key});
+								return vis::app::AppResult::app_continue;
+							},
+							[&](const vis::win::KeyboardKeyUpEvent& event) {
+								dispatcher.trigger<KeyUpEvent>({event.key});
+								return vis::app::AppResult::app_continue;
+							},
+							[&](const vis::win::WindowsResized& event) {
+								screen_width = event.width;
+								screen_height = event.height;
+								renderer.set_viewport(0, 0, screen_width, screen_height);
+								screen_proj = vis::orthogonal_matrix(screen_width, screen_height, world_width, world_height);
+								return vis::app::AppResult::app_continue;
+							},
+							[&]([[maybe_unused]] const auto& all_other_events) { return vis::app::AppResult::app_continue; },
+					},
+					event);
+		} // namespace Game
 
 		[[nodiscard]] vis::app::AppResult update() noexcept override {
 			static vis::chrono::Timer game_timer;
@@ -420,7 +410,6 @@ export {
 
 		int screen_width = SCREEN_WIDTH;
 		int screen_height = SCREEN_HEIGHT;
-		static constexpr SDL_WindowFlags screen_flags = SDL_WINDOW_OPENGL;
 
 		vis::mesh::MeshShader mesh_shader{};
 		vis::ecs::registry entity_registry;

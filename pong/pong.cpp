@@ -48,7 +48,7 @@ private:
 	vis::Window::Pointer window;
 	vis::opengl::OpenGLRenderer::Pointer renderer;
 
-	static constexpr SDL_WindowFlags screen_flags = SDL_WINDOW_OPENGL;
+	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::opengl;
 
 	PongScene pong_scene;
 };

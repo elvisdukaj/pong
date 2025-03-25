@@ -1,5 +1,3 @@
-#include <SDL3/SDL_main.h>
-
 import game;
 import vis;
 
@@ -22,6 +20,6 @@ auto on_iterate(void* appstate) -> vis::app::AppResult {
 	return app.update();
 }
 
-auto on_quit(void* appstate) -> void {
+auto on_quit(void* appstate, [[maybe_unused]] vis::app::AppResult result) -> void {
 	delete static_cast<Game::App*>(appstate);
 }

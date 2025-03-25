@@ -8,12 +8,47 @@ import std;
 
 export namespace vis {
 
+enum class WindowsFlags : std::uint64_t {
+	fullscreen = SDL_WINDOW_FULLSCREEN,
+	opengl = SDL_WINDOW_OPENGL,
+	occluded = SDL_WINDOW_OCCLUDED,
+	hidden = SDL_WINDOW_HIDDEN,
+	borderless = SDL_WINDOW_BORDERLESS,
+	resizable = SDL_WINDOW_RESIZABLE,
+	minimized = SDL_WINDOW_MINIMIZED,
+	maximized = SDL_WINDOW_MAXIMIZED,
+	grabbed = SDL_WINDOW_MOUSE_GRABBED,
+	input_focus = SDL_WINDOW_INPUT_FOCUS,
+	mouse_focus = SDL_WINDOW_MOUSE_FOCUS,
+	external = SDL_WINDOW_EXTERNAL,
+	high_pixel_density = SDL_WINDOW_HIGH_PIXEL_DENSITY,
+	modal = SDL_WINDOW_MODAL,
+	mouse_capture = SDL_WINDOW_MOUSE_CAPTURE,
+	mouse_relative_mode = SDL_WINDOW_MOUSE_RELATIVE_MODE,
+	always_on_top = SDL_WINDOW_ALWAYS_ON_TOP,
+	utility = SDL_WINDOW_UTILITY,
+	tooltip = SDL_WINDOW_TOOLTIP,
+	popup_menu = SDL_WINDOW_POPUP_MENU,
+	keyboard_grabbed = SDL_WINDOW_KEYBOARD_GRABBED,
+	vulkan = SDL_WINDOW_VULKAN,
+	metal = SDL_WINDOW_METAL,
+	transparent = SDL_WINDOW_TRANSPARENT,
+	not_focusable = SDL_WINDOW_NOT_FOCUSABLE,
+	window_pos_undefined = SDL_WINDOWPOS_UNDEFINED,
+	window_pos_centered = SDL_WINDOWPOS_CENTERED,
+};
+
+WindowsFlags operator|(WindowsFlags lhs, WindowsFlags rhs) {
+	using underlying = std::underlying_type<WindowsFlags>::type;
+	return static_cast<WindowsFlags>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
+}
+
 class Window {
 public:
 	using Pointer = std::unique_ptr<Window>;
-	static std::expected<Pointer, std::string> create(std::string_view title, int width, int height,
-																										SDL_WindowFlags flags) {
-		auto window = SDL_CreateWindow(title.data(), width, height, flags);
+	static std::expected<Pointer, std::string> create(std::string_view title, int width, int height, WindowsFlags flags) {
+		using underlying = std::underlying_type<WindowsFlags>::type;
+		auto window = SDL_CreateWindow(title.data(), width, height, static_cast<underlying>(flags));
 		if (not window)
 			return std::unexpected(std::format("Unable to create window: {}", SDL_GetError()));
 
@@ -62,19 +97,31 @@ enum class Repeated : bool { no = false, yes = true };
 enum class VirtualKey { up = SDLK_UP, down = SDLK_DOWN, left = SDLK_LEFT, right = SDLK_RIGHT, escape = SDLK_ESCAPE };
 enum class KeyMode : std::uint32_t {};
 
-struct KeyboardEvent {
-	enum Type { key_down = SDL_EVENT_KEY_DOWN, key_up = SDL_EVENT_KEY_DOWN };
-
-	Type type;
-
+struct KeyboardKeyDownEvent {
 	VirtualKey key; /**< SDL virtual key code */
 	// KeyMode mod;		/**< current key modifiers */
 
 	Pressed pressed;
 	Repeated repeated;
 };
+
+struct KeyboardKeyUpEvent {
+	VirtualKey key; /**< SDL virtual key code */
+	// KeyMode mod;		/**< current key modifiers */
+
+	Pressed pressed;
+	Repeated repeated;
+};
+
 struct QuitEvent {};
 
-using Event = std::variant<KeyboardEvent, QuitEvent>;
+struct NullEvent {};
+
+struct WindowsResized {
+	int width;
+	int height;
+};
+
+using Event = std::variant<KeyboardKeyDownEvent, KeyboardKeyUpEvent, QuitEvent, WindowsResized, NullEvent>;
 
 } // namespace vis::win
