@@ -10,13 +10,7 @@ import std;
 import :window;
 
 export namespace vis::app {
-
 enum class AppResult { app_continue = SDL_APP_CONTINUE, success = SDL_APP_SUCCESS, failure = SDL_APP_FAILURE };
-
-using OnInit = AppResult (*)(void** appstate, int argc, char** argv);
-using OnEvent = AppResult (*)(void* appstate, const vis::win::Event& event);
-using OnIterate = AppResult (*)(void* appstate);
-using OnQuit = void (*)(void* appstate);
 } // namespace vis::app
 
 namespace {
