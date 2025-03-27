@@ -4,7 +4,13 @@ project(Pong CXX)
 
 set(CMAKE_CXX_MODULE_STD 1)
 
+
 option(BUILD_PRE_EXAMPLES "Build the pre examples" ON)
+option(WITH_TIDY "Enable clang-tidy" ON)
+
+if (WITH_TIDY)
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-p;${CMAKE_CURRENT_BINARY_DIR}")
+endif ()
 
 find_package(SDL3 CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
@@ -43,7 +49,7 @@ function(target_set_warnings_as_error target)
     if (NOT target)
         message(FATAL_ERROR "TARGET argument is required!")
     endif ()
-    
+
     target_compile_options(${target} PRIVATE
             $<$<CXX_COMPILER_ID:Clang>:-Werror>
     )
