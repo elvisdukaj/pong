@@ -4,12 +4,11 @@ project(Pong CXX)
 
 set(CMAKE_CXX_MODULE_STD 1)
 
-
 option(BUILD_PRE_EXAMPLES "Build the pre examples" ON)
-option(WITH_TIDY "Enable clang-tidy" ON)
+option(WITH_TIDY "Enable clang-tidy" OFF)
 
 if (WITH_TIDY)
-    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-p;${CMAKE_CURRENT_BINARY_DIR}")
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-p;${CMAKE_BINARY_DIR}")
 endif ()
 
 find_package(SDL3 CONFIG REQUIRED)
