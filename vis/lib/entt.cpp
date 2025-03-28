@@ -40,3 +40,9 @@ export import std;
 #include "ecs/entity/sparse_set.inc"
 #include "ecs/entity/storage.inc"
 #include "ecs/entity/view.inc"
+
+#include "ecs/signal/delegate.inc"
+#include "ecs/signal/dispatcher.inc"
+#include "ecs/signal/emitter.inc"
+#include "ecs/signal/fwd.inc"
+#include "ecs/signal/sigh.inc"

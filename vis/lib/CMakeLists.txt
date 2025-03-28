@@ -53,6 +53,12 @@ target_sources(vis_obj
         ecs/entity/snapshot.inc
         ecs/entity/sparse_set.inc
         ecs/entity/storage.inc
+
+        ecs/signal/delegate.inc
+        ecs/signal/dispatcher.inc
+        ecs/signal/emitter.inc
+        ecs/signal/fwd.inc
+        ecs/signal/sigh.inc
 )
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
