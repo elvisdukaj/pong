@@ -15,7 +15,5 @@ using ::entt::tombstone;
 using ::entt::operator ==;
 using ::entt::operator !=;
 
-using ::entt::entity;
-
 } // namespace entt
 }

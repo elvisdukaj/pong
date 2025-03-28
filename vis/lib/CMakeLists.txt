@@ -40,8 +40,19 @@ target_sources(vis_obj
         ecs/core/type_info.inc
         ecs/core/type_traits.inc
         ecs/core/utility.inc
-
+        ecs/entity/component.inc
         ecs/entity/entity.inc
+        ecs/entity/fwd.inc
+        ecs/entity/group.inc
+        ecs/entity/helper.inc
+        ecs/entity/mixin.inc
+        ecs/entity/organizer.inc
+        ecs/entity/ranges.inc
+        ecs/entity/registry.inc
+        ecs/entity/runtime_view.inc
+        ecs/entity/snapshot.inc
+        ecs/entity/sparse_set.inc
+        ecs/entity/storage.inc
 )
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
