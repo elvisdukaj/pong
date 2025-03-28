@@ -57,7 +57,29 @@ target_sources(vis_obj
         ecs/graph/dot.inc
         ecs/graph/flow.inc
         ecs/graph/fwd.inc
-
+        ecs/locator/locator.inc
+        ecs/meta/adl_pointer.inc
+        ecs/meta/container.inc
+        ecs/meta/context.inc
+        ecs/meta/factory.inc
+        ecs/meta/fwd.inc
+        ecs/meta/meta.inc
+        ecs/meta/node.inc
+        ecs/meta/pointer.inc
+        ecs/meta/policy.inc
+        ecs/meta/range.inc
+        ecs/meta/resolve.inc
+        ecs/meta/type_traits.inc
+        ecs/meta/utility.inc
+        ecs/poly/fwd.inc
+        ecs/poly/poly.inc
+        ecs/process/fwd.inc
+        ecs/process/process.inc
+        ecs/process/scheduler.inc
+        ecs/resource/cache.inc
+        ecs/resource/fwd.inc
+        ecs/resource/loader.inc
+        ecs/resource/resource.inc
         ecs/signal/delegate.inc
         ecs/signal/dispatcher.inc
         ecs/signal/emitter.inc
