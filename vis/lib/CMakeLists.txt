@@ -24,6 +24,22 @@ target_sources(vis_obj
         ecs/container/fwd.inc
         ecs/container/table.inc
         ecs/core/algorithm.inc
+        ecs/core/any.inc
+        ecs/core/bit.inc
+        ecs/core/compressed_pair.inc
+        ecs/core/enum.inc
+        ecs/core/family.inc
+        ecs/core/fwd.inc
+        ecs/core/hashed_string.inc
+        ecs/core/ident.inc
+        ecs/core/iterator.inc
+        ecs/core/memory.inc
+        ecs/core/monostate.inc
+        ecs/core/ranges.inc
+        ecs/core/tuple.inc
+        ecs/core/type_info.inc
+        ecs/core/type_traits.inc
+        ecs/core/utility.inc
 
         ecs/entity/entity.inc
 )
