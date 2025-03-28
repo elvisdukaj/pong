@@ -8,6 +8,7 @@ import std;
 import :math;
 import :chrono;
 import :ecs;
+
 // non exported
 namespace vis::physics {
 
@@ -43,9 +44,10 @@ class SensorBeginTouchEvent {
 public:
 	SensorBeginTouchEvent() = default;
 
-	RigidBody* sensor_shape_def() const;
-	RigidBody* visitor_shape_def() const;
-	ecs::entity get_sensor_entity() const;
+	[[nodiscard]] RigidBody* get_sensor_body() const;
+	[[nodiscard]] RigidBody* get_visitor_body() const;
+	[[nodiscard]] ecs::entity get_sensor_entity() const;
+	[[nodiscard]] ecs::entity get_visitor_entity() const;
 
 private:
 	friend class SensorEvent;
@@ -59,9 +61,10 @@ class SensorEndTouchEvent {
 public:
 	SensorEndTouchEvent() = default;
 
-	RigidBody* sensor_shape_def() const;
-	RigidBody* visitor_shape_def() const;
-	ecs::entity get_sensor_entity() const;
+	[[nodiscard]] RigidBody* get_sensor_body() const;
+	[[nodiscard]] RigidBody* get_visitor_body() const;
+	[[nodiscard]] ecs::entity get_sensor_entity() const;
+	[[nodiscard]] ecs::entity get_visitor_entity() const;
 
 private:
 	friend class SensorEvent;
@@ -69,27 +72,6 @@ private:
 
 private:
 	b2SensorEndTouchEvent event;
-};
-
-class ContactHitEvent {
-public:
-	ContactHitEvent() = default;
-
-	RigidBody* body_a() const;
-	RigidBody* body_b() const;
-
-	ecs::entity entity_a() const;
-	ecs::entity entity_b() const;
-
-	vec2 position() const;
-	vec2 normal() const;
-
-private:
-	friend class ContactHitEvents;
-	explicit ContactHitEvent(const b2ContactHitEvent& event) : event{event} {}
-
-private:
-	b2ContactHitEvent event;
 };
 
 class SensorEvent {
@@ -104,28 +86,115 @@ public:
 	using SensorEndTouchVectorIterator = SensorEndTouchVector::iterator;
 	using SensorEndTouchVectorConstIterator = SensorEndTouchVector::const_iterator;
 
-	SensorBeginTouchVectorConstIterator begin_begin_touch() const {
+	[[nodiscard]] SensorBeginTouchVectorConstIterator begin_begin_touch() const {
 		return begin(begin_touch_events);
 	}
 
-	SensorBeginTouchVectorConstIterator end_begin_touch() const {
+	[[nodiscard]] SensorBeginTouchVectorConstIterator end_begin_touch() const {
 		return end(begin_touch_events);
 	}
 
-	SensorEndTouchVectorConstIterator begin_end_touch() const {
+	[[nodiscard]] SensorEndTouchVectorConstIterator begin_end_touch() const {
 		return begin(end_touch_events);
 	}
 
-	SensorEndTouchVectorConstIterator end_end_touch() const {
+	[[nodiscard]] SensorEndTouchVectorConstIterator end_end_touch() const {
 		return end(end_touch_events);
 	}
 
 private:
 	friend class World;
-	SensorEvent(const World& world);
+	explicit SensorEvent(const World& world);
 
 	SensorBeginTouchVector begin_touch_events;
 	SensorEndTouchVector end_touch_events;
+};
+
+class ContactBeginTouchEvent {
+public:
+	ContactBeginTouchEvent() = default;
+
+	[[nodiscard]] RigidBody* get_body_a() const;
+	[[nodiscard]] RigidBody* get_body_b() const;
+	[[nodiscard]] ecs::entity get_entity_a() const;
+	[[nodiscard]] ecs::entity get_entity_b() const;
+
+private:
+	friend class ContactEvent;
+	explicit ContactBeginTouchEvent(const b2ContactBeginTouchEvent& event) : event{event} {}
+
+private:
+	b2ContactBeginTouchEvent event;
+};
+
+class ContactEndTouchEvent {
+public:
+	ContactEndTouchEvent() = default;
+
+	[[nodiscard]] RigidBody* get_body_a() const;
+	[[nodiscard]] RigidBody* get_body_b() const;
+	[[nodiscard]] ecs::entity get_entity_a() const;
+	[[nodiscard]] ecs::entity get_entity_b() const;
+
+private:
+	friend class ContactEvent;
+	explicit ContactEndTouchEvent(const b2ContactEndTouchEvent& event) : event{event} {}
+
+private:
+	b2ContactEndTouchEvent event;
+};
+
+class ContactEvent {
+public:
+	using ContactBeginTouchVector = std::vector<ContactBeginTouchEvent>;
+	using ContactEndTouchVector = std::vector<ContactEndTouchEvent>;
+
+	using ContactBeginTouchVectorConstIterator = ContactBeginTouchVector::const_iterator;
+	using ContactEndTouchVectorConstIterator = ContactEndTouchVector::const_iterator;
+
+	[[nodiscard]] ContactBeginTouchVectorConstIterator begin_begin_touch() const {
+		return begin(begin_touch_events);
+	}
+
+	[[nodiscard]] ContactBeginTouchVectorConstIterator end_begin_touch() const {
+		return end(begin_touch_events);
+	}
+
+	[[nodiscard]] ContactEndTouchVectorConstIterator begin_end_touch() const {
+		return begin(end_touch_events);
+	}
+
+	[[nodiscard]] ContactEndTouchVectorConstIterator end_end_touch() const {
+		return end(end_touch_events);
+	}
+
+private:
+	friend class World;
+	explicit ContactEvent(const World& world);
+
+	ContactBeginTouchVector begin_touch_events;
+	ContactEndTouchVector end_touch_events;
+};
+
+class ContactHitEvent {
+public:
+	ContactHitEvent() = default;
+
+	[[nodiscard]] RigidBody* body_a() const;
+	[[nodiscard]] RigidBody* body_b() const;
+
+	[[nodiscard]] ecs::entity entity_a() const;
+	[[nodiscard]] ecs::entity entity_b() const;
+
+	[[nodiscard]] vec2 position() const;
+	[[nodiscard]] vec2 normal() const;
+
+private:
+	friend class ContactHitEvents;
+	explicit ContactHitEvent(const b2ContactHitEvent& event) : event{event} {}
+
+private:
+	b2ContactHitEvent event;
 };
 
 class ContactHitEvents {
@@ -136,11 +205,11 @@ public:
 	using iterator = ContactHitEventVector::iterator;
 	using const_iterator = ContactHitEventVector::const_iterator;
 
-	const_iterator begin() const {
+	[[nodiscard]] const_iterator begin() const {
 		return ::std::begin(events);
 	}
 
-	const_iterator end() const {
+	[[nodiscard]] const_iterator end() const {
 		return ::std::end(events);
 	}
 
@@ -216,26 +285,30 @@ public:
 	friend class World;
 	friend class SensorBeginTouchEvent;
 	friend class SensorEndTouchEvent;
-	friend class ContactHitEvent;
+	friend class ContactBeginTouchEvent;
+	friend class ContactEndTouchEvent;
 	friend class ContactHitEvents;
+	friend class ContactHitEvent;
 
 	RigidBody(RigidBody&) = delete;
 	RigidBody& operator=(RigidBody&) = delete;
 
-	RigidBody(RigidBody&& rhs) : id{rhs.id}, user_data{.self = this, .entity = rhs.user_data.entity} {
+	// TODO: can I apply swap idiom here?
+	RigidBody(RigidBody&& rhs) noexcept : id{rhs.id}, user_data{.self = this, .entity = rhs.user_data.entity} {
 		b2Body_SetUserData(id, &user_data);
 
 		rhs.id = b2_nullBodyId;
-		rhs.user_data = InternalUserData{};
+		rhs.user_data = InternalUserData{.self = nullptr, .entity = {}};
 	}
 
-	RigidBody& operator=(RigidBody&& rhs) {
+	// TODO: can I apply swap idiom here?
+	RigidBody& operator=(RigidBody&& rhs) noexcept {
 		id = rhs.id;
 		user_data = InternalUserData{.self = this, .entity = rhs.user_data.entity};
 		b2Body_SetUserData(id, &user_data);
 
 		rhs.id = b2_nullBodyId;
-		rhs.user_data = InternalUserData{};
+		rhs.user_data = InternalUserData{.self = nullptr, .entity = {}};
 
 		return *this;
 	}
@@ -247,7 +320,7 @@ public:
 		}
 	}
 
-	mat4 get_model() const {
+	[[nodiscard]] mat4 get_model() const {
 		const auto t = get_transform();
 		auto model = ext::identity<mat4>();
 		model[0][0] = t.rotation.cos_angle;
@@ -262,7 +335,7 @@ public:
 	RigidBody& create_shape(const ShapeDef& shape, const Polygon& polygon);
 	RigidBody& create_shape(const ShapeDef& shape, const Circle& circle);
 
-	Transform get_transform() const {
+	[[nodiscard]] Transform get_transform() const {
 		Transform res;
 		const auto& [p, q] = b2Body_GetTransform(id);
 		res.position = from_box2d(p);
@@ -270,12 +343,22 @@ public:
 		return res;
 	}
 
-	vec2 get_linear_velocity() const {
+	[[nodiscard]] vec2 get_linear_velocity() const {
 		return from_box2d(b2Body_GetLinearVelocity(id));
 	}
 
 	RigidBody& set_linear_velocity(vec2 vel) {
 		b2Body_SetLinearVelocity(id, to_box2d(vel));
+		return *this;
+	}
+
+	RigidBody& apply_force_to_center(vec2 force) {
+		b2Body_ApplyForceToCenter(id, to_box2d(force), true);
+		return *this;
+	}
+
+	RigidBody& apply_linear_impulse_to_center(vec2 force) {
+		b2Body_ApplyLinearImpulseToCenter(id, to_box2d(force), true);
 		return *this;
 	}
 
@@ -285,7 +368,7 @@ public:
 		return *this;
 	}
 
-	ecs::entity get_entity() const {
+	[[nodiscard]] ecs::entity get_entity() const {
 		return user_data.entity;
 	}
 
@@ -307,43 +390,93 @@ private:
 //
 // SensorBeginTouchEvent
 //
-RigidBody* SensorBeginTouchEvent::sensor_shape_def() const {
+RigidBody* SensorBeginTouchEvent::get_sensor_body() const {
 	auto shape = event.sensorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
-RigidBody* SensorBeginTouchEvent::visitor_shape_def() const {
+RigidBody* SensorBeginTouchEvent::get_visitor_body() const {
 	auto shape = event.visitorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
 ecs::entity SensorBeginTouchEvent::get_sensor_entity() const {
-	auto shape = event.sensorShapeId;
-	auto body = b2Shape_GetBody(shape);
-	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self->get_entity();
+	return get_sensor_body()->get_entity();
+}
+
+ecs::entity SensorBeginTouchEvent::get_visitor_entity() const {
+	return get_visitor_body()->get_entity();
 }
 
 //
 // SensorEndTouchEvent
 //
-RigidBody* SensorEndTouchEvent::sensor_shape_def() const {
+RigidBody* SensorEndTouchEvent::get_sensor_body() const {
 	auto shape = event.sensorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
-RigidBody* SensorEndTouchEvent::visitor_shape_def() const {
+RigidBody* SensorEndTouchEvent::get_visitor_body() const {
 	auto shape = event.visitorShapeId;
 	auto body = b2Shape_GetBody(shape);
 	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
 }
 
 ecs::entity SensorEndTouchEvent::get_sensor_entity() const {
-	auto shape = event.sensorShapeId;
+	return get_sensor_body()->get_entity();
+}
+
+ecs::entity SensorEndTouchEvent::get_visitor_entity() const {
+	return get_visitor_body()->get_entity();
+}
+
+//
+// ContactBeginTouchEvent
+//
+RigidBody* ContactBeginTouchEvent::get_body_a() const {
+	auto shape = event.shapeIdA;
 	auto body = b2Shape_GetBody(shape);
-	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self->get_entity();
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+RigidBody* ContactBeginTouchEvent::get_body_b() const {
+	auto shape = event.shapeIdB;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+ecs::entity ContactBeginTouchEvent::get_entity_a() const {
+	return get_body_a()->get_entity();
+}
+
+ecs::entity ContactBeginTouchEvent::get_entity_b() const {
+	return get_body_b()->get_entity();
+}
+
+//
+// ContactEndTouchEvent
+//
+RigidBody* ContactEndTouchEvent::get_body_a() const {
+	auto shape = event.shapeIdA;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+RigidBody* ContactEndTouchEvent::get_body_b() const {
+	auto shape = event.shapeIdB;
+	auto body = b2Shape_GetBody(shape);
+	return static_cast<RigidBody::InternalUserData*>(b2Body_GetUserData(body))->self;
+}
+
+ecs::entity ContactEndTouchEvent::get_entity_a() const {
+	return get_body_a()->get_entity();
+}
+
+ecs::entity ContactEndTouchEvent::get_entity_b() const {
+	return get_body_b()->get_entity();
 }
 
 //
@@ -455,16 +588,19 @@ class World {
 public:
 	friend std::optional<World> create_world(const WorldDef& world_def);
 
+	friend void swap(World& lhs, World& rhs) {
+		std::swap(lhs.id, rhs.id);
+	}
+
 	World(const World&) = delete;
 	World operator=(const World&) = delete;
 
-	World(World&& rhs) : id{rhs.id} {
-		rhs.id = b2_nullWorldId;
+	World(World&& rhs) noexcept : id{b2_nullWorldId} {
+		swap(*this, rhs);
 	}
 
-	World& operator=(World&& rhs) {
-		id = rhs.id;
-		rhs.id = b2_nullWorldId;
+	World& operator=(World&& rhs) noexcept {
+		swap(*this, rhs);
 		return *this;
 	}
 
@@ -479,18 +615,22 @@ public:
 		b2World_Step(id, time_step.count(), sub_step_count);
 	}
 
-	RigidBody create_body(const RigidBodyDef& def, ecs::entity entity) const {
+	[[nodiscard]] RigidBody create_body(const RigidBodyDef& def, ecs::entity entity) const {
 		return RigidBody{*this, def, entity};
 	}
 
-	std::optional<RayCastResult> cast_ray(vec2 start, vec2 end) const;
+	[[nodiscard]] std::optional<RayCastResult> cast_ray(vec2 start, vec2 end) const;
 
-	ContactHitEvents get_hit_events() const {
+	[[nodiscard]] ContactHitEvents get_hit_events() const {
 		return ContactHitEvents{*this};
 	}
 
-	SensorEvent get_sensor_events() const {
+	[[nodiscard]] SensorEvent get_sensor_events() const {
 		return SensorEvent{*this};
+	}
+
+	[[nodiscard]] ContactEvent get_contact_events() const {
+		return ContactEvent{*this};
 	}
 
 	explicit operator b2WorldId() const {
@@ -505,13 +645,12 @@ private:
 };
 
 std::optional<World> create_world(const WorldDef& world_def) {
-	auto w = World{world_def};
-	return std::optional<World>{std::move(w)};
+	return World{world_def};
 }
 
 RigidBody::RigidBody(const World& world, const RigidBodyDef& def, ecs::entity entity)
-		: user_data{.self = this, .entity = entity} {
-	id = b2CreateBody(static_cast<b2WorldId>(world), static_cast<const b2BodyDef*>(def));
+		: id{b2CreateBody(static_cast<b2WorldId>(world), static_cast<const b2BodyDef*>(def))},
+			user_data{.self = this, .entity = entity} {
 	b2Body_SetUserData(id, &user_data);
 }
 
@@ -528,6 +667,22 @@ SensorEvent::SensorEvent(const World& world) {
 	std::transform(endEvents, endEvents + endCount,
 								 begin(end_touch_events), //
 								 [](const auto& e) { return SensorEndTouchEvent{e}; });
+}
+
+ContactEvent::ContactEvent(const World& world) {
+	auto [beginEvents, endEvents, hitEvents, beginCount, endCount, hitCount] =
+			b2World_GetContactEvents(static_cast<b2WorldId>(world));
+
+	begin_touch_events.resize(static_cast<std::size_t>(beginCount));
+	end_touch_events.resize(static_cast<std::size_t>(endCount));
+
+	std::transform(beginEvents, beginEvents + beginCount,
+								 begin(begin_touch_events), //
+								 [](const auto& e) { return ContactBeginTouchEvent{e}; });
+
+	std::transform(endEvents, endEvents + endCount,
+								 begin(end_touch_events), //
+								 [](const auto& e) { return ContactEndTouchEvent{e}; });
 }
 
 ContactHitEvents::ContactHitEvents(const World& world) {

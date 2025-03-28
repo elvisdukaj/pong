@@ -15,6 +15,17 @@ target_sources(vis_obj
         time.cpp
         utility.cpp
         window.cpp
+
+        PRIVATE FILE_SET HEADERS
+        FILES
+        # ecs
+        ecs/container/dense_map.inc
+        ecs/container/dense_set.inc
+        ecs/container/fwd.inc
+        ecs/container/table.inc
+        ecs/core/algorithm.inc
+
+        ecs/entity/entity.inc
 )
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
