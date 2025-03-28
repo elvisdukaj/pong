@@ -53,6 +53,10 @@ target_sources(vis_obj
         ecs/entity/snapshot.inc
         ecs/entity/sparse_set.inc
         ecs/entity/storage.inc
+        ecs/graph/adjacency_matrix.inc
+        ecs/graph/dot.inc
+        ecs/graph/flow.inc
+        ecs/graph/fwd.inc
 
         ecs/signal/delegate.inc
         ecs/signal/dispatcher.inc
