@@ -157,17 +157,20 @@ public:
 		return Shader{to_opengl(type), source};
 	}
 
-	Shader(const Shader&) = delete;
-
-	Shader& operator=(const Shader&) = delete;
-
-	Shader(Shader&& other) noexcept : type{other.type}, id{other.id} {
-		other.type = GL_INVALID_ENUM;
+	friend void swap(Shader& lhs, Shader& rhs) {
+		std::swap(lhs.type, rhs.type);
+		std::swap(lhs.id, rhs.id);
 	}
 
-	Shader& operator=(Shader&& rhs) {
-		std::swap(type, rhs.type);
-		std::swap(id, rhs.id);
+	Shader(const Shader&) = delete;
+	Shader& operator=(const Shader&) = delete;
+
+	Shader(Shader&& other) noexcept : type{GL_INVALID_ENUM}, id{} {
+		swap(*this, other);
+	}
+
+	Shader& operator=(Shader&& other) noexcept {
+		swap(*this, other);
 		return *this;
 	}
 
@@ -201,7 +204,7 @@ private:
 
 		if (info_log_len > 0) {
 			std::string message;
-			message.resize(static_cast<std::size_t>(info_log_len + 1), '\0');
+			message.resize(static_cast<std::size_t>(info_log_len) + 1, '\0');
 			glGetShaderInfoLog(id, info_log_len, nullptr, message.data());
 			CHECK_LAST_GL_CALL;
 
@@ -298,14 +301,14 @@ private:
 		}
 	}
 
-	GLint get_uniform_id(std::string_view name) const {
+	[[nodiscard]] GLint get_uniform_id(std::string_view name) const {
 		auto res = glGetUniformLocation(id, name.data());
 		CHECK_LAST_GL_CALL;
 
 		return res;
 	}
 
-	GLint get_or_update_uniform(std::string_view name) {
+	[[nodiscard]] GLint get_or_update_uniform(std::string_view name) {
 		auto it = uniforms.find(name);
 		if (it != uniforms.end()) {
 			return it->second;
@@ -342,8 +345,7 @@ struct DrawDescription {
 
 class OpenGLRenderer {
 public:
-	using Pointer = std::shared_ptr<OpenGLRenderer>;
-	static std::expected<Pointer, std::string> create(vis::Window* window) {
+	static std::expected<OpenGLRenderer, std::string> create(vis::Window* window) {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -355,13 +357,13 @@ public:
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 
-		SDL_GLContext opengl_context = SDL_GL_CreateContext(*window);
+		SDL_GLContext opengl_context = SDL_GL_CreateContext(static_cast<SDL_Window*>(*window));
 		if (not opengl_context) {
-			// return std::unexpected(std::format("Unable to initialize OpenGL: {}", SDL_GetError()));
-			return nullptr;
+			return std::unexpected(std::format("Unable to initialize OpenGL: {}", SDL_GetError()));
+			// return nullptr;
 		}
 
-		if (not SDL_GL_MakeCurrent(*window, opengl_context)) {
+		if (not SDL_GL_MakeCurrent(static_cast<SDL_Window*>(*window), opengl_context)) {
 			SDL_GL_DestroyContext(opengl_context);
 			return std::unexpected("It's not possible to init the graphic");
 		}
@@ -376,7 +378,7 @@ public:
 			std::unexpected("It's not possible to set the vsync");
 		}
 
-		return Pointer{new OpenGLRenderer{window, opengl_context}};
+		return OpenGLRenderer{window, opengl_context};
 	}
 
 	~OpenGLRenderer() {
@@ -389,12 +391,14 @@ public:
 	OpenGLRenderer(OpenGLRenderer&) = delete;
 	OpenGLRenderer& operator=(OpenGLRenderer&) = delete;
 
-	OpenGLRenderer(OpenGLRenderer&& rhs) : window{rhs.window}, context{rhs.context} {
+	// TODO: apply swap idiom
+	OpenGLRenderer(OpenGLRenderer&& rhs) noexcept : window{rhs.window}, context{rhs.context} {
 		rhs.window = nullptr;
 		rhs.context = nullptr;
 	}
 
-	OpenGLRenderer& operator=(OpenGLRenderer&& rhs) {
+	// TODO: apply swap idiom
+	OpenGLRenderer& operator=(OpenGLRenderer&& rhs) noexcept {
 		window = rhs.window;
 		context = rhs.context;
 
@@ -414,7 +418,7 @@ public:
 	}
 
 	void render() const {
-		SDL_GL_SwapWindow(*window);
+		SDL_GL_SwapWindow(static_cast<SDL_Window*>(*window));
 	}
 
 	void set_viewport(int x, int y, int width, int height) {

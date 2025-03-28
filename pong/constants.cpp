@@ -14,7 +14,8 @@ constexpr auto origin = vis::vec2{0.0f, 0.0f};
 constexpr int SCREEN_HEIGHT = 600;
 constexpr int SCREEN_WIDTH = 800;
 
-constexpr std::ratio<4, 3> ASPECT_RATIO;
+using ASPECT_RATIO = std::ratio<4, 3>;
+// constexpr std::ratio<4, 3> ASPECT_RATIO;
 
 constexpr auto pad_thickness = 0.1f;
 constexpr auto pad_length = .4f;
@@ -25,13 +26,14 @@ constexpr auto half_wall_thickness = wall_thickness / 2.0f;
 
 constexpr auto initial_player_speed = 3.0f;
 constexpr auto initial_ai_speed = initial_player_speed;
-constexpr auto ball_vel_min_speed = 3.0f;
-constexpr auto ball_vel_max_speed = 7.0f;
+constexpr auto ball_vel_min_speed = 2.1f;
+constexpr auto ball_vel_max_speed = 5.2f;
 constexpr auto ball_angle_min = vis::radians(-30.0f);
 constexpr auto ball_angle_max = vis::radians(+30.0f);
 
 constexpr auto world_width = 2.0f;
-constexpr auto world_height = world_width * static_cast<float>(ASPECT_RATIO.num) / static_cast<float>(ASPECT_RATIO.den);
+constexpr auto world_height =
+		world_width * static_cast<float>(ASPECT_RATIO::num) / static_cast<float>(ASPECT_RATIO::den);
 
 constexpr auto friction = 0.0f;
 

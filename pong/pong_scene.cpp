@@ -1,4 +1,3 @@
-
 module;
 
 export module game:pong_scene;
@@ -52,7 +51,7 @@ export {
 							[&]([[maybe_unused]] const auto& all_other_events) { return vis::app::AppResult::app_continue; },
 					},
 					event);
-		} // namespace Game
+		}
 
 		[[nodiscard]] vis::app::AppResult update() noexcept override {
 			static vis::chrono::Timer game_timer;
@@ -175,40 +174,59 @@ export {
 			}
 		}
 
-		void update_ball_system(vis::chrono::milliseconds t) {
-			auto contacts = world->get_hit_events();
-			for (auto& contact : contacts) {
-				auto entity_a = contact.entity_a();
-				auto entity_b = contact.entity_b();
+		void update_ball_system([[maybe_unused]] vis::chrono::milliseconds t) {
+			static bool is_ball_colliding_with_pad = false;
+			auto contacts = world->get_contact_events();
 
-				bool is_ball = entity_a == ball_entity || entity_b == ball_entity;
-				bool is_pad = entity_a == ai_entity || entity_b == ai_entity;
-				bool is_player = entity_a == player_entity || entity_b == player_entity;
+			for (auto it = contacts.begin_end_touch(); //
+					 it != contacts.end_end_touch();			 //
+					 ++it) {
+				auto is_ball = ball_entity == it->get_entity_a() || ball_entity == it->get_entity_b();
+				bool is_ai_or_player = ai_entity == it->get_entity_a() || ai_entity == it->get_entity_b() ||
+															 player_entity == it->get_entity_a() || player_entity == it->get_entity_b();
 
-				if (not is_ball)
+				if (is_ball && is_ai_or_player) {
+					std::println("[{}] ball stopped collision", t);
+					is_ball_colliding_with_pad = false;
+				}
+			}
+
+			for (auto it = contacts.begin_begin_touch(); //
+					 it != contacts.end_begin_touch();			 //
+					 ++it) {
+
+				if (is_ball_colliding_with_pad) {
+					std::println("[{}] ball already in collision - exiting", t);
 					return;
+				}
 
-				if (!(is_player or is_pad))
-					return;
+				auto is_ball = ball_entity == it->get_entity_a() || ball_entity == it->get_entity_b();
+				bool is_ai_or_player = ai_entity == it->get_entity_a() || ai_entity == it->get_entity_b() ||
+															 player_entity == it->get_entity_a() || player_entity == it->get_entity_b();
 
-				// ball-pad collision
+				if (is_ball && is_ai_or_player) {
+					std::println("[{}] start ball collision", t);
+					is_ball_colliding_with_pad = true;
+				}
 
-				vis::physics::RigidBody& ball_rb = entity_registry.get<vis::physics::RigidBody>(ball_entity);
-				auto ball_vel = vis::normalize(ball_rb.get_linear_velocity());
+				if (is_ai_or_player) {
+					vis::physics::RigidBody& ball_rb = entity_registry.get<vis::physics::RigidBody>(ball_entity);
 
-				// const auto& norm = is_player ? right_norm : left_norm;
-				const auto norm = contact.normal();
-				auto old_direction = vis::reflect(ball_vel, norm);
-				auto new_direction = vis::get_random_direction(old_direction, ball_angle_min, ball_angle_max);
-				auto new_vel_mag = vis::get_random(ball_vel_min_speed, ball_vel_max_speed);
+					auto ball_dir = vis::normalize(ball_rb.get_linear_velocity());
+					auto force_direction = vis::get_random_direction(ball_dir, ball_angle_min, ball_angle_max);
+					auto force_mag = vis::get_random(ball_vel_min_speed, ball_vel_max_speed);
+					auto impulse = force_direction * force_mag;
 
-				std::println("[{}] normal: {}, old_dir = {}, new_dire: {}", t, norm, old_direction, new_direction);
+					// ball_rb.apply_linear_impulse_to_center(impulse);
+					std::println("[{}] ball direction: {}, new force: {} (mag: {})", t, ball_dir, impulse, force_mag);
+				}
 
-				ball_rb.set_linear_velocity(new_direction * new_vel_mag);
+				std::println("[{}] There was a start of collision between {} and {}", t, static_cast<int>(it->get_entity_a()),
+										 static_cast<int>(it->get_entity_b()));
 			}
 
 			entity_registry
-					.view<vis::physics::RigidBody, BallComponent>() //
+					.view<vis::physics::RigidBody, BallComponent>()
 					.each([&](vis::physics::RigidBody& rb, BallComponent& ball) {
 						ball.position = rb.get_transform().position;
 						ball.velocity = rb.get_linear_velocity();
@@ -311,8 +329,11 @@ export {
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_restitution(1.0f)
+														.enable_contact_events(true)
 														.set_friction(friction);
 			rigid_body.create_shape(wall_shape, wall_box);
+
+			std::println("Creating player pad with id: {}", static_cast<int>(player_entity));
 		}
 
 		void add_pad(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -331,8 +352,11 @@ export {
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto shape = vis::physics::ShapeDef{} //
 											 .set_restitution(1.0f)
-											 .set_friction(friction);
+											 .set_friction(friction)
+											 .enable_contact_events(true);
 			rigid_body.create_shape(shape, wall_box);
+
+			std::println("Creating ai pad with id: {}", static_cast<int>(ai_entity));
 		}
 
 		void add_ball(float radius, vis::vec2 pos, vis::vec4 color) {
@@ -364,8 +388,11 @@ export {
 			auto shape_def = vis::physics::ShapeDef{} //
 													 .set_restitution(1.0)
 													 .set_friction(friction)
-													 .enable_hit_events(true);
+													 .enable_hit_events(true)
+													 .enable_contact_events(true);
 			rigid_body.create_shape(shape_def, circle);
+
+			std::println("Creating ball with id: {}", static_cast<int>(ball_entity));
 		}
 
 		void add_wall(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color) {
@@ -382,8 +409,12 @@ export {
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_restitution(1.0f)
-														.set_friction(friction);
+														.set_friction(friction)
+														.enable_contact_events(true);
+			;
 			rigid_body.create_shape(wall_shape, wall_box);
+
+			std::println("Creating wall with id: {}", static_cast<int>(wall));
 		}
 
 		void add_goal(vis::vec2 half_extent, vis::vec2 pos, vis::vec4 color, IsPlayer is_player) {
@@ -401,7 +432,7 @@ export {
 			rigid_body.create_shape(wall_shape, wall_box);
 		}
 
-		float max_upper_bound() const {
+		[[nodiscard]] float max_upper_bound() const {
 			return screen_proj.half_world_extent.y - 2 * half_wall_thickness - pad_length / 2.0f;
 		}
 

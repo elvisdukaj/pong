@@ -20,14 +20,16 @@ using namespace vis::literals::chrono_literals;
 class App {
 public:
 	static App* create() {
-		auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
+		static auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
 		if (not window)
 			return nullptr;
-		auto renderer = vis::opengl::OpenGLRenderer::create(window.value().get());
+
+		static auto renderer = vis::opengl::OpenGLRenderer::create(&(window.value()));
 		if (not renderer)
 			return nullptr;
 
-		return new App{std::move(window.value()), std::move(renderer.value())};
+		static auto app = new App{/*&(window.value()),*/ &(renderer.value())};
+		return app;
 	}
 
 	[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& event) noexcept {
@@ -39,14 +41,12 @@ public:
 	}
 
 private:
-	enum class IsPlayer : bool { yes = true, no = false };
-
-	explicit App(vis::Window::Pointer window, vis::opengl::OpenGLRenderer::Pointer renderer)
-			: window{std::move(window)}, renderer(std::move(renderer)), pong_scene{*this->renderer.get()} {}
+	explicit App(/*vis::Window* window,*/ vis::opengl::OpenGLRenderer* renderer)
+			: /*window{window}, renderer(renderer),*/ pong_scene{*renderer} {}
 
 private:
-	vis::Window::Pointer window;
-	vis::opengl::OpenGLRenderer::Pointer renderer;
+	// vis::Window* window;
+	// vis::opengl::OpenGLRenderer* renderer;
 
 	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::opengl;
 

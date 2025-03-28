@@ -45,14 +45,13 @@ constexpr WindowsFlags operator|(WindowsFlags lhs, WindowsFlags rhs) {
 
 class Window {
 public:
-	using Pointer = std::unique_ptr<Window>;
-	static std::expected<Pointer, std::string> create(std::string_view title, int width, int height, WindowsFlags flags) {
+	static std::expected<Window, std::string> create(std::string_view title, int width, int height, WindowsFlags flags) {
 		using underlying = std::underlying_type<WindowsFlags>::type;
 		auto window = SDL_CreateWindow(title.data(), width, height, static_cast<underlying>(flags));
 		if (not window)
 			return std::unexpected(std::format("Unable to create window: {}", SDL_GetError()));
 
-		return Pointer{new Window{window}};
+		return Window{window};
 	}
 
 	~Window() {
@@ -65,22 +64,22 @@ public:
 	Window(Window&) = delete;
 	Window& operator=(Window&) = delete;
 
-	Window(Window&& rhs) : window{rhs.window} {
+	Window(Window&& rhs) noexcept : window{rhs.window} {
 		rhs.window = nullptr;
 	}
 
-	Window& operator=(Window&& rhs) {
+	Window& operator=(Window&& rhs) noexcept {
 		window = rhs.window;
 		rhs.window = nullptr;
 		return *this;
 	};
 
-	operator SDL_Window*() {
+	explicit operator SDL_Window*() {
 		return window;
 	}
 
 private:
-	Window(SDL_Window* window) : window(window) {
+	explicit Window(SDL_Window* window) : window(window) {
 		SDL_ShowWindow(window);
 	}
 

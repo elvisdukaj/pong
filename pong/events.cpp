@@ -1,7 +1,3 @@
-module;
-
-#include <SDL3/SDL_events.h>
-
 export module game:events;
 
 import std;
@@ -10,7 +6,7 @@ import vis;
 export namespace Game {
 
 struct DefendEvent {
-	DefendEvent(vis::vec2 pad_pos) : pad_pos{pad_pos} {}
+	explicit DefendEvent(vis::vec2 pad_pos) : pad_pos{pad_pos} {}
 	vis::vec2 pad_pos;
 };
 
