@@ -1,8 +1,5 @@
 module;
 
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_events.h>
-
 export module game:app;
 
 import :events;
@@ -27,6 +24,12 @@ public:
 		static auto renderer = vis::gl::OpenGLRenderer::create(&(window.value()));
 		if (not renderer)
 			return nullptr;
+
+		static auto vk_renderer = vis::vk::Renderer::create(&(window.value()));
+		if (not vk_renderer)
+			return nullptr;
+
+		std::println( "{}", vk_renderer->show_info());
 
 		static auto app = new App{/*&(window.value()),*/ &(renderer.value())};
 		return app;

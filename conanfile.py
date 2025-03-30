@@ -31,6 +31,7 @@ class PongRecipe(ConanFile):
         self.requires("box2d/3.0.0")
         self.requires("glew/2.2.0")
         self.requires("sml/1.1.9")
+        self.requires("vulkan-loader/1.4.309.0")
 
     def layout(self):
         cmake_layout(self)

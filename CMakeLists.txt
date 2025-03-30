@@ -16,6 +16,7 @@ find_package(EnTT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
+find_package(VulkanLoader CONFIG REQUIRED)
 
 function(target_add_extra_warnings target visibility)
     # Ensure TARGET is specified
