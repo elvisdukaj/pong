@@ -1,7 +1,6 @@
 module;
 
 #include <SDL3/SDL_main.h>
-
 #include <SDL3/SDL.h>
 
 export module vis:app;

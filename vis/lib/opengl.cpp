@@ -36,17 +36,19 @@ struct VertexArrayObject {
 			glDeleteVertexArrays(1, &id);
 	}
 
-	VertexArrayObject(VertexArrayObject&) = delete;
-
-	VertexArrayObject& operator=(VertexArrayObject&) = delete;
-
-	VertexArrayObject(VertexArrayObject&& rhs) noexcept : id{rhs.id} {
-		rhs.id = 0;
+	friend void swap(VertexArrayObject& lhs, VertexArrayObject& rhs) {
+		std::swap(lhs.id, rhs.id);
 	}
 
-	VertexArrayObject& operator=(VertexArrayObject&& rhs) noexcept {
-		id = rhs.id;
-		rhs.id = 0;
+	VertexArrayObject(VertexArrayObject&) = delete;
+	VertexArrayObject& operator=(VertexArrayObject&) = delete;
+
+	VertexArrayObject(VertexArrayObject&& other) noexcept : id{0} {
+		swap(*this, other);
+	}
+
+	VertexArrayObject& operator=(VertexArrayObject&& other) noexcept {
+		swap(*this, other);
 		return *this;
 	}
 
@@ -75,17 +77,19 @@ struct VertexBufferObject {
 			glDeleteBuffers(1, &id);
 	}
 
-	VertexBufferObject(VertexBufferObject&) = delete;
+	friend void swap(VertexBufferObject& lhs, VertexBufferObject& rhs) {
+		std::swap(lhs.id, rhs.id);
+	}
 
+	VertexBufferObject(VertexBufferObject&) = delete;
 	VertexBufferObject& operator=(VertexBufferObject&) = delete;
 
-	VertexBufferObject(VertexBufferObject&& rhs) noexcept : id{rhs.id} {
-		rhs.id = 0;
+	VertexBufferObject(VertexBufferObject&& rhs) noexcept : id{0} {
+		swap(*this, rhs);
 	}
 
 	VertexBufferObject& operator=(VertexBufferObject&& rhs) noexcept {
-		id = rhs.id;
-		rhs.id = 0;
+		swap(*this, rhs);
 		return *this;
 	}
 
@@ -223,11 +227,15 @@ public:
 		return Program{std::move(shaders)};
 	}
 
+	friend void swap(Program& lhs, Program& rhs) {
+		std::swap(lhs.id, rhs.id);
+	}
+
 	Program(const Program&) = delete;
 	Program& operator=(const Program&) = delete;
 
-	Program(Program&& other) noexcept : id{other.id} {
-		other.id = 0;
+	Program(Program&& other) noexcept : id{0} {
+		swap(*this, other);
 	}
 
 	Program& operator=(Program&& rhs) noexcept {
@@ -388,22 +396,20 @@ public:
 		}
 	}
 
+	friend void swap(OpenGLRenderer& lhs, OpenGLRenderer& rhs) {
+		std::swap(lhs.window, rhs.window);
+		std::swap(lhs.context, rhs.context);
+	}
+
 	OpenGLRenderer(OpenGLRenderer&) = delete;
 	OpenGLRenderer& operator=(OpenGLRenderer&) = delete;
 
-	// TODO: apply swap idiom
-	OpenGLRenderer(OpenGLRenderer&& rhs) noexcept : window{rhs.window}, context{rhs.context} {
-		rhs.window = nullptr;
-		rhs.context = nullptr;
+	OpenGLRenderer(OpenGLRenderer&& other) noexcept : window{nullptr}, context{nullptr} {
+		swap(*this, other);
 	}
 
-	// TODO: apply swap idiom
-	OpenGLRenderer& operator=(OpenGLRenderer&& rhs) noexcept {
-		window = rhs.window;
-		context = rhs.context;
-
-		rhs.window = nullptr;
-		rhs.context = nullptr;
+	OpenGLRenderer& operator=(OpenGLRenderer&& other) noexcept {
+		swap(*this, other);
 		return *this;
 	}
 
