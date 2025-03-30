@@ -69,6 +69,35 @@ std::string vk_version_to_string(uint32_t version) {
 	return std::format("{}.{}.{}", maj, min, patch);
 }
 
+std::expected<VkInstance, std::string> vk_create_instance(std::string_view application_name,
+																													uint32_t application_version) {
+	VkApplicationInfo app_info{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+														 .pNext = nullptr,
+														 .pApplicationName = application_name.data(),
+														 .applicationVersion = application_version,
+														 .pEngineName = "vis game engine",
+														 .engineVersion = VK_MAKE_VERSION(0, 0, 1),
+														 .apiVersion = VK_API_VERSION_1_4};
+
+	VkInstanceCreateInfo create_info{
+			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.pApplicationInfo = &app_info,
+			.enabledLayerCount = 0,
+			.ppEnabledLayerNames = nullptr,
+			.enabledExtensionCount = 0,
+			.ppEnabledExtensionNames = nullptr,
+	};
+
+	VkInstance instance = VK_NULL_HANDLE;
+	auto res = vkCreateInstance(&create_info, nullptr, &instance);
+	if (res != VK_SUCCESS) {
+		return std::unexpected("Unable to create a Vulkan Instance");
+	}
+	return instance;
+}
+
 } // namespace
 
 namespace std {
@@ -133,7 +162,12 @@ class Renderer {
 public:
 	static std::expected<Renderer, std::string> create(Window* window) {
 		try {
-			return Renderer{window};
+			auto title = SDL_GetWindowTitle(static_cast<SDL_Window*>(*window));
+			auto instance = vk_create_instance(title, VK_MAKE_VERSION(0, 0, 1));
+			if (not instance.has_value()) {
+				return std::unexpected(instance.error());
+			}
+			return Renderer{window, *instance};
 		} catch (const std::bad_alloc& exc) {
 			return std::unexpected(std::string{exc.what()});
 		} catch (const std::exception& exc) {
@@ -143,24 +177,23 @@ public:
 		}
 	}
 
-	// ~Renderer() {
-	// if (context.instance != VK_NULL_HANDLE) {
-	// vkDestroyInstance(context.instance, nullptr);
-	// }
-	// }
+	~Renderer() {
+		if (instance != VK_NULL_HANDLE) {
+			vkDestroyInstance(instance, nullptr);
+		}
+	}
 
 	Renderer(Renderer&) = delete;
 	Renderer& operator=(Renderer&) = delete;
 
 	friend void swap(Renderer& lhs, Renderer& rhs) {
 		std::swap(lhs.window, rhs.window);
-		// std::swap(lhs.instance, rhs.instance);
 		std::swap(lhs.layers, rhs.layers);
+		std::swap(lhs.instance, rhs.instance);
 	}
 
-	Renderer(Renderer&& other) : window{nullptr}, /*instance{rhs.instance},*/ layers{} {
+	Renderer(Renderer&& other) : window{nullptr}, layers{}, instance{VK_NULL_HANDLE} {
 		swap(*this, other);
-		// rhs.instance = VK_NULL_HANDLE;
 	}
 
 	Renderer& operator=(Renderer&& rhs) {
@@ -188,12 +221,13 @@ public:
 	}
 
 private:
-	explicit Renderer(Window* window) : window{window}, layers{enumerateInstanceLayers()} {}
+	explicit Renderer(Window* window, VkInstance instance)
+			: window{window}, layers{enumerateInstanceLayers()}, instance{instance} {}
 
 private:
 	Window* window;
-	// VkInstance instance = VK_NULL_HANDLE;
 	std::vector<LayerProperties> layers;
+	VkInstance instance;
 }; // namespace vis::vk
 
 } // namespace vis::vk
