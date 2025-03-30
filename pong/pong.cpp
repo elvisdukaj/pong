@@ -24,7 +24,7 @@ public:
 		if (not window)
 			return nullptr;
 
-		static auto renderer = vis::opengl::OpenGLRenderer::create(&(window.value()));
+		static auto renderer = vis::gl::OpenGLRenderer::create(&(window.value()));
 		if (not renderer)
 			return nullptr;
 
@@ -41,7 +41,7 @@ public:
 	}
 
 private:
-	explicit App(/*vis::Window* window,*/ vis::opengl::OpenGLRenderer* renderer)
+	explicit App(/*vis::Window* window,*/ vis::gl::OpenGLRenderer* renderer)
 			: /*window{window}, renderer(renderer),*/ pong_scene{*renderer} {}
 
 private:

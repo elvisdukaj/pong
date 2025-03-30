@@ -24,7 +24,7 @@ import std;
 import :math;
 import :window;
 
-export namespace vis::opengl {
+export namespace vis::gl {
 
 struct VertexArrayObject {
 	VertexArrayObject() {

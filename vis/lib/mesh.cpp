@@ -48,8 +48,8 @@ struct DrawDescription {
 class MeshShader {
 public:
 	MeshShader()
-			: program{*opengl::ProgramBuilder{}
-										 .add_shader(opengl::Shader::create(opengl::ShaderType::vertex, R"(
+			: program{*gl::ProgramBuilder{}
+										 .add_shader(gl::Shader::create(gl::ShaderType::vertex, R"(
 #version 410 core
 layout (location = 0) in vec2 pos;
 layout (location = 1) in vec4 col;
@@ -64,7 +64,7 @@ void main()
 		vertex_color = col;
 }
 )"))
-										 .add_shader(opengl::Shader::create(opengl::ShaderType::fragment, R"(
+										 .add_shader(gl::Shader::create(gl::ShaderType::fragment, R"(
 #version 410 core
 
 in vec4 vertex_color;
@@ -98,7 +98,7 @@ void main()
 	}
 
 private:
-	opengl::Program program;
+	gl::Program program;
 };
 
 class Mesh {
@@ -143,8 +143,8 @@ public:
 	}
 
 private:
-	opengl::VertexArrayObject vao;
-	opengl::VertexBufferObject vbo;
+	gl::VertexArrayObject vao;
+	gl::VertexBufferObject vbo;
 	std::vector<VertexDescription> vertex_descriptors;
 	DrawDescription draw_descriptor;
 };

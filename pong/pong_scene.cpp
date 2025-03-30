@@ -21,7 +21,7 @@ export {
 
 	class PongScene : public Scene {
 	public:
-		explicit PongScene(vis::opengl::OpenGLRenderer& renderer) : renderer(renderer) {
+		explicit PongScene(vis::gl::OpenGLRenderer& renderer) : renderer(renderer) {
 			initialize_video();
 			initialize_game();
 		}
@@ -437,7 +437,7 @@ export {
 		}
 
 	private:
-		vis::opengl::OpenGLRenderer& renderer;
+		vis::gl::OpenGLRenderer& renderer;
 
 		int screen_width = SCREEN_WIDTH;
 		int screen_height = SCREEN_HEIGHT;
