@@ -61,20 +61,23 @@ public:
 		}
 	}
 
+	friend void swap(Window& lhs, Window& rhs) {
+		std::swap(lhs.window, rhs.window);
+	}
+
 	Window(Window&) = delete;
 	Window& operator=(Window&) = delete;
 
-	Window(Window&& rhs) noexcept : window{rhs.window} {
-		rhs.window = nullptr;
+	Window(Window&& rhs) noexcept : window{nullptr} {
+		swap(*this, rhs);
 	}
 
 	Window& operator=(Window&& rhs) noexcept {
-		window = rhs.window;
-		rhs.window = nullptr;
+		swap(*this, rhs);
 		return *this;
 	};
 
-	explicit operator SDL_Window*() {
+	explicit operator SDL_Window*() const {
 		return window;
 	}
 
