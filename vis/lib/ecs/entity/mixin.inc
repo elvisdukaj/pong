@@ -1,7 +1,4 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_sigh_mixin;
-using ::entt::basic_reactive_mixin;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_reactive_mixin;
+using vis::ecs::basic_sigh_mixin;
+} // namespace vis::ecs

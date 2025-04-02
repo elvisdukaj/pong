@@ -1,7 +1,3 @@
-
-export namespace vis {
-namespace ecs {
-
-using ::entt::family;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::family;
+} // namespace vis::ecs

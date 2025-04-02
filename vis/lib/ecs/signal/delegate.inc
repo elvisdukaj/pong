@@ -1,8 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::delegate;
-
-using ::entt::operator!=;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::delegate;
+} // namespace vis::ecs

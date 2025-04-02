@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_runtime_view;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_runtime_view;
+} // namespace vis::ecs

@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_flow;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_flow;
+} // namespace vis::ecs

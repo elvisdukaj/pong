@@ -1,4 +1,3 @@
-export namespace vis {
-namespace ecs {
-using ::entt::table;
-}} // namespace entt
+export namespace vis::ecs {
+using vis::ecs::table;
+} // namespace vis::ecs

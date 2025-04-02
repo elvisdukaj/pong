@@ -1,10 +1,6 @@
-export namespace vis {
-namespace ecs {
-
-// TODO: check if this can be removed
-using ::entt::popcount;
-using ::entt::has_single_bit;
-using ::entt::next_power_of_two;
-using ::entt::fast_mod;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::fast_mod;
+using vis::ecs::has_single_bit;
+using vis::ecs::next_power_of_two;
+using vis::ecs::popcount;
+} // namespace vis::ecs

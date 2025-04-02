@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::resource_loader;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::resource_loader;
+} // namespace vis::ecs

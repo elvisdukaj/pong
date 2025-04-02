@@ -1,8 +1,5 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::meta_ctx;
-using ::entt::meta_ctx_arg_t;
-using ::entt::meta_ctx_arg;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::meta_ctx;
+using vis::ecs::meta_ctx_arg;
+using vis::ecs::meta_ctx_arg_t;
+} // namespace vis::ecs

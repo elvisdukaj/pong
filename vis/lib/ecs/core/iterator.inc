@@ -1,10 +1,5 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::input_iterator_pointer;
-using ::entt::iota_iterator;
-using ::entt::operator==;
-using ::entt::operator!=;
-using ::entt::iterable_adaptor;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::input_iterator_pointer;
+using vis::ecs::iota_iterator;
+using vis::ecs::iterable_adaptor;
+} // namespace vis::ecs

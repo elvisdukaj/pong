@@ -1,7 +1,4 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::meta_class_template_tag;
-using ::entt::meta_template_traits;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::meta_class_template_tag;
+using vis::ecs::meta_template_traits;
+} // namespace vis::ecs

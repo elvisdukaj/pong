@@ -63,9 +63,9 @@ std::vector<LayerProperties> enumerateInstanceLayers() {
 }
 
 std::string vk_version_to_string(uint32_t version) {
-	const auto maj = VK_VERSION_MAJOR(version);
-	const auto min = VK_VERSION_MINOR(version);
-	const auto patch = VK_VERSION_PATCH(version);
+	const auto maj = VK_API_VERSION_MAJOR(version);
+	const auto min = VK_API_VERSION_MINOR(version);
+	const auto patch = VK_API_VERSION_PATCH(version);
 	return std::format("{}.{}.{}", maj, min, patch);
 }
 
@@ -113,7 +113,7 @@ template <> struct std::formatter<VkLayerProperties> {
 													"     spec version: {}\n"
 													"     impl version: {}\n",
 													std::string_view{layer.layerName}, std::string_view{layer.description},
-													vk_version_to_string(layer.specVersion), vk_version_to_string(layer.implementationVersion));
+													vk_version_to_string(layer.specVersion), layer.implementationVersion);
 	}
 };
 
@@ -126,7 +126,7 @@ template <> struct std::formatter<VkExtensionProperties> {
 		return std::format_to(ctx.out(),
 													" - name:        {}\n"
 													"   spec version: {}\n",
-													std::string_view{extension.extensionName}, vk_version_to_string(extension.specVersion));
+													std::string_view{extension.extensionName}, extension.specVersion);
 	}
 };
 
@@ -134,10 +134,7 @@ template <> struct std::formatter<std::vector<VkExtensionProperties>> : std::for
 	auto format(const std::vector<VkExtensionProperties>& extensions, std::format_context& ctx) const {
 		std::string temp;
 		for (const auto& extension : extensions) {
-			std::format_to(back_inserter(temp),
-										 " - name:        {}\n"
-										 "   spec version: {}\n",
-										 std::string_view{extension.extensionName}, vk_version_to_string(extension.specVersion));
+			std::format_to(back_inserter(temp), "{}", extension);
 		}
 		return std::formatter<std::string>::format(temp, ctx);
 	}

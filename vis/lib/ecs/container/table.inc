@@ -1,8 +1,3 @@
-export namespace vis {
-namespace ecs {
-using ::entt::basic_table;
-}} // namespace entt
-
-export namespace std {
-using ::std::uses_allocator;
-}
+export namespace vis::ecs {
+using vis::ecs::basic_table;
+} // namespace vis::ecs

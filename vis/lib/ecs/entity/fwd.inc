@@ -1,35 +1,32 @@
-export namespace vis {
-namespace ecs {
+export namespace vis::ecs {
+using vis::ecs::deletion_policy;
+using vis::ecs::entity;
 
-using ::entt::entity;
-using ::entt::deletion_policy;
-
-using ::entt::sparse_set;
-using ::entt::storage;
-using ::entt::sigh_mixin;
-using ::entt::reactive_mixin;
-using ::entt::registry;
-using ::entt::organizer;
-using ::entt::handle;
-using ::entt::const_handle;
-using ::entt::handle_view;
-using ::entt::const_handle_view;
-using ::entt::snapshot;
-using ::entt::snapshot_loader;
-using ::entt::continuous_loader;
-using ::entt::runtime_view;
-using ::entt::const_runtime_view;
-using ::entt::exclude_t;
-using ::entt::exclude;
-using ::entt::get_t;
-using ::entt::owned_t;
-using ::entt::type_list_transform;
-using ::entt::storage_type;
-using ::entt::reactive;
-using ::entt::storage_type_t;
-using ::entt::storage_for;
-using ::entt::storage_for_t;
-using ::entt::view;
-using ::entt::group;
-
-}}
+using vis::ecs::const_handle;
+using vis::ecs::const_handle_view;
+using vis::ecs::const_runtime_view;
+using vis::ecs::continuous_loader;
+using vis::ecs::exclude;
+using vis::ecs::exclude_t;
+using vis::ecs::get_t;
+using vis::ecs::group;
+using vis::ecs::handle;
+using vis::ecs::handle_view;
+using vis::ecs::organizer;
+using vis::ecs::owned_t;
+using vis::ecs::reactive;
+using vis::ecs::reactive_mixin;
+using vis::ecs::registry;
+using vis::ecs::runtime_view;
+using vis::ecs::sigh_mixin;
+using vis::ecs::snapshot;
+using vis::ecs::snapshot_loader;
+using vis::ecs::sparse_set;
+using vis::ecs::storage;
+using vis::ecs::storage_for;
+using vis::ecs::storage_for_t;
+using vis::ecs::storage_type;
+using vis::ecs::storage_type_t;
+using vis::ecs::type_list_transform;
+using vis::ecs::view;
+} // namespace vis::ecs

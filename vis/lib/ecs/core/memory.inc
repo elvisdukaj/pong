@@ -1,14 +1,11 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::to_address;
-using ::entt::propagate_on_container_copy_assignment;
-using ::entt::propagate_on_container_move_assignment;
-using ::entt::propagate_on_container_swap;
-using ::entt::allocation_deleter;
-using ::entt::allocate_unique;
-using ::entt::uses_allocator_construction_args;
-using ::entt::make_obj_using_allocator;
-using ::entt::uninitialized_construct_using_allocator;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::allocate_unique;
+using vis::ecs::allocation_deleter;
+using vis::ecs::make_obj_using_allocator;
+using vis::ecs::propagate_on_container_copy_assignment;
+using vis::ecs::propagate_on_container_move_assignment;
+using vis::ecs::propagate_on_container_swap;
+using vis::ecs::to_address;
+using vis::ecs::uninitialized_construct_using_allocator;
+using vis::ecs::uses_allocator_construction_args;
+} // namespace vis::ecs

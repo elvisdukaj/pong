@@ -1,4 +1,3 @@
-export namespace vis {
-namespace ecs {
-using ::entt::component_traits;
-}}
+export namespace vis::ecs {
+using vis::ecs::component_traits;
+} // namespace vis::ecs

@@ -1,12 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::resource;
-using ::entt::operator==;
-using ::entt::operator!=;
-using ::entt::operator<;
-using ::entt::operator>;
-using ::entt::operator<=;
-using ::entt::operator>=;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::resource;
+} // namespace vis::ecs

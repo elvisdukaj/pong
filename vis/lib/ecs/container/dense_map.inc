@@ -1,9 +1,3 @@
-
-export namespace vis {
-namespace ecs {
-using ::entt::dense_map;
-}} // namespace entt
-
-export namespace std {
-    using std::uses_allocator;
-}// namespace std
+export namespace vis::ecs {
+using vis::ecs::dense_map;
+} // namespace vis::ecs

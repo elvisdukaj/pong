@@ -1,4 +1,3 @@
-export namespace vis {
-namespace ecs {
-using ::entt::basic_sparse_set;
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_sparse_set;
+} // namespace vis::ecs

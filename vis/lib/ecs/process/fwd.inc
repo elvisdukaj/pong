@@ -1,6 +1,3 @@
-export namespace vis {
-namespace entt {
-
-using ::entt::scheduler;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::scheduler;
+} // namespace vis::ecs

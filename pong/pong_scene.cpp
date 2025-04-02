@@ -21,7 +21,7 @@ export {
 
 	class PongScene : public Scene {
 	public:
-		explicit PongScene(vis::gl::OpenGLRenderer& renderer) : renderer(renderer) {
+		explicit PongScene(vis::vk::Renderer& renderer) : renderer(renderer) {
 			initialize_video();
 			initialize_game();
 		}
@@ -225,9 +225,8 @@ export {
 										 static_cast<int>(it->get_entity_b()));
 			}
 
-			entity_registry
-					.view<vis::physics::RigidBody, BallComponent>()
-					.each([&](vis::physics::RigidBody& rb, BallComponent& ball) {
+			entity_registry.view<vis::physics::RigidBody, BallComponent>().each(
+					[&](vis::physics::RigidBody& rb, BallComponent& ball) {
 						ball.position = rb.get_transform().position;
 						ball.velocity = rb.get_linear_velocity();
 					});
@@ -437,7 +436,7 @@ export {
 		}
 
 	private:
-		vis::gl::OpenGLRenderer& renderer;
+		vis::vk::Renderer& renderer;
 
 		int screen_width = SCREEN_WIDTH;
 		int screen_height = SCREEN_HEIGHT;

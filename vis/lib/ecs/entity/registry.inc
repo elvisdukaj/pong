@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_registry;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_registry;
+} // namespace vis::ecs

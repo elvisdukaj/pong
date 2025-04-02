@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::meta_range;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::meta_range;
+} // namespace vis::ecs

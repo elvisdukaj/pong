@@ -1,8 +1,5 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::meta_factory;
-using ::entt::meta;
-using ::entt::meta_reset;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::meta;
+using vis::ecs::meta_factory;
+using vis::ecs::meta_reset;
+} // namespace vis::ecs

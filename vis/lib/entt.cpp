@@ -1,6 +1,6 @@
 module;
 
-#include <entt/entt.hpp>
+#include "ecs/entt.hpp"
 
 export module vis:ecs;
 export import std;
@@ -11,6 +11,7 @@ export import std;
 #include "ecs/container/table.inc"
 #include "ecs/core/algorithm.inc"
 #include "ecs/core/any.inc"
+#include "ecs/core/attribute.inc"
 #include "ecs/core/bit.inc"
 #include "ecs/core/compressed_pair.inc"
 #include "ecs/core/enum.inc"
@@ -30,6 +31,7 @@ export import std;
 #include "ecs/entity/entity.inc"
 #include "ecs/entity/fwd.inc"
 #include "ecs/entity/group.inc"
+#include "ecs/entity/handle.inc"
 #include "ecs/entity/helper.inc"
 #include "ecs/entity/mixin.inc"
 #include "ecs/entity/organizer.inc"
@@ -51,12 +53,15 @@ export import std;
 #include "ecs/meta/factory.inc"
 #include "ecs/meta/fwd.inc"
 #include "ecs/meta/meta.inc"
+#include "ecs/meta/node.inc"
 #include "ecs/meta/pointer.inc"
 #include "ecs/meta/policy.inc"
 #include "ecs/meta/range.inc"
 #include "ecs/meta/resolve.inc"
+#include "ecs/meta/template.inc"
 #include "ecs/meta/type_traits.inc"
 #include "ecs/meta/utility.inc"
+#include "ecs/operators.inc"
 #include "ecs/poly/fwd.inc"
 #include "ecs/poly/poly.inc"
 #include "ecs/process/fwd.inc"
@@ -70,4 +75,6 @@ export import std;
 #include "ecs/signal/dispatcher.inc"
 #include "ecs/signal/emitter.inc"
 #include "ecs/signal/fwd.inc"
+
 #include "ecs/signal/sigh.inc"
+#include "ecs/std.inc"

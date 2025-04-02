@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::resolve;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::resolve;
+} // namespace vis::ecs

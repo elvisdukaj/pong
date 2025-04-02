@@ -1,7 +1,4 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::process;
-using ::entt::process_adaptor;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::process;
+using vis::ecs::process_adaptor;
+}

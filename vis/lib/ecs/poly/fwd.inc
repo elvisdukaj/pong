@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::poly;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::poly;
+} // namespace vis::ecs

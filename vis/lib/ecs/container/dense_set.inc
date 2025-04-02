@@ -1,5 +1,3 @@
-
-export namespace vis {
-namespace ecs {
-using ::entt::dense_set;
-}} // namespace entt
+export namespace vis::ecs {
+using vis::ecs::dense_set;
+} // namespace vis::ecs

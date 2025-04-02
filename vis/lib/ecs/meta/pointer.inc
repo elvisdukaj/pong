@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::is_meta_pointer_like;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::is_meta_pointer_like;
+} // namespace vis::ecs

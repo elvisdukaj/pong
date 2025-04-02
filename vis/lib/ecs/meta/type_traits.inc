@@ -1,9 +1,6 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::meta_template_traits;
-using ::entt::meta_sequence_container_traits;
-using ::entt::meta_associative_container_traits;
-using ::entt::is_meta_pointer_like;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::is_meta_pointer_like;
+using vis::ecs::meta_associative_container_traits;
+using vis::ecs::meta_sequence_container_traits;
+using vis::ecs::meta_template_traits;
+} // namespace vis::ecs

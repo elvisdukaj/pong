@@ -1,8 +1,3 @@
-
-
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_dispatcher;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_dispatcher;
+} // namespace vis::ecs

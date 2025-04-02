@@ -1,19 +1,12 @@
+export namespace vis::ecs {
+using vis::ecs::basic_entt_traits;
+using vis::ecs::to_entity;
+using vis::ecs::to_integral;
+using vis::ecs::to_version;
 
-export namespace vis {
-namespace ecs {
-using ::entt::basic_entt_traits;
-using ::entt::entt_traits;
-using ::entt::to_integral;
-using ::entt::to_entity;
-using ::entt::to_version;
-using ::entt::null_t;
-using ::entt::tombstone_t;
+using vis::ecs::null_t;
+using vis::ecs::tombstone_t;
 
-using ::entt::null;
-using ::entt::tombstone;
-
-using ::entt::operator ==;
-using ::entt::operator !=;
-
-} // namespace entt
-}
+using vis::ecs::null;
+using vis::ecs::tombstone;
+} // namespace vis::ecs

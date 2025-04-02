@@ -1,9 +1,5 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::std_sort;
-using ::entt::insertion_sort;
-using ::entt::radix_sort;
-
-} // namespace entt
-} //
+export namespace vis::ecs {
+using vis::ecs::insertion_sort;
+using vis::ecs::radix_sort;
+using vis::ecs::std_sort;
+} // namespace vis::ecs

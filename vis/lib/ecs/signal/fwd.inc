@@ -1,8 +1,5 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::dispatcher;
-using ::entt::connect_arg_t;
-using ::entt::connect_arg;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::connect_arg;
+using vis::ecs::connect_arg_t;
+using vis::ecs::dispatcher;
+} // namespace vis::ecs

@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.31 FATAL_ERROR)
 
+find_package(SDL3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(box2d CONFIG REQUIRED)
+find_package(glew CONFIG REQUIRED)
+find_package(VulkanLoader CONFIG REQUIRED)
+
 add_library(vis_obj OBJECT)
 add_library(vis_obj::vis_obj ALIAS vis_obj)
 
@@ -19,13 +25,14 @@ target_sources(vis_obj
 
         PRIVATE FILE_SET HEADERS
         FILES
-        # ecs
+        
         ecs/container/dense_map.inc
         ecs/container/dense_set.inc
-        ecs/container/fwd.inc
         ecs/container/table.inc
+        ecs/container/fwd.inc
         ecs/core/algorithm.inc
         ecs/core/any.inc
+        ecs/core/attribute.inc
         ecs/core/bit.inc
         ecs/core/compressed_pair.inc
         ecs/core/enum.inc
@@ -45,8 +52,9 @@ target_sources(vis_obj
         ecs/entity/entity.inc
         ecs/entity/fwd.inc
         ecs/entity/group.inc
-        ecs/entity/helper.inc
+        ecs/entity/handle.inc
         ecs/entity/mixin.inc
+        ecs/entity/helper.inc
         ecs/entity/organizer.inc
         ecs/entity/ranges.inc
         ecs/entity/registry.inc
@@ -54,6 +62,7 @@ target_sources(vis_obj
         ecs/entity/snapshot.inc
         ecs/entity/sparse_set.inc
         ecs/entity/storage.inc
+        ecs/entity/view.inc
         ecs/graph/adjacency_matrix.inc
         ecs/graph/dot.inc
         ecs/graph/flow.inc
@@ -70,6 +79,7 @@ target_sources(vis_obj
         ecs/meta/policy.inc
         ecs/meta/range.inc
         ecs/meta/resolve.inc
+        ecs/meta/template.inc
         ecs/meta/type_traits.inc
         ecs/meta/utility.inc
         ecs/poly/fwd.inc
@@ -89,7 +99,7 @@ target_sources(vis_obj
 )
 
 target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
-target_link_libraries(vis_obj PUBLIC SDL3::SDL3 EnTT::EnTT glm::glm GLEW::GLEW box2d::box2d Vulkan::Loader)
+target_link_libraries(vis_obj PUBLIC SDL3::SDL3 glm::glm GLEW::GLEW box2d::box2d Vulkan::Loader)
 
 target_add_extra_warnings(vis_obj PUBLIC)
 target_set_warnings_as_error(vis_obj)

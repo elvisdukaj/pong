@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::locator;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::locator;
+} // namespace vis::ecs

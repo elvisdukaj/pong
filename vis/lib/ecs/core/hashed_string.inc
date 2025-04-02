@@ -1,19 +1,9 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_hashed_string;
-using ::entt::operator==;
-using ::entt::operator!=;
-using ::entt::operator<;
-using ::entt::operator<=;
-using ::entt::operator>;
-using ::entt::operator>=;
+export namespace vis::ecs {
+using vis::ecs::basic_hashed_string;
 
 inline namespace literals {
-
-using ::entt::literals::operator ""_hs;
-using ::entt::literals::operator ""_hws;
-
+using vis::ecs::literals::operator""_hs;
+using vis::ecs::literals::operator""_hws;
 } // namespace literals
 
-}}
+} // namespace vis::ecs

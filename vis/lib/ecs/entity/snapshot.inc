@@ -1,8 +1,5 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::basic_snapshot;
-using ::entt::basic_snapshot_loader;
-using ::entt::basic_continuous_loader;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::basic_continuous_loader;
+using vis::ecs::basic_snapshot;
+using vis::ecs::basic_snapshot_loader;
+} // namespace vis::ecs

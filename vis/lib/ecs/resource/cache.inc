@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::resource_cache;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::resource_cache;
+} // namespace vis::ecs

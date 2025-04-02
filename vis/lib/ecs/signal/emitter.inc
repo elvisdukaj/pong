@@ -1,6 +1,3 @@
-export namespace vis {
-namespace ecs {
-
-using ::entt::emitter;
-
-}}
+export namespace vis::ecs {
+using vis::ecs::emitter;
+} // namespace vis::ecs

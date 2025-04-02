@@ -18,20 +18,26 @@ class App {
 public:
 	static App* create() {
 		static auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
-		if (not window)
+		if (not window) {
+			std::println("Unable to create the window! An error occured: {}", window.error());
 			return nullptr;
+		}
 
-		static auto renderer = vis::gl::OpenGLRenderer::create(&(window.value()));
-		if (not renderer)
-			return nullptr;
+		// static auto renderer = vis::gl::OpenGLRenderer::create(&(window.value()));
+		// if (not renderer) {
+		// 	std::println("Unable to create the window! An error occured: {}", window.error());
+		// 	return nullptr;
+		// }
 
 		static auto vk_renderer = vis::vk::Renderer::create(&(window.value()));
-		if (not vk_renderer)
+		if (not vk_renderer) {
+			std::println("Unable to create the Vulkan Renderer! An error occured: {}", window.error());
 			return nullptr;
+		}
 
-		std::println( "{}", vk_renderer->show_info());
+		std::println("{}", vk_renderer->show_info());
 
-		static auto app = new App{/*&(window.value()),*/ &(renderer.value())};
+		static auto app = new App{/*&(window.value()),*/ &(vk_renderer.value())};
 		return app;
 	}
 
@@ -44,14 +50,14 @@ public:
 	}
 
 private:
-	explicit App(/*vis::Window* window,*/ vis::gl::OpenGLRenderer* renderer)
+	explicit App(/*vis::Window* window,*/ vis::vk::Renderer* renderer)
 			: /*window{window}, renderer(renderer),*/ pong_scene{*renderer} {}
 
 private:
 	// vis::Window* window;
 	// vis::opengl::OpenGLRenderer* renderer;
 
-	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::opengl;
+	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::vulkan;
 
 	PongScene pong_scene;
 };

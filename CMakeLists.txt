@@ -11,13 +11,6 @@ if (WITH_TIDY)
     set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-p;${CMAKE_BINARY_DIR}")
 endif ()
 
-find_package(SDL3 CONFIG REQUIRED)
-find_package(EnTT CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
-find_package(box2d CONFIG REQUIRED)
-find_package(glew CONFIG REQUIRED)
-find_package(VulkanLoader CONFIG REQUIRED)
-
 function(target_add_extra_warnings target visibility)
     # Ensure TARGET is specified
     if (NOT target)
