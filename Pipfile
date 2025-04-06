@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+cmake-language-server = "*"
+lxml = ">=4.1.1"
+requests = ">=2.20.0"
+conan = "*"
+click = "*"
+clang-tidy = "*"
+cmake = "==3.31.6"
+
+[dev-packages]
+
+[requires]
+python_version = "3.10"
+
+[scripts]
+build = "python build.py build"
+install = "python build.py install"
