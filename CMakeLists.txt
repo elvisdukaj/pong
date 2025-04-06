@@ -49,7 +49,6 @@ function(target_set_warnings_as_error target)
 endfunction()
 
 # Hack for CLion on MacOS to make import std intellisens work
-#message(FATAL_ERROR "Using hack to make CLion intellisense works with import std.")
 if (BREW_LLVM_LIBCPP)
     message(WARNING "Using hack to make CLion intellisense works with import std. The std.compat.cppm is located at ${BREW_LLVM_LIBCPP}")
     add_library(unused_std_target STATIC)

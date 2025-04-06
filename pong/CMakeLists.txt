@@ -15,6 +15,7 @@ target_sources(pong
         pong.cpp
         pong_scene.cpp
         scene.cpp
+        test.cpp
 )
 
 target_link_libraries(pong PRIVATE vis::vis)

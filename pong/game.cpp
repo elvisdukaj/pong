@@ -5,3 +5,4 @@ export import :components;
 export import :constants;
 export import :scene;
 export import :app;
+export import :test_scene;

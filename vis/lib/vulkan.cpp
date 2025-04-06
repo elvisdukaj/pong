@@ -79,15 +79,23 @@ std::expected<VkInstance, std::string> vk_create_instance(std::string_view appli
 														 .engineVersion = VK_MAKE_VERSION(0, 0, 1),
 														 .apiVersion = VK_API_VERSION_1_4};
 
+	VkInstanceCreateFlags flags = 0;
+	std::vector<const char*> required_extensions;
+
+#if defined(__APPLE__)
+	flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	required_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+#endif
+
 	VkInstanceCreateInfo create_info{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pNext = nullptr,
-			.flags = 0,
+			.flags = flags,
 			.pApplicationInfo = &app_info,
 			.enabledLayerCount = 0,
 			.ppEnabledLayerNames = nullptr,
-			.enabledExtensionCount = 0,
-			.ppEnabledExtensionNames = nullptr,
+			.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size()),
+			.ppEnabledExtensionNames = required_extensions.data(),
 	};
 
 	VkInstance instance = VK_NULL_HANDLE;
@@ -158,20 +166,12 @@ export namespace vis::vk {
 class Renderer {
 public:
 	static std::expected<Renderer, std::string> create(Window* window) {
-		try {
-			auto title = SDL_GetWindowTitle(static_cast<SDL_Window*>(*window));
-			auto instance = vk_create_instance(title, VK_MAKE_VERSION(0, 0, 1));
-			if (not instance.has_value()) {
-				return std::unexpected(instance.error());
-			}
-			return Renderer{window, *instance};
-		} catch (const std::bad_alloc& exc) {
-			return std::unexpected(std::string{exc.what()});
-		} catch (const std::exception& exc) {
-			return std::unexpected(std::string{exc.what()});
-		} catch (...) {
-			return std::unexpected("Unknown error");
+		auto title = SDL_GetWindowTitle(static_cast<SDL_Window*>(*window));
+		auto instance = vk_create_instance(title, VK_MAKE_VERSION(0, 0, 1));
+		if (not instance.has_value()) {
+			return std::unexpected(instance.error());
 		}
+		return Renderer{window, *instance};
 	}
 
 	~Renderer() {

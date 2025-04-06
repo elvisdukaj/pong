@@ -7,6 +7,7 @@ import :components;
 import :constants;
 import :scene;
 import :pong_scene;
+import :test_scene;
 
 import std;
 import vis;
@@ -31,7 +32,7 @@ public:
 
 		static auto vk_renderer = vis::vk::Renderer::create(&(window.value()));
 		if (not vk_renderer) {
-			std::println("Unable to create the Vulkan Renderer! An error occured: {}", window.error());
+			std::println("Unable to create the Vulkan Renderer! An error occured: {}", vk_renderer.error());
 			return nullptr;
 		}
 
@@ -42,16 +43,16 @@ public:
 	}
 
 	[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& event) noexcept {
-		return pong_scene.process_event(event);
+		return test_scene.process_event(event);
 	}
 
 	[[nodiscard]] vis::app::AppResult update() noexcept {
-		return pong_scene.update();
+		return test_scene.update();
 	}
 
 private:
 	explicit App(/*vis::Window* window,*/ vis::vk::Renderer* renderer)
-			: /*window{window}, renderer(renderer),*/ pong_scene{*renderer} {}
+			: /*window{window}, renderer(renderer),*/ test_scene{*renderer} {}
 
 private:
 	// vis::Window* window;
@@ -59,7 +60,7 @@ private:
 
 	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::vulkan;
 
-	PongScene pong_scene;
+	TestScene test_scene;
 };
 
 } // namespace Game
