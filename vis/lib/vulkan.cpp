@@ -3,6 +3,9 @@ module;
 #include <SDL3/SDL.h>
 
 #include <vulkan/vulkan.h>
+#if defined(__APPLE__)
+#include <vulkan/vulkan_metal.h>
+#endif
 
 #include <cassert>
 
@@ -22,7 +25,7 @@ struct LayerProperties {
 	std::vector<VkExtensionProperties> extensions;
 };
 
-std::vector<VkLayerProperties> enumerateInstanceLayersProperties() {
+std::vector<VkLayerProperties> enumerate_instance_layers_properties() {
 	std::vector<VkLayerProperties> layers;
 	uint32_t layerCount = 0;
 
@@ -33,7 +36,7 @@ std::vector<VkLayerProperties> enumerateInstanceLayersProperties() {
 	return layers;
 }
 
-std::vector<VkExtensionProperties> enumerateInstanceLayerExtensions(std::string_view layer_name) {
+std::vector<VkExtensionProperties> enumerate_instance_layer_extensions(std::string_view layer_name) {
 	std::vector<VkExtensionProperties> extensions;
 	uint32_t layerCount = 0;
 
@@ -44,7 +47,7 @@ std::vector<VkExtensionProperties> enumerateInstanceLayerExtensions(std::string_
 	return extensions;
 }
 
-std::vector<LayerProperties> enumerateInstanceLayers() {
+std::vector<LayerProperties> enumerate_instance_layers() {
 	std::vector<LayerProperties> res;
 
 	// Instance extensions
@@ -52,11 +55,11 @@ std::vector<LayerProperties> enumerateInstanceLayers() {
 																		.specVersion = VK_VERSION_1_4,
 																		.implementationVersion = VK_VERSION_1_4,
 																		.description = {'\0'}};
-	res.emplace_back(layerProperties, enumerateInstanceLayerExtensions(""));
+	res.emplace_back(layerProperties, enumerate_instance_layer_extensions(""));
 
-	auto layers = enumerateInstanceLayersProperties();
+	auto layers = enumerate_instance_layers_properties();
 	std::transform(begin(layers), end(layers), std::back_inserter(res), [](VkLayerProperties prop) {
-		return LayerProperties{.properties = prop, .extensions = enumerateInstanceLayerExtensions(prop.layerName)};
+		return LayerProperties{.properties = prop, .extensions = enumerate_instance_layer_extensions(prop.layerName)};
 	});
 
 	return res;
@@ -67,6 +70,49 @@ std::string vk_version_to_string(uint32_t version) {
 	const auto min = VK_API_VERSION_MINOR(version);
 	const auto patch = VK_API_VERSION_PATCH(version);
 	return std::format("{}.{}.{}", maj, min, patch);
+}
+
+struct PhysicalDevice {
+	VkPhysicalDevice device;
+	std::vector<VkExtensionProperties> properties;
+};
+
+namespace internal {
+std::vector<VkPhysicalDevice> enumerate_physical_devices(VkInstance instance) {
+	uint32_t devices_count = 0;
+	vkEnumeratePhysicalDevices(instance, &devices_count, nullptr);
+
+	std::vector<VkPhysicalDevice> devices(devices_count, VK_NULL_HANDLE);
+	std::println("The siez of devices is {}", devices.size());
+
+	vkEnumeratePhysicalDevices(instance, &devices_count, devices.data());
+	std::println("The siez of devices is {}", devices.size());
+
+	return devices;
+}
+
+std::vector<VkExtensionProperties> enumerate_device_properties(VkPhysicalDevice device) {
+	uint32_t properties_count = 0;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &properties_count, nullptr);
+
+	std::vector<VkExtensionProperties> properties;
+	properties.resize(properties_count);
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &properties_count, properties.data());
+
+	return properties;
+}
+} // namespace internal
+
+std::vector<PhysicalDevice> enumerate_devices(VkInstance instance) {
+	auto devices = internal::enumerate_physical_devices(instance);
+	std::vector<PhysicalDevice> result;
+	std::transform(begin(devices), end(devices), std::back_inserter(result), [](VkPhysicalDevice device) {
+		return PhysicalDevice{
+				.device = device,
+				.properties = internal::enumerate_device_properties(device),
+		};
+	});
+	return result;
 }
 
 std::expected<VkInstance, std::string> vk_create_instance(std::string_view application_name,
@@ -80,7 +126,14 @@ std::expected<VkInstance, std::string> vk_create_instance(std::string_view appli
 														 .apiVersion = VK_API_VERSION_1_4};
 
 	VkInstanceCreateFlags flags = 0;
-	std::vector<const char*> required_extensions;
+	std::vector<const char*> required_extensions = {VK_KHR_SURFACE_EXTENSION_NAME};
+	std::vector<const char*> required_layer;
+
+#if !defined(NDEBUG)
+	required_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+	required_layer.push_back("VK_LAYER_LUNARG_api_dump");
+	required_layer.push_back("VK_LAYER_KHRONOS_validation");
+#endif
 
 #if defined(__APPLE__)
 	flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -92,8 +145,8 @@ std::expected<VkInstance, std::string> vk_create_instance(std::string_view appli
 			.pNext = nullptr,
 			.flags = flags,
 			.pApplicationInfo = &app_info,
-			.enabledLayerCount = 0,
-			.ppEnabledLayerNames = nullptr,
+			.enabledLayerCount = static_cast<uint32_t>(required_layer.size()),
+			.ppEnabledLayerNames = required_layer.data(),
 			.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size()),
 			.ppEnabledExtensionNames = required_extensions.data(),
 	};
@@ -104,7 +157,7 @@ std::expected<VkInstance, std::string> vk_create_instance(std::string_view appli
 		return std::unexpected("Unable to create a Vulkan Instance");
 	}
 	return instance;
-}
+} // namespace
 
 } // namespace
 
@@ -171,6 +224,12 @@ public:
 		if (not instance.has_value()) {
 			return std::unexpected(instance.error());
 		}
+
+		[[maybe_unused]] auto devices = enumerate_devices(*instance);
+		// for (auto& device : devices) {
+		// std::println("Device found with {} properties", device.properties);
+		// };
+
 		return Renderer{window, *instance};
 	}
 
@@ -219,7 +278,7 @@ public:
 
 private:
 	explicit Renderer(Window* window, VkInstance instance)
-			: window{window}, layers{enumerateInstanceLayers()}, instance{instance} {}
+			: window{window}, layers{enumerate_instance_layers()}, instance{instance} {}
 
 private:
 	Window* window;
