@@ -151,9 +151,12 @@ std::vector<const char*> get_required_extensions() {
 std::vector<const char*> get_required_layers() {
 	std::vector<const char*> required_layers;
 
-#if not defined(NDEBUG) and not defined(__linux__)
-	required_layers.push_back("VK_LAYER_LUNARG_api_dump");
+#if not defined(NDEBUG)
 	required_layers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
+
+#if not defined(__linux)
+	required_layers.push_back("VK_LAYER_LUNARG_api_dump");
 #endif
 
 	return required_layers;
@@ -197,7 +200,7 @@ std::expected<VkInstance, std::string> vk_create_instance(std::string_view appli
 														 .applicationVersion = application_version,
 														 .pEngineName = "vis game engine",
 														 .engineVersion = VK_MAKE_VERSION(0, 0, 1),
-														 .apiVersion = VK_API_VERSION_1_4};
+														 .apiVersion = VK_API_VERSION_1_3};
 	VkInstanceCreateInfo create_info{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pNext = nullptr,
@@ -245,7 +248,7 @@ template <> struct std::formatter<VkExtensionProperties> {
 		return std::format_to(ctx.out(),
 													" - name:        {}\n"
 													"   spec version: {}\n",
-													std::string_view{extension.extensionName}, extension.specVersion);
+													std::string_view{extension.extensionName}, vk_version_to_string(extension.specVersion));
 	}
 };
 

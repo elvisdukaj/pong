@@ -8,7 +8,7 @@ import std;
 
 export namespace vis {
 
-enum class WindowsFlags : std::uint64_t {
+enum class WindowsFlags : uint64_t {
 	fullscreen = SDL_WINDOW_FULLSCREEN,
 	opengl = SDL_WINDOW_OPENGL,
 	occluded = SDL_WINDOW_OCCLUDED,
