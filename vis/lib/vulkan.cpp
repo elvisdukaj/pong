@@ -119,36 +119,78 @@ std::vector<VkPhysicalDevice> enumerate_physical_devices(VkInstance instance) {
 	return devices;
 }
 
-std::vector<VkExtensionProperties> enumerate_device_properties(VkPhysicalDevice device) {
+std::vector<VkExtensionProperties> enumerate_device_properties(VkPhysicalDevice device,
+																															 std::vector<const char*> layers) {
 	uint32_t properties_count = 0;
 	vkEnumerateDeviceExtensionProperties(device, nullptr, &properties_count, nullptr);
 
 	std::vector<VkExtensionProperties> properties;
 	properties.resize(properties_count);
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &properties_count, properties.data());
+
+	if (layers.size() == 0) {
+		vkEnumerateDeviceExtensionProperties(device, nullptr, &properties_count, properties.data());
+	} else {
+		for (auto layer : layers) {
+			vkEnumerateDeviceExtensionProperties(device, layer, &properties_count, properties.data());
+		}
+	}
 
 	return properties;
 }
+
+std::vector<const char*> get_required_extensions() {
+	std::vector<const char*> required_extensions = {VK_KHR_SURFACE_EXTENSION_NAME};
+
+#if defined(__APPLE__)
+	required_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+#endif
+
+	return required_extensions;
+}
+
+std::vector<const char*> get_required_layers() {
+	std::vector<const char*> required_layers;
+
+#if not defined(NDEBUG) and not defined(__linux__)
+	required_layers.push_back("VK_LAYER_LUNARG_api_dump");
+	required_layers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
+
+	return required_layers;
+}
+
+VkInstanceCreateFlags get_required_instance_flags() {
+	VkInstanceCreateFlags flags = 0;
+
+#if defined(__APPLE__)
+	flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+	return flags;
+}
+
 } // namespace internal
 
-std::vector<PhysicalDevice> enumerate_devices(VkInstance instance) {
+std::vector<PhysicalDevice> enumerate_devices(VkInstance instance, std::vector<const char*> required_layers) {
 	auto devices = internal::enumerate_physical_devices(instance);
 	std::vector<PhysicalDevice> result;
-	std::transform(begin(devices), end(devices), std::back_inserter(result), [](VkPhysicalDevice device) {
+	std::transform(begin(devices), end(devices), std::back_inserter(result), [&required_layers](VkPhysicalDevice device) {
 		VkPhysicalDeviceProperties properties;
 		vkGetPhysicalDeviceProperties(device, &properties);
 
 		return PhysicalDevice{
 				.device = device,
 				.properties = std::move(properties),
-				.extensions = internal::enumerate_device_properties(device),
+				.extensions = internal::enumerate_device_properties(device, required_layers),
 		};
 	});
 	return result;
 }
 
 std::expected<VkInstance, std::string> vk_create_instance(std::string_view application_name,
-																													uint32_t application_version) {
+																													uint32_t application_version,
+																													std::vector<const char*> required_extensions,
+																													std::vector<const char*> required_layers,
+																													VkInstanceCreateFlags flags) {
 	VkApplicationInfo app_info{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 														 .pNext = nullptr,
 														 .pApplicationName = application_name.data(),
@@ -156,29 +198,13 @@ std::expected<VkInstance, std::string> vk_create_instance(std::string_view appli
 														 .pEngineName = "vis game engine",
 														 .engineVersion = VK_MAKE_VERSION(0, 0, 1),
 														 .apiVersion = VK_API_VERSION_1_4};
-
-	VkInstanceCreateFlags flags = 0;
-	std::vector<const char*> required_extensions = {VK_KHR_SURFACE_EXTENSION_NAME};
-	std::vector<const char*> required_layer;
-
-#if !defined(NDEBUG)
-	required_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
-	required_layer.push_back("VK_LAYER_LUNARG_api_dump");
-	required_layer.push_back("VK_LAYER_KHRONOS_validation");
-#endif
-
-#if defined(__APPLE__)
-	flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-	required_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-#endif
-
 	VkInstanceCreateInfo create_info{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = flags,
 			.pApplicationInfo = &app_info,
-			.enabledLayerCount = static_cast<uint32_t>(required_layer.size()),
-			.ppEnabledLayerNames = required_layer.data(),
+			.enabledLayerCount = static_cast<uint32_t>(required_layers.size()),
+			.ppEnabledLayerNames = required_layers.data(),
 			.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size()),
 			.ppEnabledExtensionNames = required_extensions.data(),
 	};
@@ -267,12 +293,17 @@ class Renderer {
 public:
 	static std::expected<Renderer, std::string> create(Window* window) {
 		auto title = SDL_GetWindowTitle(static_cast<SDL_Window*>(*window));
-		auto instance = vk_create_instance(title, VK_MAKE_VERSION(0, 0, 1));
+
+		VkInstanceCreateFlags flags = internal::get_required_instance_flags();
+		std::vector<const char*> required_extensions = internal::get_required_extensions();
+		std::vector<const char*> required_layers = internal::get_required_layers();
+
+		auto instance = vk_create_instance(title, VK_MAKE_VERSION(0, 0, 1), required_extensions, required_layers, flags);
 		if (not instance.has_value()) {
 			return std::unexpected(instance.error());
 		}
 
-		return Renderer{window, *instance};
+		return Renderer{required_extensions, required_layers, window, *instance};
 	}
 
 	~Renderer() {
@@ -285,9 +316,12 @@ public:
 	Renderer& operator=(Renderer&) = delete;
 
 	friend void swap(Renderer& lhs, Renderer& rhs) {
+		std::swap(lhs.required_extensions, rhs.required_extensions);
+		std::swap(lhs.required_layers, rhs.required_layers);
 		std::swap(lhs.window, rhs.window);
 		std::swap(lhs.layers, rhs.layers);
 		std::swap(lhs.instance, rhs.instance);
+		std::swap(lhs.devices, rhs.devices);
 	}
 
 	Renderer(Renderer&& other) : window{nullptr}, layers{}, instance{VK_NULL_HANDLE} {
@@ -316,7 +350,7 @@ public:
 			std::format_to(back_inserter(result), "{}\n", layer);
 		}
 
-		auto devices = enumerate_devices(instance);
+		std::format_to(std::back_inserter(result), "Founded devices: {}", devices.size());
 		for (auto& device : devices) {
 			std::format_to(back_inserter(result), "Device: \n{}", device);
 		};
@@ -324,13 +358,25 @@ public:
 	}
 
 private:
-	explicit Renderer(Window* window, VkInstance instance)
-			: window{window}, layers{enumerate_instance_layers()}, instance{instance} {}
+	explicit Renderer(std::vector<const char*> required_extensions, std::vector<const char*> required_layers,
+										Window* window, VkInstance instance)
+			: required_extensions{std::move(required_extensions)},
+				required_layers{std::move(required_layers)},
+				window{window},
+				layers{enumerate_instance_layers()},
+				instance{instance} {
+		devices = enumerate_devices(instance, required_layers);
+	}
 
 private:
+	std::vector<const char*> required_extensions;
+	std::vector<const char*> required_layers;
+
 	Window* window;
 	std::vector<LayerProperties> layers;
 	VkInstance instance;
+
+	std::vector<PhysicalDevice> devices;
 }; // namespace vis::vk
 
 } // namespace vis::vk
