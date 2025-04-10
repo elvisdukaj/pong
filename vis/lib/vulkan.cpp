@@ -74,19 +74,47 @@ std::string vk_version_to_string(uint32_t version) {
 
 struct PhysicalDevice {
 	VkPhysicalDevice device;
-	std::vector<VkExtensionProperties> properties;
+	VkPhysicalDeviceProperties properties;
+	std::vector<VkExtensionProperties> extensions;
+
+	std::string_view name() const {
+		return std::string_view{properties.deviceName};
+	}
+
+	std::string api_version() const {
+		return vk_version_to_string(properties.apiVersion);
+	}
+
+	std::string type() const {
+		switch (properties.deviceType) {
+		case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+			return "other";
+
+		case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+			return "integrated GPU";
+
+		case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+			return "discrete GPU";
+
+		case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+			return "virtual GPU";
+
+		case VK_PHYSICAL_DEVICE_TYPE_CPU:
+			return "CPU";
+
+		default:
+			return "unknown";
+		}
+	}
 };
 
 namespace internal {
 std::vector<VkPhysicalDevice> enumerate_physical_devices(VkInstance instance) {
 	uint32_t devices_count = 0;
 	vkEnumeratePhysicalDevices(instance, &devices_count, nullptr);
-
 	std::vector<VkPhysicalDevice> devices(devices_count, VK_NULL_HANDLE);
-	std::println("The siez of devices is {}", devices.size());
 
 	vkEnumeratePhysicalDevices(instance, &devices_count, devices.data());
-	std::println("The siez of devices is {}", devices.size());
 
 	return devices;
 }
@@ -107,9 +135,13 @@ std::vector<PhysicalDevice> enumerate_devices(VkInstance instance) {
 	auto devices = internal::enumerate_physical_devices(instance);
 	std::vector<PhysicalDevice> result;
 	std::transform(begin(devices), end(devices), std::back_inserter(result), [](VkPhysicalDevice device) {
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(device, &properties);
+
 		return PhysicalDevice{
 				.device = device,
-				.properties = internal::enumerate_device_properties(device),
+				.properties = std::move(properties),
+				.extensions = internal::enumerate_device_properties(device),
 		};
 	});
 	return result;
@@ -212,6 +244,21 @@ template <> struct std::formatter<LayerProperties> : std::formatter<std::string>
 		return std::formatter<std::string>::format(temp, ctx);
 	}
 };
+
+template <> struct std::formatter<PhysicalDevice> : std::formatter<std::string> {
+	auto format(const PhysicalDevice& device, std::format_context& ctx) const {
+		std::string temp;
+
+		std::format_to(back_inserter(temp),
+									 "name: {}\n"
+									 "type: {}\n"
+									 "vulkan version: {}\n",
+									 device.name(), device.type(), device.api_version());
+		std::format_to(back_inserter(temp), "Extensions:\n{}", device.extensions);
+		return std::formatter<std::string>::format(temp, ctx);
+	}
+};
+
 } // namespace std
 
 export namespace vis::vk {
@@ -224,11 +271,6 @@ public:
 		if (not instance.has_value()) {
 			return std::unexpected(instance.error());
 		}
-
-		[[maybe_unused]] auto devices = enumerate_devices(*instance);
-		// for (auto& device : devices) {
-		// std::println("Device found with {} properties", device.properties);
-		// };
 
 		return Renderer{window, *instance};
 	}
@@ -273,6 +315,11 @@ public:
 		for (auto& layer : layers) {
 			std::format_to(back_inserter(result), "{}\n", layer);
 		}
+
+		auto devices = enumerate_devices(instance);
+		for (auto& device : devices) {
+			std::format_to(back_inserter(result), "Device: \n{}", device);
+		};
 		return result;
 	}
 
