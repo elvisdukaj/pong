@@ -11,6 +11,7 @@ conan = "*"
 click = "*"
 clang-tidy = "*"
 cmake = "==3.31.6"
+distro = "*"
 
 [dev-packages]
 

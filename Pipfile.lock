@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "64d702c2521ce04751cc3a0c77925fa87bb9a0ffe757d7c70b43bedd5120e470"
+            "sha256": "2cffa9c53021fb864cb8f64f51e2ff3f4c94a54b1346dbf226152ed6b0bfdf14"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -160,6 +160,7 @@
                 "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.7'",
             "version": "==8.1.8"
         },
         "cmake": {
@@ -185,6 +186,7 @@
                 "sha256:da9d4fd9abd571fd016ddb27da0428b10277010b23bb21e3678f8b9e96e1686e"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.7'",
             "version": "==3.31.6"
         },
         "cmake-language-server": {
@@ -193,6 +195,7 @@
                 "sha256:74ce1fa93a3db258776d881935172a87124ed621298404ac42f960eab6be8c04"
             ],
             "index": "pypi",
+            "markers": "python_version < '3.14' and python_full_version >= '3.8.0'",
             "version": "==0.1.11"
         },
         "colorama": {
@@ -208,7 +211,17 @@
                 "sha256:c984c5fb0623ea60b39c2feb351886a3e2df8f6a1f99e3f322125a24198f05da"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.6'",
             "version": "==2.15.0"
+        },
+        "distro": {
+            "hashes": [
+                "sha256:02e111d1dc6a50abb8eed6bf31c3e48ed8b0830d1ea2a1b78c61765c2513fdd8",
+                "sha256:99522ca3e365cac527b44bde033f64c6945d90eb9f769703caaec52b09bbd3ff"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.6'",
+            "version": "==1.8.0"
         },
         "exceptiongroup": {
             "hashes": [
@@ -392,6 +405,7 @@
                 "sha256:f8695752cf5d639b4e981afe6c99e060621362c416058effd5c704bede9cb5d1"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.6'",
             "version": "==5.3.2"
         },
         "markupsafe": {
@@ -549,6 +563,7 @@
                 "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.8'",
             "version": "==2.32.3"
         },
         "six": {
