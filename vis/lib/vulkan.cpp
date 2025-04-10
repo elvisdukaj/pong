@@ -158,6 +158,7 @@ std::vector<const char*> get_required_extensions() {
 
 #if defined(__APPLE__)
 	required_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+	required_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
 
 	return required_extensions;
@@ -168,10 +169,11 @@ std::vector<const char*> get_required_layers() {
 
 #if not defined(NDEBUG)
 	required_layers.push_back("VK_LAYER_KHRONOS_validation");
-#endif
 
 #if not defined(__linux)
 	required_layers.push_back("VK_LAYER_LUNARG_api_dump");
+#endif
+
 #endif
 
 	return required_layers;
