@@ -207,35 +207,32 @@ std::vector<PhysicalDevice> enumerate_devices(VkInstance instance, std::vector<c
 	return result;
 }
 
-LogicalDevice create_logical_device(const std::vector<PhysicalDevice>& devices, const std::vector<const char*>& layers,
-																		const std::vector<const char*>& extensions) {
-	std::vector<VkDeviceQueueCreateInfo> device_queue_create_infos = {VkDeviceQueueCreateInfo{
-			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0,
-			.queueFamilyIndex = 0,
-			.queueCount = 1,
-			.pQueuePriorities = nullptr,
-	}};
-
-	VkDeviceCreateInfo create_info{
-			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = VK_QUEUE_GRAPHICS_BIT,
-			.queueCreateInfoCount = static_cast<uint32_t>(size(device_queue_create_infos)),
-			.pQueueCreateInfos = device_queue_create_infos.data(),
-			.enabledLayerCount = static_cast<uint32_t>(size(layers)),
-			.ppEnabledLayerNames = layers.data(),
-			.enabledExtensionCount = static_cast<uint32_t>(size(extensions)),
-			.ppEnabledExtensionNames = extensions.data(),
-			.pEnabledFeatures = nullptr,
-
-	};
-
-	LogicalDevice device;
-	vkCreateDevice(devices[0].device, &create_info, nullptr, &device.device);
-	return device;
-}
+// LogicalDevice create_logical_device(const std::vector<PhysicalDevice>& devices, const std::vector<const char*>&
+// layers, 																		const std::vector<const char*>& extensions) {
+// std::vector<VkDeviceQueueCreateInfo> device_queue_create_infos = {VkDeviceQueueCreateInfo{ 			.sType =
+// VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, 			.pNext = nullptr, 			.flags = 0, 			.queueFamilyIndex = 0,
+// 			.queueCount = 1,
+// 			.pQueuePriorities = nullptr,
+// 	}};
+//
+// 	VkDeviceCreateInfo create_info{
+// 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+// 			.pNext = nullptr,
+// 			.flags = VK_QUEUE_GRAPHICS_BIT,
+// 			.queueCreateInfoCount = static_cast<uint32_t>(size(device_queue_create_infos)),
+// 			.pQueueCreateInfos = device_queue_create_infos.data(),
+// 			.enabledLayerCount = static_cast<uint32_t>(size(layers)),
+// 			.ppEnabledLayerNames = layers.data(),
+// 			.enabledExtensionCount = static_cast<uint32_t>(size(extensions)),
+// 			.ppEnabledExtensionNames = extensions.data(),
+// 			.pEnabledFeatures = nullptr,
+//
+// 	};
+//
+// 	LogicalDevice device;
+// 	vkCreateDevice(devices[0].device, &create_info, nullptr, &device.device);
+// 	return device;
+// }
 
 std::expected<VkInstance, std::string> vk_create_instance(std::string_view application_name,
 																													uint32_t application_version,
@@ -460,7 +457,7 @@ public:
 
 		std::format_to(std::back_inserter(result), "Founded {} devices", devices.size());
 		for (auto& physical_device : devices) {
-			std::format_to(back_inserter(result), "\n{}", device);
+			std::format_to(back_inserter(result), "\n{}", physical_device);
 		};
 		return result;
 	}
@@ -474,7 +471,7 @@ private:
 				layers{enumerate_instance_layers()},
 				instance{instance} {
 		devices = enumerate_devices(instance, required_layers);
-		device = create_logical_device(devices, required_layers, required_extensions);
+		// device = create_logical_device(devices, required_layers, required_extensions);
 	}
 
 private:
@@ -486,7 +483,7 @@ private:
 	VkInstance instance;
 
 	std::vector<PhysicalDevice> devices;
-	LogicalDevice device;
+	// LogicalDevice device;
 }; // namespace vis::vk
 
 } // namespace vis::vk
