@@ -76,6 +76,7 @@ struct PhysicalDevice {
 	VkPhysicalDevice device;
 	VkPhysicalDeviceProperties properties;
 	std::vector<VkExtensionProperties> extensions;
+	std::vector<VkQueueFamilyProperties> queue_properties;
 
 	std::string_view name() const {
 		return std::string_view{properties.deviceName};
@@ -138,6 +139,16 @@ std::vector<VkExtensionProperties> enumerate_device_properties(VkPhysicalDevice 
 	return properties;
 }
 
+std::vector<VkQueueFamilyProperties> enumerate_device_queue_family_properties(VkPhysicalDevice device) {
+	uint32_t count;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queues(count);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &count, queues.data());
+
+	return queues;
+}
+
 std::vector<const char*> get_required_extensions() {
 	std::vector<const char*> required_extensions = {VK_KHR_SURFACE_EXTENSION_NAME};
 
@@ -184,6 +195,7 @@ std::vector<PhysicalDevice> enumerate_devices(VkInstance instance, std::vector<c
 				.device = device,
 				.properties = std::move(properties),
 				.extensions = internal::enumerate_device_properties(device, required_layers),
+				.queue_properties = internal::enumerate_device_queue_family_properties(device),
 		};
 	});
 	return result;
@@ -274,6 +286,62 @@ template <> struct std::formatter<LayerProperties> : std::formatter<std::string>
 	}
 };
 
+template <> struct std::formatter<VkQueueFamilyProperties> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(const VkQueueFamilyProperties& prop, std::format_context& ctx) const {
+		auto flags = prop.queueFlags;
+		std::string flags_str;
+
+		if (flags & VK_QUEUE_GRAPHICS_BIT)
+			flags_str += "graphic|";
+
+		if (flags & VK_QUEUE_COMPUTE_BIT)
+			flags_str += "compute|";
+
+		if (flags & VK_QUEUE_TRANSFER_BIT)
+			flags_str += "transfer|";
+
+		if (flags & VK_QUEUE_SPARSE_BINDING_BIT)
+			flags_str += "sparse binding|";
+
+		if (flags & VK_QUEUE_PROTECTED_BIT)
+			flags_str += "protected|";
+
+		if (flags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+			flags_str += "video decoding|";
+
+		if (flags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR)
+			flags_str += "video encoding|";
+
+		if (flags & VK_QUEUE_OPTICAL_FLOW_BIT_NV)
+			flags_str += "optical_flow|";
+
+		if (not empty(flags_str))
+			flags_str.pop_back();
+
+		return std::format_to(ctx.out(),
+													"  - flags: {}\n"
+													"  - count: {}\n"
+													"  - min transfer limits: [width x height x depth] {}x{}x{}\n",
+													flags_str, prop.queueCount, prop.minImageTransferGranularity.width,
+													prop.minImageTransferGranularity.height, prop.minImageTransferGranularity.depth);
+	}
+};
+
+template <> struct std::formatter<std::vector<VkQueueFamilyProperties>> : std::formatter<std::string> {
+	auto format(const std::vector<VkQueueFamilyProperties>& props, std::format_context& ctx) const {
+		std::string temp;
+
+		for (auto& p : props)
+			std::format_to(std::back_inserter(temp), "{}\n", p);
+
+		return std::formatter<std::string>::format(temp, ctx);
+	}
+};
+
 template <> struct std::formatter<PhysicalDevice> : std::formatter<std::string> {
 	auto format(const PhysicalDevice& device, std::format_context& ctx) const {
 		std::string temp;
@@ -281,8 +349,9 @@ template <> struct std::formatter<PhysicalDevice> : std::formatter<std::string> 
 		std::format_to(back_inserter(temp),
 									 "name: {}\n"
 									 "type: {}\n"
-									 "vulkan version: {}\n",
-									 device.name(), device.type(), device.api_version());
+									 "vulkan version: {}\n"
+									 "queues:\n{}",
+									 device.name(), device.type(), device.api_version(), device.queue_properties);
 		std::format_to(back_inserter(temp), "Extensions:\n{}", device.extensions);
 		return std::formatter<std::string>::format(temp, ctx);
 	}
@@ -353,9 +422,9 @@ public:
 			std::format_to(back_inserter(result), "{}\n", layer);
 		}
 
-		std::format_to(std::back_inserter(result), "Founded devices: {}", devices.size());
+		std::format_to(std::back_inserter(result), "Founded {} devices", devices.size());
 		for (auto& device : devices) {
-			std::format_to(back_inserter(result), "Device: \n{}", device);
+			std::format_to(back_inserter(result), "\n{}", device);
 		};
 		return result;
 	}
