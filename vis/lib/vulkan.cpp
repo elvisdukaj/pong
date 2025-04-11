@@ -8,6 +8,8 @@ module;
 #endif
 
 #include <cassert>
+#include <optional>
+#include <stdexcept>
 
 export module vis:vulkan;
 
@@ -77,6 +79,7 @@ struct PhysicalDevice {
 	VkPhysicalDeviceProperties properties;
 	std::vector<VkExtensionProperties> extensions;
 	std::vector<VkQueueFamilyProperties> queue_properties;
+	VkPhysicalDeviceMemoryProperties memory_properties;
 
 	std::string_view name() const {
 		return std::string_view{properties.deviceName};
@@ -109,8 +112,69 @@ struct PhysicalDevice {
 	}
 };
 
-struct LogicalDevice {
-	VkDevice device;
+class LogicalDevice {
+public:
+	static std::optional<LogicalDevice> create(const PhysicalDevice& physical_device, size_t queue_index,
+																						 const std::vector<const char*>& extensions) {
+		float queue_priorities[] = {0.0f};
+		auto device_queue_create_infos = VkDeviceQueueCreateInfo{
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0,
+				.queueFamilyIndex = static_cast<uint32_t>(queue_index),
+				.queueCount = 1,
+				.pQueuePriorities = queue_priorities,
+		};
+
+		VkDeviceCreateInfo create_info{
+				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = VK_QUEUE_GRAPHICS_BIT,
+				.queueCreateInfoCount = 1,
+				.pQueueCreateInfos = &device_queue_create_infos,
+
+				// deprecated
+				.enabledLayerCount = 0,
+				.ppEnabledLayerNames = nullptr,
+
+				.enabledExtensionCount = static_cast<uint32_t>(size(extensions)),
+				.ppEnabledExtensionNames = extensions.data(),
+				.pEnabledFeatures = nullptr,
+		};
+
+		VkDevice device_handle;
+		vkCreateDevice(physical_device.device, &create_info, nullptr, &device_handle);
+		return LogicalDevice{device_handle};
+	}
+
+	LogicalDevice(LogicalDevice&) = delete;
+	LogicalDevice& operator=(LogicalDevice&) = delete;
+
+	~LogicalDevice() {
+		if (device == VK_NULL_HANDLE)
+			return;
+
+		vkDestroyDevice(device, nullptr);
+	}
+
+	friend void swap(LogicalDevice& lhs, LogicalDevice& rhs) {
+		std::swap(lhs.device, rhs.device);
+	}
+
+	LogicalDevice(LogicalDevice&& other) : device{VK_NULL_HANDLE} {
+		swap(*this, other);
+	}
+
+	LogicalDevice& operator=(LogicalDevice&& other) {
+		swap(*this, other);
+		return *this;
+	}
+
+private:
+	explicit LogicalDevice(VkDevice device) : device{device} {}
+
+private:
+	VkDevice device = VK_NULL_HANDLE;
 };
 
 namespace internal {
@@ -192,47 +256,62 @@ VkInstanceCreateFlags get_required_instance_flags() {
 
 std::vector<PhysicalDevice> enumerate_devices(VkInstance instance, std::vector<const char*> required_layers) {
 	auto devices = internal::enumerate_physical_devices(instance);
-	std::vector<PhysicalDevice> result;
-	std::transform(begin(devices), end(devices), std::back_inserter(result), [&required_layers](VkPhysicalDevice device) {
+	std::vector<PhysicalDevice> result(devices.size());
+	std::transform(begin(devices), end(devices), begin(result), [&required_layers](VkPhysicalDevice device) {
 		VkPhysicalDeviceProperties properties;
 		vkGetPhysicalDeviceProperties(device, &properties);
+
+		VkPhysicalDeviceMemoryProperties memory_properties;
+		vkGetPhysicalDeviceMemoryProperties(device, &memory_properties);
 
 		return PhysicalDevice{
 				.device = device,
 				.properties = std::move(properties),
 				.extensions = internal::enumerate_device_properties(device, required_layers),
 				.queue_properties = internal::enumerate_device_queue_family_properties(device),
+				.memory_properties = std::move(memory_properties),
 		};
 	});
 	return result;
 }
 
-// LogicalDevice create_logical_device(const std::vector<PhysicalDevice>& devices, const std::vector<const char*>&
-// layers, 																		const std::vector<const char*>& extensions) {
-// std::vector<VkDeviceQueueCreateInfo> device_queue_create_infos = {VkDeviceQueueCreateInfo{ 			.sType =
-// VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, 			.pNext = nullptr, 			.flags = 0, 			.queueFamilyIndex = 0,
-// 			.queueCount = 1,
-// 			.pQueuePriorities = nullptr,
-// 	}};
-//
-// 	VkDeviceCreateInfo create_info{
-// 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-// 			.pNext = nullptr,
-// 			.flags = VK_QUEUE_GRAPHICS_BIT,
-// 			.queueCreateInfoCount = static_cast<uint32_t>(size(device_queue_create_infos)),
-// 			.pQueueCreateInfos = device_queue_create_infos.data(),
-// 			.enabledLayerCount = static_cast<uint32_t>(size(layers)),
-// 			.ppEnabledLayerNames = layers.data(),
-// 			.enabledExtensionCount = static_cast<uint32_t>(size(extensions)),
-// 			.ppEnabledExtensionNames = extensions.data(),
-// 			.pEnabledFeatures = nullptr,
-//
-// 	};
-//
-// 	LogicalDevice device;
-// 	vkCreateDevice(devices[0].device, &create_info, nullptr, &device.device);
-// 	return device;
-// }
+std::vector<int> score_gpus(const std::vector<PhysicalDevice>& devices) {
+	std::vector<int> scores(devices.size());
+
+	std::transform(begin(devices), end(devices), begin(scores), [](const PhysicalDevice& device) {
+		int score = 0;
+		score += device.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? 1000 : 0;
+		score += device.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ? 500 : 0;
+
+		bool no_gpu_queue = std::find_if(begin(device.queue_properties), end(device.queue_properties),
+																		 [](const VkQueueFamilyProperties& prop) -> bool {
+																			 return prop.queueFlags & VK_QUEUE_GRAPHICS_BIT;
+																		 }) == end(device.queue_properties);
+
+		VkDeviceSize total_memory{0};
+		for (auto i = 0u; i < device.memory_properties.memoryHeapCount; ++i) {
+			total_memory += device.memory_properties.memoryHeaps[i].size;
+		}
+
+		score += total_memory / (1024 * 1024 * 1024) * 10;
+
+		if (no_gpu_queue)
+			score = 0;
+
+		return score;
+	});
+
+	return scores;
+}
+
+size_t get_graphic_queue_index(PhysicalDevice& device) {
+	auto it =
+			std::find_if(begin(device.queue_properties), end(device.queue_properties),
+									 [](const VkQueueFamilyProperties& prop) -> bool { return prop.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
+
+	auto index = static_cast<size_t>(std::distance(begin(device.queue_properties), it));
+	return index;
+}
 
 std::expected<VkInstance, std::string> vk_create_instance(std::string_view application_name,
 																													uint32_t application_version,
@@ -375,6 +454,81 @@ template <> struct std::formatter<std::vector<VkQueueFamilyProperties>> : std::f
 	}
 };
 
+template <> struct std::formatter<VkMemoryType> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(const VkMemoryType& memory_type, std::format_context& ctx) const {
+		std::string type;
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+			type += "device local|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+			type += "host visible|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+			type += "host coherent|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+			type += "host cached|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)
+			type += "lazily allocated|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT)
+			type += "protected|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD)
+			type += "device coherent|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD)
+			type += "device uncached|";
+		if (memory_type.propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV)
+			type += "RDMA capable|";
+
+		if (not empty(type))
+			type.pop_back();
+
+		if (empty(type))
+			type = "none";
+
+		return std::format_to(ctx.out(), "type \"{}\" at index {}", type, memory_type.heapIndex);
+	}
+};
+
+template <> struct std::formatter<VkMemoryHeap> {
+	constexpr auto parse(std::format_parse_context& ctx) {
+		return ctx.begin();
+	}
+
+	auto format(const VkMemoryHeap& memory_heap, std::format_context& ctx) const {
+		std::string type;
+		if (memory_heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+			type += "device local|";
+		if (memory_heap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT)
+			type += "multi instance|";
+
+		if (not empty(type))
+			type.pop_back();
+
+		if (empty(type))
+			type = "none";
+
+		return std::format_to(ctx.out(), "size: {}  [\"{}\"]", memory_heap.size, type);
+	}
+};
+
+template <> struct std::formatter<VkPhysicalDeviceMemoryProperties> : std::formatter<std::string> {
+
+	auto format(const VkPhysicalDeviceMemoryProperties& memory_properties, std::format_context& ctx) const {
+		std::string temp{"Types:\n"};
+		for (uint32_t i = 0u; i < memory_properties.memoryTypeCount; i++) {
+			std::format_to(back_inserter(temp), "{}\n", memory_properties.memoryTypes[i]);
+		}
+
+		temp += "Heaps:\n";
+		for (uint32_t i = 0u; i < memory_properties.memoryHeapCount; i++) {
+			std::format_to(back_inserter(temp), "{}: {}\n", i, memory_properties.memoryHeaps[i]);
+		}
+
+		return std::formatter<std::string>::format(temp, ctx);
+	}
+};
+
 template <> struct std::formatter<PhysicalDevice> : std::formatter<std::string> {
 	auto format(const PhysicalDevice& device, std::format_context& ctx) const {
 		std::string temp;
@@ -383,8 +537,10 @@ template <> struct std::formatter<PhysicalDevice> : std::formatter<std::string> 
 									 "name: {}\n"
 									 "type: {}\n"
 									 "vulkan version: {}\n"
-									 "queues:\n{}",
-									 device.name(), device.type(), device.api_version(), device.queue_properties);
+									 "queues:\n{}"
+									 "Memory:\n{}",
+									 device.name(), device.type(), device.api_version(), device.queue_properties,
+									 device.memory_properties);
 		std::format_to(back_inserter(temp), "Extensions:\n{}", device.extensions);
 		return std::formatter<std::string>::format(temp, ctx);
 	}
@@ -412,9 +568,11 @@ public:
 	}
 
 	~Renderer() {
-		if (instance != VK_NULL_HANDLE) {
-			vkDestroyInstance(instance, nullptr);
-		}
+		if (instance == VK_NULL_HANDLE)
+			return;
+
+		device = std::nullopt;
+		vkDestroyInstance(instance, nullptr);
 	}
 
 	Renderer(Renderer&) = delete;
@@ -427,6 +585,10 @@ public:
 		std::swap(lhs.layers, rhs.layers);
 		std::swap(lhs.instance, rhs.instance);
 		std::swap(lhs.devices, rhs.devices);
+		std::swap(lhs.physical_device, rhs.physical_device);
+		std::swap(lhs.gpu_score, rhs.gpu_score);
+		std::swap(lhs.gpu_queue_index, rhs.gpu_queue_index);
+		std::swap(lhs.device, rhs.device);
 	}
 
 	Renderer(Renderer&& other) : window{nullptr}, layers{}, instance{VK_NULL_HANDLE} {
@@ -456,9 +618,11 @@ public:
 		}
 
 		std::format_to(std::back_inserter(result), "Founded {} devices", devices.size());
-		for (auto& physical_device : devices) {
-			std::format_to(back_inserter(result), "\n{}", physical_device);
+		for (const auto& dev : devices) {
+			std::format_to(back_inserter(result), "\n{}", dev);
 		};
+
+		std::format_to(std::back_inserter(result), "Selected device is: {} (score: {})", physical_device.name(), gpu_score);
 		return result;
 	}
 
@@ -471,7 +635,23 @@ private:
 				layers{enumerate_instance_layers()},
 				instance{instance} {
 		devices = enumerate_devices(instance, required_layers);
-		// device = create_logical_device(devices, required_layers, required_extensions);
+
+		if (empty(devices))
+			throw std::runtime_error{"no physical device found"};
+
+		auto gpu_scores = score_gpus(devices);
+		auto it = std::max_element(begin(gpu_scores), end(gpu_scores));
+
+		if (*it == 0)
+			throw std::runtime_error{"No suitable GPU scores found"};
+
+		size_t gpu_idx = static_cast<size_t>(std::distance(begin(gpu_scores), it));
+		gpu_score = *it;
+		physical_device = devices.at(gpu_idx);
+
+		gpu_queue_index = get_graphic_queue_index(physical_device);
+
+		device = LogicalDevice::create(physical_device, gpu_queue_index, required_extensions);
 	}
 
 private:
@@ -483,7 +663,10 @@ private:
 	VkInstance instance;
 
 	std::vector<PhysicalDevice> devices;
-	// LogicalDevice device;
+	PhysicalDevice physical_device;
+	int gpu_score = 0;
+	size_t gpu_queue_index = 0;
+	std::optional<LogicalDevice> device;
 }; // namespace vis::vk
 
 } // namespace vis::vk
