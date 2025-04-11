@@ -20,163 +20,6 @@ import :window;
 
 namespace views = std::ranges::views;
 
-namespace {
-
-struct LayerProperties {
-	VkLayerProperties properties;
-	std::vector<VkExtensionProperties> extensions;
-};
-
-std::vector<VkLayerProperties> enumerate_instance_layers_properties() {
-	std::vector<VkLayerProperties> layers;
-	uint32_t layerCount = 0;
-
-	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-	layers.resize(layerCount);
-
-	vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
-	return layers;
-}
-
-std::vector<VkExtensionProperties> enumerate_instance_layer_extensions(std::string_view layer_name) {
-	std::vector<VkExtensionProperties> extensions;
-	uint32_t layerCount = 0;
-
-	vkEnumerateInstanceExtensionProperties(layer_name.data(), &layerCount, nullptr);
-	extensions.resize(layerCount);
-
-	vkEnumerateInstanceExtensionProperties(layer_name.data(), &layerCount, extensions.data());
-	return extensions;
-}
-
-std::vector<LayerProperties> enumerate_instance_layers() {
-	std::vector<LayerProperties> res;
-
-	// Instance extensions
-	VkLayerProperties layerProperties{.layerName = {'\0'},
-																		.specVersion = VK_VERSION_1_4,
-																		.implementationVersion = VK_VERSION_1_4,
-																		.description = {'\0'}};
-	res.emplace_back(layerProperties, enumerate_instance_layer_extensions(""));
-
-	auto layers = enumerate_instance_layers_properties();
-	std::transform(begin(layers), end(layers), std::back_inserter(res), [](VkLayerProperties prop) {
-		return LayerProperties{.properties = prop, .extensions = enumerate_instance_layer_extensions(prop.layerName)};
-	});
-
-	return res;
-}
-
-std::string vk_version_to_string(uint32_t version) {
-	const auto maj = VK_API_VERSION_MAJOR(version);
-	const auto min = VK_API_VERSION_MINOR(version);
-	const auto patch = VK_API_VERSION_PATCH(version);
-	return std::format("{}.{}.{}", maj, min, patch);
-}
-
-struct PhysicalDevice {
-	VkPhysicalDevice device;
-	VkPhysicalDeviceProperties properties;
-	std::vector<VkExtensionProperties> extensions;
-	std::vector<VkQueueFamilyProperties> queue_properties;
-	VkPhysicalDeviceMemoryProperties memory_properties;
-
-	std::string_view name() const {
-		return std::string_view{properties.deviceName};
-	}
-
-	std::string api_version() const {
-		return vk_version_to_string(properties.apiVersion);
-	}
-
-	std::string type() const {
-		switch (properties.deviceType) {
-		case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-			return "other";
-
-		case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-			return "integrated GPU";
-
-		case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-			return "discrete GPU";
-
-		case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-			return "virtual GPU";
-
-		case VK_PHYSICAL_DEVICE_TYPE_CPU:
-			return "CPU";
-
-		default:
-			return "unknown";
-		}
-	}
-};
-
-class LogicalDevice {
-public:
-	static std::optional<LogicalDevice> create(const PhysicalDevice& physical_device, size_t queue_index,
-																						 const std::vector<const char*>& extensions) {
-		float queue_priorities[] = {0.0f};
-		auto device_queue_create_infos = VkDeviceQueueCreateInfo{
-				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-				.pNext = nullptr,
-				.flags = 0,
-				.queueFamilyIndex = static_cast<uint32_t>(queue_index),
-				.queueCount = 1,
-				.pQueuePriorities = queue_priorities,
-		};
-
-		VkDeviceCreateInfo create_info{
-				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-				.pNext = nullptr,
-				.flags = VK_QUEUE_GRAPHICS_BIT,
-				.queueCreateInfoCount = 1,
-				.pQueueCreateInfos = &device_queue_create_infos,
-
-				// deprecated
-				.enabledLayerCount = 0,
-				.ppEnabledLayerNames = nullptr,
-
-				.enabledExtensionCount = static_cast<uint32_t>(size(extensions)),
-				.ppEnabledExtensionNames = extensions.data(),
-				.pEnabledFeatures = nullptr,
-		};
-
-		VkDevice device_handle;
-		vkCreateDevice(physical_device.device, &create_info, nullptr, &device_handle);
-		return LogicalDevice{device_handle};
-	}
-
-	LogicalDevice(LogicalDevice&) = delete;
-	LogicalDevice& operator=(LogicalDevice&) = delete;
-
-	~LogicalDevice() {
-		if (device == VK_NULL_HANDLE)
-			return;
-
-		vkDestroyDevice(device, nullptr);
-	}
-
-	friend void swap(LogicalDevice& lhs, LogicalDevice& rhs) {
-		std::swap(lhs.device, rhs.device);
-	}
-
-	LogicalDevice(LogicalDevice&& other) : device{VK_NULL_HANDLE} {
-		swap(*this, other);
-	}
-
-	LogicalDevice& operator=(LogicalDevice&& other) {
-		swap(*this, other);
-		return *this;
-	}
-
-private:
-	explicit LogicalDevice(VkDevice device) : device{device} {}
-
-private:
-	VkDevice device = VK_NULL_HANDLE;
-};
-
 namespace internal {
 std::vector<VkPhysicalDevice> enumerate_physical_devices(VkInstance instance) {
 	uint32_t devices_count = 0;
@@ -252,9 +95,236 @@ VkInstanceCreateFlags get_required_instance_flags() {
 	return flags;
 }
 
+std::vector<VkLayerProperties> enumerate_instance_layers_properties() {
+	std::vector<VkLayerProperties> layers;
+	uint32_t layerCount = 0;
+
+	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+	layers.resize(layerCount);
+
+	vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
+	return layers;
+}
+
+std::vector<VkExtensionProperties> enumerate_instance_layer_extensions(std::string_view layer_name) {
+	std::vector<VkExtensionProperties> extensions;
+	uint32_t layerCount = 0;
+
+	vkEnumerateInstanceExtensionProperties(layer_name.data(), &layerCount, nullptr);
+	extensions.resize(layerCount);
+
+	vkEnumerateInstanceExtensionProperties(layer_name.data(), &layerCount, extensions.data());
+	return extensions;
+}
+
 } // namespace internal
 
-std::vector<PhysicalDevice> enumerate_devices(VkInstance instance, std::vector<const char*> required_layers) {
+namespace {
+
+struct LayerProperties {
+	VkLayerProperties properties;
+	std::vector<VkExtensionProperties> extensions;
+};
+
+std::vector<LayerProperties> enumerate_instance_layers() {
+	std::vector<LayerProperties> res;
+
+	// Instance extensions
+	VkLayerProperties layerProperties{.layerName = {'\0'},
+																		.specVersion = VK_VERSION_1_4,
+																		.implementationVersion = VK_VERSION_1_4,
+																		.description = {'\0'}};
+	res.emplace_back(layerProperties, internal::enumerate_instance_layer_extensions(""));
+
+	auto layers = internal::enumerate_instance_layers_properties();
+	std::transform(begin(layers), end(layers), std::back_inserter(res), [](VkLayerProperties prop) {
+		return LayerProperties{
+				.properties = prop,
+				.extensions = internal::enumerate_instance_layer_extensions(prop.layerName),
+		};
+	});
+
+	return res;
+}
+
+std::string vk_version_to_string(uint32_t version) {
+	const auto maj = VK_API_VERSION_MAJOR(version);
+	const auto min = VK_API_VERSION_MINOR(version);
+	const auto patch = VK_API_VERSION_PATCH(version);
+	return std::format("{}.{}.{}", maj, min, patch);
+}
+
+struct PhysicalDevice {
+	VkPhysicalDevice device;
+	VkPhysicalDeviceProperties properties;
+	std::vector<VkExtensionProperties> extensions;
+	std::vector<VkQueueFamilyProperties> queue_properties;
+	VkPhysicalDeviceMemoryProperties memory_properties;
+
+	std::string_view name() const {
+		return std::string_view{properties.deviceName};
+	}
+
+	std::string api_version() const {
+		return vk_version_to_string(properties.apiVersion);
+	}
+
+	std::string type() const {
+		switch (properties.deviceType) {
+		case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+			return "other";
+
+		case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+			return "integrated GPU";
+
+		case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+			return "discrete GPU";
+
+		case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+			return "virtual GPU";
+
+		case VK_PHYSICAL_DEVICE_TYPE_CPU:
+			return "CPU";
+
+		default:
+			return "unknown";
+		}
+	}
+};
+
+class VulkanInstance {
+public:
+	VulkanInstance() = default;
+
+	static std::optional<VulkanInstance> create(std::string_view application_name, uint32_t application_version,
+																							std::vector<const char*> required_extensions,
+																							std::vector<const char*> required_layers, VkInstanceCreateFlags flags) {
+		std::optional<VulkanInstance> result = std::nullopt;
+		VkApplicationInfo app_info{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+															 .pNext = nullptr,
+															 .pApplicationName = application_name.data(),
+															 .applicationVersion = application_version,
+															 .pEngineName = "vis game engine",
+															 .engineVersion = VK_MAKE_VERSION(0, 0, 1),
+															 .apiVersion = VK_API_VERSION_1_2};
+		VkInstanceCreateInfo create_info{
+				.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = flags,
+				.pApplicationInfo = &app_info,
+				.enabledLayerCount = static_cast<uint32_t>(required_layers.size()),
+				.ppEnabledLayerNames = required_layers.data(),
+				.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size()),
+				.ppEnabledExtensionNames = required_extensions.data(),
+		};
+
+		VkInstance instance = VK_NULL_HANDLE;
+		auto vk_res = vkCreateInstance(&create_info, nullptr, &instance);
+		if (vk_res != VK_SUCCESS) {
+			return {};
+		}
+
+		return VulkanInstance{instance};
+	}
+
+	VulkanInstance(VulkanInstance&) = delete;
+	VulkanInstance& operator=(VulkanInstance&) = delete;
+
+	~VulkanInstance() {
+		if (instance == VK_NULL_HANDLE)
+			return;
+
+		vkDestroyInstance(instance, nullptr);
+	}
+
+	friend void swap(VulkanInstance& lhs, VulkanInstance& rhs) {
+		std::swap(lhs.instance, rhs.instance);
+	}
+
+	VulkanInstance(VulkanInstance&& other) : instance{VK_NULL_HANDLE} {
+		swap(*this, other);
+	}
+
+	VulkanInstance& operator=(VulkanInstance&& other) {
+		swap(*this, other);
+		return *this;
+	}
+
+	std::vector<PhysicalDevice> enumerate_physical_devices(std::vector<const char*> required_layers) const;
+
+private:
+	explicit VulkanInstance(VkInstance instance) : instance{instance} {}
+	VkInstance instance = VK_NULL_HANDLE;
+};
+
+class LogicalDevice {
+public:
+	LogicalDevice() = default;
+
+	static LogicalDevice create(const PhysicalDevice& physical_device, size_t queue_index,
+															const std::vector<const char*>& extensions) {
+		float queue_priorities[] = {0.0f};
+		auto device_queue_create_infos = VkDeviceQueueCreateInfo{
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = 0,
+				.queueFamilyIndex = static_cast<uint32_t>(queue_index),
+				.queueCount = 1,
+				.pQueuePriorities = queue_priorities,
+		};
+
+		VkDeviceCreateInfo create_info{
+				.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = VK_QUEUE_GRAPHICS_BIT,
+				.queueCreateInfoCount = 1,
+				.pQueueCreateInfos = &device_queue_create_infos,
+
+				// deprecated
+				.enabledLayerCount = 0,
+				.ppEnabledLayerNames = nullptr,
+
+				.enabledExtensionCount = static_cast<uint32_t>(size(extensions)),
+				.ppEnabledExtensionNames = extensions.data(),
+				.pEnabledFeatures = nullptr,
+		};
+
+		VkDevice device_handle;
+		vkCreateDevice(physical_device.device, &create_info, nullptr, &device_handle);
+		return LogicalDevice{device_handle};
+	}
+
+	LogicalDevice(LogicalDevice&) = delete;
+	LogicalDevice& operator=(LogicalDevice&) = delete;
+
+	~LogicalDevice() {
+		if (device == VK_NULL_HANDLE)
+			return;
+
+		vkDestroyDevice(device, nullptr);
+	}
+
+	friend void swap(LogicalDevice& lhs, LogicalDevice& rhs) {
+		std::swap(lhs.device, rhs.device);
+	}
+
+	LogicalDevice(LogicalDevice&& other) : device{VK_NULL_HANDLE} {
+		swap(*this, other);
+	}
+
+	LogicalDevice& operator=(LogicalDevice&& other) {
+		swap(*this, other);
+		return *this;
+	}
+
+private:
+	explicit LogicalDevice(VkDevice device) : device{device} {}
+
+private:
+	VkDevice device = VK_NULL_HANDLE;
+};
+
+std::vector<PhysicalDevice> VulkanInstance::enumerate_physical_devices(std::vector<const char*> required_layers) const {
 	auto devices = internal::enumerate_physical_devices(instance);
 	std::vector<PhysicalDevice> result(devices.size());
 	std::transform(begin(devices), end(devices), begin(result), [&required_layers](VkPhysicalDevice device) {
@@ -312,37 +382,6 @@ size_t get_graphic_queue_index(PhysicalDevice& device) {
 	auto index = static_cast<size_t>(std::distance(begin(device.queue_properties), it));
 	return index;
 }
-
-std::expected<VkInstance, std::string> vk_create_instance(std::string_view application_name,
-																													uint32_t application_version,
-																													std::vector<const char*> required_extensions,
-																													std::vector<const char*> required_layers,
-																													VkInstanceCreateFlags flags) {
-	VkApplicationInfo app_info{.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-														 .pNext = nullptr,
-														 .pApplicationName = application_name.data(),
-														 .applicationVersion = application_version,
-														 .pEngineName = "vis game engine",
-														 .engineVersion = VK_MAKE_VERSION(0, 0, 1),
-														 .apiVersion = VK_API_VERSION_1_2};
-	VkInstanceCreateInfo create_info{
-			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = flags,
-			.pApplicationInfo = &app_info,
-			.enabledLayerCount = static_cast<uint32_t>(required_layers.size()),
-			.ppEnabledLayerNames = required_layers.data(),
-			.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size()),
-			.ppEnabledExtensionNames = required_extensions.data(),
-	};
-
-	VkInstance instance = VK_NULL_HANDLE;
-	auto res = vkCreateInstance(&create_info, nullptr, &instance);
-	if (res != VK_SUCCESS) {
-		return std::unexpected("Unable to create a Vulkan Instance");
-	}
-	return instance;
-} // namespace
 
 } // namespace
 
@@ -513,7 +552,6 @@ template <> struct std::formatter<VkMemoryHeap> {
 };
 
 template <> struct std::formatter<VkPhysicalDeviceMemoryProperties> : std::formatter<std::string> {
-
 	auto format(const VkPhysicalDeviceMemoryProperties& memory_properties, std::format_context& ctx) const {
 		std::string temp{"Types:\n"};
 		for (uint32_t i = 0u; i < memory_properties.memoryTypeCount; i++) {
@@ -559,21 +597,17 @@ public:
 		std::vector<const char*> required_extensions = internal::get_required_extensions();
 		std::vector<const char*> required_layers = internal::get_required_layers();
 
-		auto instance = vk_create_instance(title, VK_MAKE_VERSION(0, 0, 1), required_extensions, required_layers, flags);
+		auto instance =
+				VulkanInstance::create(title, VK_MAKE_VERSION(0, 0, 1), required_extensions, required_layers, flags);
+
 		if (not instance.has_value()) {
-			return std::unexpected(instance.error());
+			return std::unexpected("Unable to create Vulkan instance");
 		}
 
-		return Renderer{required_extensions, required_layers, window, *instance};
+		return Renderer{required_extensions, required_layers, window, std::move(*instance)};
 	}
 
-	~Renderer() {
-		if (instance == VK_NULL_HANDLE)
-			return;
-
-		device = std::nullopt;
-		vkDestroyInstance(instance, nullptr);
-	}
+	~Renderer() = default;
 
 	Renderer(Renderer&) = delete;
 	Renderer& operator=(Renderer&) = delete;
@@ -591,7 +625,7 @@ public:
 		std::swap(lhs.device, rhs.device);
 	}
 
-	Renderer(Renderer&& other) : window{nullptr}, layers{}, instance{VK_NULL_HANDLE} {
+	Renderer(Renderer&& other) : window{nullptr} {
 		swap(*this, other);
 	}
 
@@ -628,13 +662,13 @@ public:
 
 private:
 	explicit Renderer(std::vector<const char*> required_extensions, std::vector<const char*> required_layers,
-										Window* window, VkInstance instance)
+										Window* window, VulkanInstance vk_instance)
 			: required_extensions{std::move(required_extensions)},
 				required_layers{std::move(required_layers)},
 				window{window},
 				layers{enumerate_instance_layers()},
-				instance{instance} {
-		devices = enumerate_devices(instance, required_layers);
+				instance{std::move(vk_instance)} {
+		devices = instance.enumerate_physical_devices(required_layers);
 
 		if (empty(devices))
 			throw std::runtime_error{"no physical device found"};
@@ -660,13 +694,12 @@ private:
 
 	Window* window;
 	std::vector<LayerProperties> layers;
-	VkInstance instance;
-
+	VulkanInstance instance;
 	std::vector<PhysicalDevice> devices;
 	PhysicalDevice physical_device;
 	int gpu_score = 0;
 	size_t gpu_queue_index = 0;
-	std::optional<LogicalDevice> device;
+	LogicalDevice device;
 }; // namespace vis::vk
 
 } // namespace vis::vk
