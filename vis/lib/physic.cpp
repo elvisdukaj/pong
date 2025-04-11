@@ -586,7 +586,9 @@ struct RayCastResult {
 
 class World {
 public:
-	friend std::optional<World> create_world(const WorldDef& world_def);
+	World() : id{b2_nullWorldId} {}
+
+	friend World create_world(const WorldDef& world_def);
 
 	friend void swap(World& lhs, World& rhs) {
 		std::swap(lhs.id, rhs.id);
@@ -644,7 +646,7 @@ private:
 	b2WorldId id;
 };
 
-std::optional<World> create_world(const WorldDef& world_def) {
+World create_world(const WorldDef& world_def) {
 	return World{world_def};
 }
 

@@ -91,8 +91,6 @@ export {
 
 		void reset_scene() {
 			entity_registry.clear();
-			world = std::nullopt;
-
 			initialize_game();
 		}
 
@@ -169,14 +167,14 @@ export {
 			accumulated_time += dt;
 
 			while (accumulated_time >= fixed_time_step) {
-				world->step(fixed_time_step, 4);
+				world.step(fixed_time_step, 4);
 				accumulated_time -= fixed_time_step;
 			}
 		}
 
 		void update_ball_system([[maybe_unused]] vis::chrono::milliseconds t) {
 			static bool is_ball_colliding_with_pad = false;
-			auto contacts = world->get_contact_events();
+			auto contacts = world.get_contact_events();
 
 			for (auto it = contacts.begin_end_touch(); //
 					 it != contacts.end_end_touch();			 //
@@ -233,7 +231,7 @@ export {
 		}
 
 		void update_game_logic() {
-			auto sensor_events = world->get_sensor_events();
+			auto sensor_events = world.get_sensor_events();
 			for (auto begin_touch_it = sensor_events.begin_begin_touch(); //
 					 begin_touch_it != sensor_events.end_begin_touch();				//
 					 ++begin_touch_it) {
@@ -323,7 +321,7 @@ export {
 													.set_position(pos)			 //
 													.set_body_type(vis::physics::BodyType::kinematic);
 			auto& rigid_body =
-					entity_registry.emplace<vis::physics::RigidBody>(player_entity, world->create_body(body_def, player_entity));
+					entity_registry.emplace<vis::physics::RigidBody>(player_entity, world.create_body(body_def, player_entity));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
@@ -346,7 +344,7 @@ export {
 													.set_body_type(vis::physics::BodyType::kinematic);
 
 			auto& rigid_body =
-					entity_registry.emplace<vis::physics::RigidBody>(ai_entity, world->create_body(body_def, ai_entity));
+					entity_registry.emplace<vis::physics::RigidBody>(ai_entity, world.create_body(body_def, ai_entity));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto shape = vis::physics::ShapeDef{} //
@@ -382,7 +380,7 @@ export {
 
 			auto& rigid_body =
 					entity_registry.emplace<vis::physics::RigidBody>(ball_entity, vis::physics::RigidBody{
-																																						world->create_body(body_def, ball_entity),
+																																						world.create_body(body_def, ball_entity),
 																																				});
 			auto shape_def = vis::physics::ShapeDef{} //
 													 .set_restitution(1.0)
@@ -403,7 +401,7 @@ export {
 													.set_position(pos) //
 													.set_body_type(vis::physics::BodyType::fixed);
 
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world->create_body(body_def, wall));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(wall, world.create_body(body_def, wall));
 
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
@@ -424,7 +422,7 @@ export {
 			auto body_def = vis::physics::RigidBodyDef{}
 													.set_position(pos) //
 													.set_body_type(vis::physics::BodyType::fixed);
-			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(entity, world->create_body(body_def, entity));
+			auto& rigid_body = entity_registry.emplace<vis::physics::RigidBody>(entity, world.create_body(body_def, entity));
 			auto wall_box = vis::physics::create_box2d(half_extent);
 			auto wall_shape = vis::physics::ShapeDef{} //
 														.set_is_sensor(true);
@@ -446,7 +444,7 @@ export {
 		vis::ecs::dispatcher dispatcher;
 		vis::ScreenProjection screen_proj;
 
-		std::optional<vis::physics::World> world;
+		vis::physics::World world;
 
 		vis::chrono::Timer timer;
 

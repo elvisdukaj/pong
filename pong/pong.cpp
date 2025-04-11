@@ -18,7 +18,7 @@ using namespace vis::literals::chrono_literals;
 class App {
 public:
 	static App* create() {
-		static auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
+		auto window = vis::Window::create("Pong", SCREEN_WIDTH, SCREEN_HEIGHT, screen_flags);
 		if (not window) {
 			std::println("Unable to create the window! An error occured: {}", window.error());
 			return nullptr;
@@ -30,7 +30,7 @@ public:
 		// 	return nullptr;
 		// }
 
-		static auto vk_renderer = vis::vk::Renderer::create(&(window.value()));
+		auto vk_renderer = vis::vk::Renderer::create(&(window.value()));
 		if (not vk_renderer) {
 			std::println("Unable to create the Vulkan Renderer! An error occured: {}", vk_renderer.error());
 			return nullptr;
@@ -38,7 +38,7 @@ public:
 
 		std::println("{}", vk_renderer->show_info());
 
-		static auto app = new App{/*&(window.value()),*/ &(vk_renderer.value())};
+		static auto app = new App{std::move(window.value()), std::move(vk_renderer.value())};
 		return app;
 	}
 
@@ -51,13 +51,13 @@ public:
 	}
 
 private:
-	explicit App(/*vis::Window* window,*/ vis::vk::Renderer* renderer)
-			: /*window{window}, renderer(renderer),*/ test_scene{*renderer} {}
+	explicit App(vis::Window&& window, vis::vk::Renderer&& renderer)
+			: window{std::move(window)}, renderer(std::move(renderer)), test_scene{this->renderer} {}
 
 private:
-	// vis::Window* window;
+	vis::Window window;
 	// vis::opengl::OpenGLRenderer* renderer;
-
+	vis::vk::Renderer renderer;
 	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::vulkan;
 
 	TestScene test_scene;
