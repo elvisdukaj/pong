@@ -5,6 +5,7 @@ module;
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_to_string.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
@@ -165,6 +166,30 @@ public:
 
 private:
 	explicit Renderer(Window* window) : window{window}, vk_instance{nullptr} {
+		create_instance();
+		enumerate_gpus();
+
+		// devices = instance.enumerate_physical_devices(required_layers);
+
+		// if (empty(devices))
+		// throw std::runtime_error{"no physical device found"};
+
+		// auto gpu_scores = score_gpus(devices);
+		// auto it = std::max_element(begin(gpu_scores), end(gpu_scores));
+
+		// if (*it == 0)
+		// throw std::runtime_error{"No suitable GPU scores found"};
+
+		// size_t gpu_idx = static_cast<size_t>(std::distance(begin(gpu_scores), it));
+		// gpu_score = *it;
+		// physical_device = devices.at(gpu_idx);
+
+		// gpu_queue_index = get_graphic_queue_index(physical_device);
+
+		// device = LogicalDevice::create(physical_device, gpu_queue_index, required_extensions);
+	}
+
+	void create_instance() {
 		auto flags = get_required_instance_flags();
 		required_extensions = get_required_extensions();
 		required_layers = get_required_layers();
@@ -221,7 +246,9 @@ private:
 			throw std::runtime_error(vk::to_string((instance.error())));
 		}
 		vk_instance = std::move(*instance);
+	}
 
+	void enumerate_gpus() {
 		auto physical_devices_expec = vk_instance.enumeratePhysicalDevices();
 		if (not physical_devices_expec) {
 			throw std::runtime_error(vk::to_string(physical_devices_expec.error()));
@@ -247,25 +274,6 @@ private:
 			// }
 			vk_config["gpu"].push_back(physical_device_config);
 		}
-
-		// devices = instance.enumerate_physical_devices(required_layers);
-
-		// if (empty(devices))
-		// throw std::runtime_error{"no physical device found"};
-
-		// auto gpu_scores = score_gpus(devices);
-		// auto it = std::max_element(begin(gpu_scores), end(gpu_scores));
-
-		// if (*it == 0)
-		// throw std::runtime_error{"No suitable GPU scores found"};
-
-		// size_t gpu_idx = static_cast<size_t>(std::distance(begin(gpu_scores), it));
-		// gpu_score = *it;
-		// physical_device = devices.at(gpu_idx);
-
-		// gpu_queue_index = get_graphic_queue_index(physical_device);
-
-		// device = LogicalDevice::create(physical_device, gpu_queue_index, required_extensions);
 	}
 
 private:
