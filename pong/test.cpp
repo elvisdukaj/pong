@@ -21,7 +21,7 @@ export {
 
 	class TestScene : public Scene {
 	public:
-		explicit TestScene(vis::vk::Renderer& renderer) : renderer(renderer) {}
+		explicit TestScene(vis::vulkan::Renderer& renderer) : renderer(renderer) {}
 
 		[[nodiscard]] vis::app::AppResult process_event(const vis::win::Event& event) noexcept override {
 			return std::visit(
@@ -59,7 +59,7 @@ export {
 		}
 
 	private:
-		vis::vk::Renderer& renderer;
+		vis::vulkan::Renderer& renderer;
 
 		int screen_width = SCREEN_WIDTH;
 		int screen_height = SCREEN_HEIGHT;

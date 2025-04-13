@@ -5,6 +5,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(VulkanLoader CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 
 add_library(vis_obj OBJECT)
 add_library(vis_obj::vis_obj ALIAS vis_obj)
@@ -25,7 +26,7 @@ target_sources(vis_obj
 
         PRIVATE FILE_SET HEADERS
         FILES
-        
+
         ecs/container/dense_map.inc
         ecs/container/dense_set.inc
         ecs/container/table.inc
@@ -98,8 +99,16 @@ target_sources(vis_obj
         ecs/signal/sigh.inc
 )
 
-target_compile_definitions(vis_obj PUBLIC "SDL_MAIN_USE_CALLBACKS=1" ENTT_STANDARD_CPP)
-target_link_libraries(vis_obj PUBLIC SDL3::SDL3 glm::glm GLEW::GLEW box2d::box2d Vulkan::Loader)
+target_compile_definitions(vis_obj PUBLIC
+        "SDL_MAIN_USE_CALLBACKS=1"
+        ENTT_STANDARD_CPP
+        VULKAN_HPP_RAII_NO_EXCEPTIONS
+        $<$<STREQUAL:$<PLATFORM_ID>,Linux>:VK_USE_PLATFORM_WAYLAND_KHR>
+        $<$<STREQUAL:$<PLATFORM_ID>,Windows>:VK_USE_PLATFORM_WIN32_KHR>
+        $<$<STREQUAL:$<PLATFORM_ID>,Darwin>:VK_USE_PLATFORM_METAL_EXT>
+)
+
+target_link_libraries(vis_obj PUBLIC SDL3::SDL3 glm::glm GLEW::GLEW box2d::box2d Vulkan::Loader yaml-cpp::yaml-cpp)
 
 target_add_extra_warnings(vis_obj PUBLIC)
 target_set_warnings_as_error(vis_obj)

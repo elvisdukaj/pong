@@ -30,7 +30,7 @@ public:
 		// 	return nullptr;
 		// }
 
-		auto vk_renderer = vis::vk::Renderer::create(&(window.value()));
+		auto vk_renderer = vis::vulkan::Renderer::create(&(window.value()));
 		if (not vk_renderer) {
 			std::println("Unable to create the Vulkan Renderer! An error occured: {}", vk_renderer.error());
 			return nullptr;
@@ -51,13 +51,13 @@ public:
 	}
 
 private:
-	explicit App(vis::Window&& window, vis::vk::Renderer&& renderer)
+	explicit App(vis::Window&& window, vis::vulkan::Renderer&& renderer)
 			: window{std::move(window)}, renderer(std::move(renderer)), test_scene{this->renderer} {}
 
 private:
 	vis::Window window;
 	// vis::opengl::OpenGLRenderer* renderer;
-	vis::vk::Renderer renderer;
+	vis::vulkan::Renderer renderer;
 	static constexpr vis::WindowsFlags screen_flags = vis::WindowsFlags::vulkan;
 
 	TestScene test_scene;
