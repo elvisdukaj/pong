@@ -192,21 +192,29 @@ private:
 			auto extensions_str = std::vector<std::string>(extensions.size());
 			std::transform(begin(extensions), end(extensions), begin(extensions_str),
 										 [](auto& extension) { return std::string{extension.extensionName}; });
-			layer_conf["description"] = extensions_str;
+			layer_conf["extensions"] = extensions_str;
 			vk_config["layers"].push_back(layer_conf);
 		}
 
 		const auto title = SDL_GetWindowTitle(static_cast<SDL_Window*>(*window));
 
 		vk::ApplicationInfo app_info{
-				title, VK_MAKE_VERSION(1, 0, 0), "vis game engine", VK_MAKE_VERSION(1, 0, 1), VK_API_VERSION_1_2,
+				.pNext = nullptr,
+				.pApplicationName = title,
+				.applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+				.pEngineName = "vis game engine",
+				.engineVersion = VK_MAKE_VERSION(1, 0, 1),
+				.apiVersion = VK_API_VERSION_1_2,
 		};
-		vk::InstanceCreateInfo create_info{flags,
-																			 &app_info,
-																			 static_cast<uint32_t>(size(required_layers)),
-																			 required_layers.data(),
-																			 static_cast<uint32_t>(size(required_extensions)),
-																			 required_extensions.data()};
+
+		vk::InstanceCreateInfo create_info{
+				.flags = flags,
+				.pApplicationInfo = &app_info,
+				.enabledLayerCount = static_cast<uint32_t>(size(required_layers)),
+				.ppEnabledLayerNames = required_layers.data(),
+				.enabledExtensionCount = static_cast<uint32_t>(size(required_extensions)),
+				.ppEnabledExtensionNames = required_extensions.data(),
+		};
 
 		auto instance = context.createInstance(create_info);
 		if (not instance) {
@@ -233,6 +241,10 @@ private:
 			physical_device_config["api version"] = vk_version_to_string(properties.apiVersion);
 			physical_device_config["driver version"] = vk_version_to_string(properties.driverVersion);
 			physical_device_config["score"] = gpu_score;
+			// {
+			// auto features = physical_device.getFeatures();
+			// physical_device_config["feature"] = vk::intro();
+			// }
 			vk_config["gpu"].push_back(physical_device_config);
 		}
 
