@@ -189,7 +189,7 @@ public:
 	}
 
 private:
-	explicit Renderer(Window* window) : window{window}, vk_instance{nullptr}, physical_device{nullptr} {
+	explicit Renderer(Window* window) : window{window}, vk_instance{nullptr}, physical_device{.device = nullptr, .score = 0} {
 		create_instance();
 		enumerate_gpus();
 	}
@@ -265,32 +265,38 @@ private:
 
 
 		for (const auto& scored_gpu : physical_devices) {
-			const auto& [device, score] = scored_gpu;
-			auto properties = device.getProperties();
-
-			YAML::Node physical_device_config;
-			physical_device_config["name"] = std::string{properties.deviceName};
-			physical_device_config["type"] = vk::to_string(properties.deviceType);
-			physical_device_config["api version"] = vk_version_to_string(properties.apiVersion);
-			physical_device_config["driver version"] = vk_version_to_string(properties.driverVersion);
-			physical_device_config["score"] = score;
-			vk_config["gpus"].push_back(physical_device_config);
+			vk_config["gpus"].push_back(serialize_gpu_to_yaml(scored_gpu));
 		}
 
-		physical_device = physical_devices.back().device;
-		{
-			auto selected_device_properties = physical_device.getProperties();
-			YAML::Node selected_device_config;
-			selected_device_config["name"] = std::string{selected_device_properties.deviceName};
-			selected_device_config["type"] = vk::to_string(selected_device_properties.deviceType);
-			selected_device_config["api version"] = vk_version_to_string(selected_device_properties.apiVersion);
-			selected_device_config["driver version"] = vk_version_to_string(selected_device_properties.driverVersion);
-			vk_config["selected gpu"].push_back(selected_device_config);
-		}
+		physical_device = physical_devices.back();
+		vk_config["selected gpu"].push_back(serialize_gpu_to_yaml(physical_device));
 	}
 
 	void select_gpu() {
 		[[maybe_unused]] auto scored_gpus = enumerated_scored_gpus(vk_instance);
+	}
+
+	YAML::Node serialize_gpu_to_yaml(const ScoredGPU& scored_gpu) {
+		const auto& [device, score] = scored_gpu;
+		const auto properties = device.getProperties();
+		const auto queue_properties = device.getQueueFamilyProperties();
+
+		YAML::Node physical_device_config;
+		physical_device_config["name"] = std::string{properties.deviceName};
+		physical_device_config["type"] = vk::to_string(properties.deviceType);
+		physical_device_config["api version"] = vk_version_to_string(properties.apiVersion);
+		physical_device_config["driver version"] = vk_version_to_string(properties.driverVersion);
+		physical_device_config["score"] = score;
+					
+		
+		for(const auto& queue : queue_properties) {
+			YAML::Node queue_config;
+			queue_config["flags"] = vk::to_string(queue.queueFlags);
+			queue_config["count"] = queue.queueCount;
+			physical_device_config["queues"].push_back(queue_config);
+		}
+
+		return physical_device_config;
 	}
 
 private:
@@ -301,7 +307,7 @@ private:
 	vk::raii::Context context;
 	vk::raii::Instance vk_instance;
 	std::vector<ScoredGPU> physical_devices;
-	vk::raii::PhysicalDevice physical_device;
+	ScoredGPU physical_device;
 	YAML::Node vk_config;
 }; // namespace vis::vk
 
