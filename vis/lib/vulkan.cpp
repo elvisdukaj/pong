@@ -64,9 +64,9 @@ std::string vk_version_to_string(uint32_t version) {
 int score_gpu_type(const vk::raii::PhysicalDevice& physical_device) {
 	int score = 0;
 	auto props = physical_device.getProperties();
-	score += props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 2000 : 0;
+	score += props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 4000 : 0;
 	score += props.deviceType == vk::PhysicalDeviceType::eIntegratedGpu ? 500 : 0;
-	score += props.deviceType == vk::PhysicalDeviceType::eCpu ? 400 : 0;
+	score += props.deviceType == vk::PhysicalDeviceType::eCpu ? 100 : 0;
 	score += props.deviceType == vk::PhysicalDeviceType::eVirtualGpu ? 50 : 0;
 	score += props.deviceType == vk::PhysicalDeviceType::eOther ? 10 : 0;
 	return score;
@@ -109,6 +109,30 @@ int score_gpu(const vk::raii::PhysicalDevice& physical_device) {
 	return score;
 }
 
+struct ScoredGPU {
+	vk::raii::PhysicalDevice device;
+	int score;
+};
+
+std::vector<ScoredGPU> enumerated_scored_gpus(vk::raii::Instance& vk_instance) {
+	return vk_instance.enumeratePhysicalDevices()
+			.and_then([](const std::vector<vk::raii::PhysicalDevice>& devices)
+										-> std::expected<std::vector<ScoredGPU>, vk::Result> {
+				auto scores = devices | std::views::transform(score_gpu);
+
+				auto map_gpu_score = [](std::tuple<const vk::raii::PhysicalDevice&, int> g) {
+					return ScoredGPU{.device = std::get<0>(g), .score = std::get<1>(g)};
+				};
+
+				// clang-format off
+				return std::ranges::views::zip(devices, scores)
+					| std::views::transform(map_gpu_score)
+					| std::ranges::to<std::vector<ScoredGPU>>();
+				// // clang-format on
+			})
+			.value_or(std::vector<ScoredGPU>{});
+}
+
 } // namespace
 
 export namespace vis::vulkan {
@@ -136,8 +160,8 @@ public:
 		std::swap(lhs.window, rhs.window);
 		std::swap(lhs.context, rhs.context);
 		std::swap(lhs.vk_instance, rhs.vk_instance);
+		std::swap(lhs.physical_devices, rhs.physical_devices);
 		// std::swap(lhs.devices, rhs.devices);
-		// std::swap(lhs.physical_device, rhs.physical_device);
 		// std::swap(lhs.gpu_score, rhs.gpu_score);
 		// std::swap(lhs.gpu_queue_index, rhs.gpu_queue_index);
 		// std::swap(lhs.device, rhs.device);
@@ -168,25 +192,6 @@ private:
 	explicit Renderer(Window* window) : window{window}, vk_instance{nullptr} {
 		create_instance();
 		enumerate_gpus();
-
-		// devices = instance.enumerate_physical_devices(required_layers);
-
-		// if (empty(devices))
-		// throw std::runtime_error{"no physical device found"};
-
-		// auto gpu_scores = score_gpus(devices);
-		// auto it = std::max_element(begin(gpu_scores), end(gpu_scores));
-
-		// if (*it == 0)
-		// throw std::runtime_error{"No suitable GPU scores found"};
-
-		// size_t gpu_idx = static_cast<size_t>(std::distance(begin(gpu_scores), it));
-		// gpu_score = *it;
-		// physical_device = devices.at(gpu_idx);
-
-		// gpu_queue_index = get_graphic_queue_index(physical_device);
-
-		// device = LogicalDevice::create(physical_device, gpu_queue_index, required_extensions);
 	}
 
 	void create_instance() {
@@ -249,31 +254,31 @@ private:
 	}
 
 	void enumerate_gpus() {
-		auto physical_devices_expec = vk_instance.enumeratePhysicalDevices();
-		if (not physical_devices_expec) {
-			throw std::runtime_error(vk::to_string(physical_devices_expec.error()));
+		physical_devices = enumerated_scored_gpus(vk_instance);
+
+		if (empty(physical_devices)) {
+			throw std::runtime_error("No GPUs found!");
 		}
 
-		physical_devices =
-				*vk_instance.enumeratePhysicalDevices() | std::ranges::to<std::vector<vk::raii::PhysicalDevice>>();
-
-		for (const vk::raii::PhysicalDevice& physical_device : physical_devices) {
+		for (const auto& scored_gpu : physical_devices) {
+			const auto& [physical_device, score] = scored_gpu;
 			auto properties = physical_device.getProperties();
 
 			YAML::Node physical_device_config;
-			auto gpu_score = score_gpu(physical_device);
-
 			physical_device_config["name"] = std::string{properties.deviceName};
 			physical_device_config["type"] = vk::to_string(properties.deviceType);
 			physical_device_config["api version"] = vk_version_to_string(properties.apiVersion);
 			physical_device_config["driver version"] = vk_version_to_string(properties.driverVersion);
-			physical_device_config["score"] = gpu_score;
-			// {
-			// auto features = physical_device.getFeatures();
-			// physical_device_config["feature"] = vk::intro();
-			// }
+			physical_device_config["score"] = score;
 			vk_config["gpu"].push_back(physical_device_config);
 		}
+
+		auto order_by_score = [](const ScoredGPU& lhs, const ScoredGPU& rhs) { return lhs.score < rhs.score; };
+		std::ranges::sort(physical_devices, order_by_score);
+	}
+
+	void select_gpu() {
+		[[maybe_unused]] auto scored_gpus = enumerated_scored_gpus(vk_instance);
 	}
 
 private:
@@ -283,8 +288,8 @@ private:
 	Window* window;
 	vk::raii::Context context;
 	vk::raii::Instance vk_instance;
-	std::vector<vk::raii::PhysicalDevice> physical_devices;
-
+	std::vector<ScoredGPU> physical_devices;
+	// vk::raii::PhysicalDevice selected_physical_device;
 	YAML::Node vk_config;
 }; // namespace vis::vk
 
