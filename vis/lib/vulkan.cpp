@@ -270,10 +270,23 @@ private:
 
 		physical_device = physical_devices.back();
 		vk_config["selected gpu"].push_back(serialize_gpu_to_yaml(physical_device));
+
+		queue_index = select_queue_index();
+		vk_config["selected queue index"] = queue_index;
 	}
 
-	void select_gpu() {
-		[[maybe_unused]] auto scored_gpus = enumerated_scored_gpus(vk_instance);
+	size_t select_queue_index() {
+		auto queue_properties = physical_device.device.getQueueFamilyProperties();
+
+		auto has_graphic_bit = [](const vk::QueueFamilyProperties& queue) {
+			return queue.queueCount != 0 && queue.queueFlags & vk::QueueFlagBits::eGraphics;
+		};
+
+		auto it = std::find_if(begin(queue_properties), end(queue_properties), has_graphic_bit);
+		if (it == std::end(queue_properties))
+			throw std::runtime_error{"No Graphic queue found!"};
+
+		return static_cast<std::size_t>( std::distance(begin(queue_properties), it));
 	}
 
 	YAML::Node serialize_gpu_to_yaml(const ScoredGPU& scored_gpu) {
@@ -308,6 +321,7 @@ private:
 	vk::raii::Instance vk_instance;
 	std::vector<ScoredGPU> physical_devices;
 	ScoredGPU physical_device;
+	size_t queue_index;
 	YAML::Node vk_config;
 }; // namespace vis::vk
 
