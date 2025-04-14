@@ -201,6 +201,8 @@ private:
 
 		auto api_version = context.enumerateInstanceVersion();
 		vk_config["version"] = vk_version_to_string(api_version);
+		vk_config["required layers"] = required_layers;
+		vk_config["required extensions"] = required_extensions;
 
 		{
 			auto extensions = context.enumerateInstanceExtensionProperties();
