@@ -22,6 +22,7 @@ target_sources(vis_obj
         time.cpp
         utility.cpp
         window.cpp
+        vulkan_helper.cpp
         vulkan.cpp
 
         PRIVATE FILE_SET HEADERS
