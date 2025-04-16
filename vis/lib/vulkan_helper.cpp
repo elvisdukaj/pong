@@ -87,11 +87,10 @@ namespace {
 
 } // namespace
 
-export namespace vk::raii {
-using vk::raii::Instance;
-}
-
 export namespace vkh {
+
+using ::vk::raii::Instance;
+// using ::vk::raii::PhysicalDevice;
 
 // constexpr std::vector<const char*> get_physical_device_extensions() {
 // 	std::vector<const char*> required_extensions = {};
@@ -142,14 +141,15 @@ constexpr ::vk::InstanceCreateFlags get_required_instance_flags() {
 	return flags;
 }
 
-class VulkanContext;
-class VulkanInstanceBuilder;
+class Context;
+class InstanceBuilder;
+class PhysicalDeviceSelector;
 
-class VulkanContext {
-	friend VulkanInstanceBuilder;
+class Context {
+	friend InstanceBuilder;
 
 public:
-	VulkanContext() {
+	Context() {
 		api_version = context.enumerateInstanceVersion();
 		config_["api_version"] = vk_version_to_string(api_version);
 
@@ -232,66 +232,66 @@ private:
 	YAML::Node config_;
 };
 
-class VulkanInstanceBuilder {
+class InstanceBuilder {
 public:
-	VulkanInstanceBuilder(VulkanContext& context) : context{context} {}
+	InstanceBuilder(Context& context) : context{context} {}
 
-	VulkanInstanceBuilder& with_minimum_required_instance_version(uint32_t version) {
+	InstanceBuilder& with_minimum_required_instance_version(uint32_t version) {
 		minimim_instance_version = version;
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_app_name(std::string_view name) {
+	InstanceBuilder& with_app_name(std::string_view name) {
 		app_name = name;
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_app_version(uint32_t version) {
+	InstanceBuilder& with_app_version(uint32_t version) {
 		app_version = version;
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_app_version(int major, int minor, int patch) {
+	InstanceBuilder& with_app_version(int major, int minor, int patch) {
 		app_version = VK_MAKE_VERSION(major, minor, patch);
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_engine_name(std::string_view name) {
+	InstanceBuilder& with_engine_name(std::string_view name) {
 		engine_name = name;
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_engine_version(uint32_t version) {
+	InstanceBuilder& with_engine_version(uint32_t version) {
 		engine_version = version;
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_engine_version(int major, int minor, int patch) {
+	InstanceBuilder& with_engine_version(int major, int minor, int patch) {
 		engine_version = VK_MAKE_VERSION(major, minor, patch);
 		return *this;
 	}
 
-	VulkanInstanceBuilder& add_required_layer(const char* layer_name) {
+	InstanceBuilder& add_required_layer(const char* layer_name) {
 		required_layers.push_back(layer_name);
 		return *this;
 	}
 
-	VulkanInstanceBuilder& add_required_layers(std::span<const char*> layers) {
+	InstanceBuilder& add_required_layers(std::span<const char*> layers) {
 		required_layers.insert(required_layers.end(), begin(layers), end(layers));
 		return *this;
 	}
 
-	VulkanInstanceBuilder& add_required_extension(const char* extension) {
+	InstanceBuilder& add_required_extension(const char* extension) {
 		required_extensions.push_back(extension);
 		return *this;
 	}
 
-	VulkanInstanceBuilder& add_required_extensions(std::vector<const char*> extensions) {
+	InstanceBuilder& add_required_extensions(std::vector<const char*> extensions) {
 		required_extensions.insert(required_extensions.end(), begin(extensions), end(extensions));
 		return *this;
 	}
 
-	VulkanInstanceBuilder& with_app_flags(vk::InstanceCreateFlags instance_flag) {
+	InstanceBuilder& with_app_flags(vk::InstanceCreateFlags instance_flag) {
 		flags = instance_flag;
 		return *this;
 	}
@@ -340,7 +340,7 @@ public:
 	}
 
 private:
-	VulkanContext& context;
+	Context& context;
 
 	uint32_t minimim_instance_version = VK_MAKE_VERSION(1, 0, 0);
 	uint32_t required_api_version = VK_API_VERSION_1_0;
@@ -362,6 +362,153 @@ private:
 
 	// bool use_debug_messenger = false;
 	// bool with_yaml_serialization = true;
+};
+
+class PhysicalDevice {
+public:
+	PhysicalDevice(vk::raii::PhysicalDevice&& device) : physical_device{std::move(device)} {
+		properties = physical_device.getProperties2();
+		features = physical_device.getFeatures2();
+		layers = physical_device.enumerateDeviceLayerProperties();
+		extensions = physical_device.enumerateDeviceExtensionProperties();
+		queue_families = physical_device.getQueueFamilyProperties2();
+
+		for (const auto& layer : layers) {
+			auto layer_extension = physical_device.enumerateDeviceExtensionProperties(std::string{layer.layerName});
+			extensions.insert(end(extensions), begin(layer_extension), end(layer_extension));
+		}
+
+		configuration["name"] = std::string_view{properties.properties.deviceName};
+		configuration["device type"] = vk::to_string(properties.properties.deviceType);
+		configuration["api version"] = vk_version_to_string(properties.properties.apiVersion);
+
+#define ENUMERATE_FEATURE(feature)                                                                                     \
+	{                                                                                                                    \
+		YAML::Node node;                                                                                                   \
+		node[#feature] = bool(features.features.feature);                                                                  \
+		configuration["features"].push_back(node);                                                                         \
+	}
+
+		ENUMERATE_FEATURE(robustBufferAccess);
+		ENUMERATE_FEATURE(fullDrawIndexUint32);
+		ENUMERATE_FEATURE(imageCubeArray);
+		ENUMERATE_FEATURE(independentBlend);
+		ENUMERATE_FEATURE(geometryShader);
+		ENUMERATE_FEATURE(tessellationShader);
+		ENUMERATE_FEATURE(sampleRateShading);
+		ENUMERATE_FEATURE(dualSrcBlend);
+		ENUMERATE_FEATURE(logicOp);
+		ENUMERATE_FEATURE(multiDrawIndirect);
+		ENUMERATE_FEATURE(drawIndirectFirstInstance);
+		ENUMERATE_FEATURE(depthClamp);
+		ENUMERATE_FEATURE(depthBiasClamp);
+		ENUMERATE_FEATURE(fillModeNonSolid);
+		ENUMERATE_FEATURE(depthBounds);
+		ENUMERATE_FEATURE(wideLines);
+		ENUMERATE_FEATURE(largePoints);
+		ENUMERATE_FEATURE(alphaToOne);
+		ENUMERATE_FEATURE(multiViewport);
+		ENUMERATE_FEATURE(samplerAnisotropy);
+		ENUMERATE_FEATURE(textureCompressionETC2);
+		ENUMERATE_FEATURE(textureCompressionASTC_LDR);
+		ENUMERATE_FEATURE(textureCompressionBC);
+		ENUMERATE_FEATURE(occlusionQueryPrecise);
+		ENUMERATE_FEATURE(pipelineStatisticsQuery);
+		ENUMERATE_FEATURE(vertexPipelineStoresAndAtomics);
+		ENUMERATE_FEATURE(fragmentStoresAndAtomics);
+		ENUMERATE_FEATURE(shaderTessellationAndGeometryPointSize);
+		ENUMERATE_FEATURE(shaderImageGatherExtended);
+		ENUMERATE_FEATURE(shaderStorageImageExtendedFormats);
+		ENUMERATE_FEATURE(shaderStorageImageMultisample);
+		ENUMERATE_FEATURE(shaderStorageImageReadWithoutFormat);
+		ENUMERATE_FEATURE(shaderStorageImageWriteWithoutFormat);
+		ENUMERATE_FEATURE(shaderUniformBufferArrayDynamicIndexing);
+		ENUMERATE_FEATURE(shaderSampledImageArrayDynamicIndexing);
+		ENUMERATE_FEATURE(shaderStorageBufferArrayDynamicIndexing);
+		ENUMERATE_FEATURE(shaderStorageImageArrayDynamicIndexing);
+		ENUMERATE_FEATURE(shaderClipDistance);
+		ENUMERATE_FEATURE(shaderCullDistance);
+		ENUMERATE_FEATURE(shaderFloat64);
+		ENUMERATE_FEATURE(shaderInt64);
+		ENUMERATE_FEATURE(shaderInt16);
+		ENUMERATE_FEATURE(shaderResourceResidency);
+
+		for (const auto& layer : layers) {
+			YAML::Node node;
+			node["name"] = std::string_view{layer.layerName};
+			node["description"] = (std::string_view{layer.description});
+			node["spec version"] = vk_version_to_string(layer.specVersion);
+			node["implementation version"] = layer.implementationVersion;
+			configuration["layers"] = node;
+		}
+
+		for (const auto& extension : extensions) {
+			YAML::Node node;
+			node["name"] = std::string_view{extension.extensionName};
+			node["spec version"] = vk_version_to_string(extension.specVersion);
+			configuration["extension"] = node;
+		}
+
+		for (const auto& queue_family : queue_families) {
+			YAML::Node node;
+			node["flags"] = vk::to_string(queue_family.queueFamilyProperties.queueFlags);
+			node["count"] = queue_family.queueFamilyProperties.queueCount;
+			configuration["queue families"] = node;
+		}
+	}
+
+	std::string_view name() const {
+		return std::string_view{properties.properties.deviceName};
+	}
+
+	YAML::Node dump() const {
+		return configuration;
+	}
+
+private:
+	vk::raii::PhysicalDevice physical_device;
+	vk::PhysicalDeviceProperties2 properties;
+	vk::PhysicalDeviceFeatures2 features;
+	std::vector<vk::LayerProperties> layers;
+	std::vector<vk::ExtensionProperties> extensions;
+	std::vector<vk::QueueFamilyProperties2> queue_families;
+
+	YAML::Node configuration;
+};
+
+class PhysicalDeviceSelector {
+public:
+	PhysicalDeviceSelector(Instance& intance) : intance(intance) {
+		enumerate_all();
+	}
+
+	using PhysicalDeviceVec = std::vector<PhysicalDevice>;
+	using const_iterator = PhysicalDeviceVec::const_iterator;
+	using iterator = PhysicalDeviceVec::iterator;
+	using value_type = PhysicalDeviceVec::value_type;
+
+	const_iterator begin() const {
+		return physical_devices.begin();
+	}
+	const_iterator end() const {
+		return physical_devices.end();
+	}
+
+private:
+	void enumerate_all() {
+		auto devices = intance.enumeratePhysicalDevices();
+		if (not devices) {
+			return;
+		}
+
+		for (auto&& device : *devices) {
+			physical_devices.emplace_back(std::move(device));
+		}
+	}
+
+private:
+	Instance& intance;
+	std::vector<PhysicalDevice> physical_devices;
 };
 
 } // namespace vkh

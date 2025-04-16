@@ -79,7 +79,7 @@ private:
 	explicit Renderer(Window* window)
 			: window{window} /*, vk_instance{nullptr}, physical_device{nullptr}, device{nullptr}*/ {
 		create_instance();
-		// enumerate_gpus();
+		enumerate_gpus();
 		// create_device();
 	}
 
@@ -88,7 +88,7 @@ private:
 		auto required_extensions = vkh::get_required_extensions();
 		auto required_layers = vkh::get_required_layers();
 
-		vk_instance = vkh::VulkanInstanceBuilder{context}
+		vk_instance = vkh::InstanceBuilder{context}
 											.with_app_name("Pong")
 											.with_app_version(0, 1, 1)
 											.with_engine_name("vis")
@@ -101,29 +101,35 @@ private:
 		vk_config["instance"] = context.serialize();
 	}
 
-	// void enumerate_gpus() {
-	// 	scored_physical_devices = enumerated_scored_gpus(vk_instance);
+	void enumerate_gpus() {
+		auto device_selector = vkh::PhysicalDeviceSelector{vk_instance};
 
-	// 	if (empty(scored_physical_devices)) {
-	// 		throw std::runtime_error("No GPUs found!");
-	// 	}
+		for (const auto& device : device_selector) {
+			vk_config["GPUs"].push_back(device.dump());
+		}
 
-	// 	auto order_by_score = [](const ScoredGPU& lhs, const ScoredGPU& rhs) { return lhs.score < rhs.score; };
-	// 	std::ranges::sort(scored_physical_devices, order_by_score);
+		// 	scored_physical_devices = enumerated_scored_gpus(vk_instance);
 
-	// 	for (const auto& scored_gpu : scored_physical_devices) {
-	// 		vk_config["gpus"].push_back(serialize_gpu_to_yaml(scored_gpu));
-	// 	}
+		// 	if (empty(scored_physical_devices)) {
+		// 		throw std::runtime_error("No GPUs found!");
+		// 	}
 
-	// 	physical_device = scored_physical_devices.back().device;
-	// 	vk_config["selected gpu"] = std::string{physical_device.getProperties().deviceName};
+		// 	auto order_by_score = [](const ScoredGPU& lhs, const ScoredGPU& rhs) { return lhs.score < rhs.score; };
+		// 	std::ranges::sort(scored_physical_devices, order_by_score);
 
-	// 	graphic_queue_index = select_queue_index_for(vk::QueueFlagBits::eGraphics);
-	// 	vk_config["selected graphic queue index"] = graphic_queue_index;
+		// 	for (const auto& scored_gpu : scored_physical_devices) {
+		// 		vk_config["gpus"].push_back(serialize_gpu_to_yaml(scored_gpu));
+		// 	}
 
-	// 	transfer_queue_index = select_queue_index_for(vk::QueueFlagBits::eTransfer);
-	// 	vk_config["selected transfer queue index"] = transfer_queue_index;
-	// }
+		// 	physical_device = scored_physical_devices.back().device;
+		// 	vk_config["selected gpu"] = std::string{physical_device.getProperties().deviceName};
+
+		// 	graphic_queue_index = select_queue_index_for(vk::QueueFlagBits::eGraphics);
+		// 	vk_config["selected graphic queue index"] = graphic_queue_index;
+
+		// 	transfer_queue_index = select_queue_index_for(vk::QueueFlagBits::eTransfer);
+		// 	vk_config["selected transfer queue index"] = transfer_queue_index;
+	}
 
 	// size_t select_queue_index_for(vk::QueueFlagBits flag) const {
 	// 	auto queue_properties = physical_device.getQueueFamilyProperties();
@@ -197,10 +203,8 @@ private:
 
 private:
 	Window* window;
-	vkh::VulkanContext context;
-	vk::raii::Instance vk_instance{nullptr};
-	// vk::raii::Context context;
-	// vk::raii::Instance vk_instance;
+	vkh::Context context;
+	vkh::Instance vk_instance{nullptr};
 	// std::vector<ScoredGPU> scored_physical_devices;
 	// vk::raii::PhysicalDevice physical_device;
 	// size_t graphic_queue_index;
