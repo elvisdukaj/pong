@@ -11,6 +11,10 @@ add_library(vis_obj OBJECT)
 add_library(vis_obj::vis_obj ALIAS vis_obj)
 
 target_sources(vis_obj
+        # module implementation files
+        PRIVATE 
+        graphic/vulkan_impl.cpp
+
         PUBLIC FILE_SET CXX_MODULES FILES
         app.cpp        
         vis.cpp
