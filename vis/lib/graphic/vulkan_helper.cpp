@@ -5,11 +5,9 @@ module;
 
 #include <cassert>
 
-export module vulkan_helper;
+export module vkh;
 
 import std;
-
-// namespace views = std::ranges::views;
 
 namespace {
 
@@ -61,29 +59,29 @@ namespace {
 // 	return score;
 // }
 
-// // struct ScoredGPU {
-// // 	vk::raii::PhysicalDevice device;
-// // 	int score;
-// // };
+// struct ScoredGPU {
+// 	vk::raii::PhysicalDevice device;
+// 	int score;
+// };
 
-// // // std::vector<ScoredGPU> enumerated_scored_gpus(vk::raii::Instance& vk_instance) {
-// // // 	return vk_instance.enumeratePhysicalDevices()
-// // // 			.and_then([](const std::vector<vk::raii::PhysicalDevice>& devices)
-// // // 										-> std::expected<std::vector<ScoredGPU>, vk::Result> {
-// // // 				auto scores = devices | std::views::transform(score_gpu);
+// std::vector<ScoredGPU> enumerated_scored_gpus(vk::raii::Instance& vk_instance) {
+// 	return vk_instance.enumeratePhysicalDevices()
+// 			.and_then([](const std::vector<vk::raii::PhysicalDevice>& devices)
+// 										-> std::expected<std::vector<ScoredGPU>, vk::Result> {
+// 				auto scores = devices | std::views::transform(score_gpu);
 
-// // // 				auto map_gpu_score = [](std::tuple<const vk::raii::PhysicalDevice&, int> g) {
-// // // 					return ScoredGPU{.device = std::get<0>(g), .score = std::get<1>(g)};
-// // // 				};
+// 				auto map_gpu_score = [](std::tuple<const vk::raii::PhysicalDevice&, int> g) {
+// 					return ScoredGPU{.device = std::get<0>(g), .score = std::get<1>(g)};
+// 				};
 
-// // // 				// clang-format off
-// // // 				return std::ranges::views::zip(devices, scores)
-// // // 					| std::views::transform(map_gpu_score)
-// // // 					| std::ranges::to<std::vector<ScoredGPU>>();
-// // // 				// clang-format on
-// // // 			})
-// // // 			.value_or(std::vector<ScoredGPU>{});
-// // // }
+// 				// clang-format off
+// 				return std::ranges::views::zip(devices, scores)
+// 					| std::views::transform(map_gpu_score)
+// 					| std::ranges::to<std::vector<ScoredGPU>>();
+// 				// clang-format on
+// 			})
+// 			.value_or(std::vector<ScoredGPU>{});
+// }
 
 } // namespace
 
@@ -93,14 +91,14 @@ using ::vk::raii::Instance;
 using Surface = ::vk::raii::SurfaceKHR;
 // using ::vk::raii::PhysicalDevice;
 
-// constexpr std::vector<const char*> get_physical_device_extensions() {
-// 	std::vector<const char*> required_extensions = {};
+constexpr std::vector<const char*> get_physical_device_extensions() {
+	std::vector<const char*> required_extensions = {};
 
-// #if defined(__APPLE__)
-// 	required_extensions.push_back("VK_KHR_portability_subset");
-// #endif
-// 	return required_extensions;
-// }
+#if defined(__APPLE__)
+	required_extensions.push_back("VK_KHR_portability_subset");
+#endif
+	return required_extensions;
+}
 
 std::string vk_version_to_string(uint32_t version) {
 	return std::format("{}.{}.{}", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
@@ -478,6 +476,19 @@ public:
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eVirtualGpu;
 	}
 
+	bool has_extension(std::string_view extension_name) const {
+		auto does_extension_math = [extension_name](const vk::ExtensionProperties& ext) {
+			return std::string_view{ext.extensionName} == extension_name;
+		};
+
+		return std::find_if(begin(extensions), end(extensions), does_extension_math) != end(extensions);
+	}
+
+	bool has_extensions(std::span<std::string_view> required_extensions) const {
+		return std::all_of(begin(required_extensions), end(required_extensions),
+											 [this](std::string_view extension_name) { return has_extension(extension_name); });
+	}
+
 	YAML::Node dump() const {
 		return configuration;
 	}
@@ -502,9 +513,8 @@ public:
 			return;
 		}
 
-		for (auto&& device : *devices) {
-			physical_devices.emplace_back(std::move(device));
-		}
+		for (auto&& device : *devices)
+			physical_devices.emplace_back(PhysicalDevice{std::move(device)});
 	}
 
 	std::expected<PhysicalDevice, std::string> select() {
@@ -543,6 +553,11 @@ public:
 		return physical_devices.end();
 	}
 
+	PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
+		required_gpu_devices.insert(std::end(required_gpu_devices), std::begin(extensions), std::end(extensions));
+		return *this;
+	}
+
 private:
 	void select_graphic_queue() {}
 
@@ -565,6 +580,8 @@ private:
 private:
 	std::vector<PhysicalDevice> physical_devices;
 	vk::raii::SurfaceKHR surface{nullptr};
+
+	std::vector<const char*> required_gpu_devices;
 
 	// std::size_t graphic_queue_index = 0;
 	// std::size_t compute_queue_index = 0;

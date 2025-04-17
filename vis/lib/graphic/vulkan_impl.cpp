@@ -13,8 +13,7 @@ module vis.graphic.vulkan;
 
 import std;
 
-import vulkan_helper;
-
+import vkh;
 import vis.math;
 import vis.window;
 
@@ -28,7 +27,12 @@ public:
 		create_instance();
 		create_surface();
 
-		auto device_selector = vkh::PhysicalDeviceSelector{vk_instance};
+		auto required_gpu_extensions = vkh::get_physical_device_extensions();
+		vk_config["gpu"]["required extensions"] = required_gpu_extensions;
+
+		vkh::PhysicalDeviceSelector device_selector{vk_instance};
+		device_selector.add_required_extensions(required_gpu_extensions);
+
 		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
 		// create_device();
@@ -94,7 +98,6 @@ private:
 	}
 
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
-
 		physical_devices.insert(end(physical_devices), std::begin(device_selector), std::end(device_selector));
 
 		for (const auto& device : physical_devices) {
@@ -141,6 +144,16 @@ Renderer& Renderer::operator=(Renderer&&) = default;
 std::string Renderer::show_info() const {
 	return impl->show_info();
 }
+
+void Renderer::render() const {
+	// SDL_Vulka
+	// SDL_GL_SwapWindow(*context.window);
+}
+
+void Renderer::set_clear_color([[maybe_unused]] const vec4& color) {}
+void Renderer::clear() {}
+void Renderer::set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
+														[[maybe_unused]] int height) {}
 
 // Renderer& Renderer::operator=(Renderer&& rhs) {
 // 	swap(*this, rhs);

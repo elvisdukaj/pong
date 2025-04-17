@@ -18,14 +18,12 @@ public:
 
 	~Renderer();
 
-	void set_clear_color([[maybe_unused]] const vec4& color) {}
-	void clear() {}
-	void render() const {
-		// SDL_GL_SwapWindow(*context.window);
-	}
+	void set_clear_color([[maybe_unused]] const vec4& color);
+	void clear();
+	void render() const;
 
 	void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
-										[[maybe_unused]] int height) {}
+										[[maybe_unused]] int height);
 
 	std::string show_info() const;
 
