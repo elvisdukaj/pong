@@ -152,10 +152,10 @@ public:
 		api_version = context.enumerateInstanceVersion();
 		config_["api_version"] = vk_version_to_string(api_version);
 
-		avilable_extensions = context.enumerateInstanceExtensionProperties();
-		avilable_layers = context.enumerateInstanceLayerProperties();
+		available_extensions = context.enumerateInstanceExtensionProperties();
+		available_layers = context.enumerateInstanceLayerProperties();
 
-		for (const auto& layer : avilable_layers) {
+		for (const auto& layer : available_layers) {
 			YAML::Node layer_conf;
 			layer_conf["name"] = std::string_view{layer.layerName};
 			layer_conf["description"] = std::string_view{layer.description};
@@ -164,10 +164,10 @@ public:
 			config_["available layers"].push_back(layer_conf);
 
 			auto layer_extensions = context.enumerateInstanceExtensionProperties(std::string{layer.layerName});
-			avilable_extensions.insert(end(avilable_extensions), begin(layer_extensions), end(layer_extensions));
+			available_extensions.insert(end(available_extensions), begin(layer_extensions), end(layer_extensions));
 		}
 
-		for (const auto& extension : avilable_extensions) {
+		for (const auto& extension : available_extensions) {
 			YAML::Node ext_conf;
 			ext_conf["name"] = std::string_view{extension.extensionName};
 			ext_conf["spec version"] = extension.specVersion;
@@ -177,18 +177,18 @@ public:
 
 	uint32_t api_version;
 
-	std::vector<const char*> get_avilable_layers() const {
+	std::vector<const char*> get_available_layers() const {
 		auto to_layer_name = [](const vk::LayerProperties& layer) -> const char* { return layer.layerName; };
 
-		return std::ranges::views::transform(avilable_layers, to_layer_name) | std::ranges::to<std::vector<const char*>>();
+		return std::ranges::views::transform(available_layers, to_layer_name) | std::ranges::to<std::vector<const char*>>();
 	}
 
-	std::vector<const char*> get_avilable_extensions() const {
+	std::vector<const char*> get_available_extensions() const {
 		auto to_extension_name = [](const vk::ExtensionProperties& extension) -> const char* {
 			return extension.extensionName;
 		};
 
-		return std::ranges::views::transform(avilable_extensions, to_extension_name) |
+		return std::ranges::views::transform(available_extensions, to_extension_name) |
 					 std::ranges::to<std::vector<const char*>>();
 	}
 
@@ -197,8 +197,8 @@ public:
 			return std::string_view{extension.extensionName} == extension_name;
 		};
 
-		auto it = std::find_if(begin(avilable_extensions), end(avilable_extensions), match_extension_name);
-		return it != end(avilable_extensions);
+		auto it = std::find_if(begin(available_extensions), end(available_extensions), match_extension_name);
+		return it != end(available_extensions);
 	}
 
 	bool has_extensions(std::span<const char*> extensions) {
@@ -211,8 +211,8 @@ public:
 			return std::string_view{layer.layerName} == layer_name;
 		};
 
-		auto it = std::find_if(begin(avilable_layers), end(avilable_layers), match_layer_name);
-		return it != end(avilable_layers);
+		auto it = std::find_if(begin(available_layers), end(available_layers), match_layer_name);
+		return it != end(available_layers);
 	}
 
 	bool has_layers(std::span<const char*> layers) {
@@ -226,8 +226,8 @@ public:
 private:
 	vk::raii::Context context;
 
-	std::vector<vk::ExtensionProperties> avilable_extensions;
-	std::vector<vk::LayerProperties> avilable_layers;
+	std::vector<vk::ExtensionProperties> available_extensions;
+	std::vector<vk::LayerProperties> available_layers;
 	YAML::Node config_;
 };
 
@@ -302,12 +302,12 @@ public:
 																					 vk_version_to_string(minimim_instance_version))};
 		}
 
-		auto avilable_layers = context.get_avilable_layers();
+		auto avilable_layers = context.get_available_layers();
 		if (not context.has_layers(required_layers)) {
 			throw std::runtime_error("Some required layers are not avilable");
 		}
 
-		auto avilable_extensions = context.get_avilable_extensions();
+		auto avilable_extensions = context.get_available_extensions();
 		if (not context.has_extensions(required_extensions)) {
 			throw std::runtime_error("Some required extensions are not avilable");
 		}
@@ -367,8 +367,8 @@ class PhysicalDevice {
 public:
 	PhysicalDevice() : physical_device{nullptr} /*, surface{nullptr}*/ {}
 
-	PhysicalDevice(vk::raii::PhysicalDevice&& device /*, vk::raii::SurfaceKHR* surface = nullptr*/)
-			: physical_device{std::move(device)} /*, surface{surface}*/ {
+	PhysicalDevice(vk::raii::PhysicalDevice&& device, vk::raii::SurfaceKHR* surface = nullptr)
+			: physical_device{std::move(device)}, surface{surface} {
 		properties = physical_device.getProperties2();
 		features = physical_device.getFeatures2();
 		layers = physical_device.enumerateDeviceLayerProperties();
@@ -475,6 +475,34 @@ public:
 	bool is_virtual() const {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eVirtualGpu;
 	}
+	bool has_preset() const {
+		(void)(surface);
+		return false;
+	}
+
+	bool has_graphic_queue() const {
+		return std::any_of(begin(queue_families), end(queue_families), [](const vk::QueueFamilyProperties2& queue) {
+			return (queue.queueFamilyProperties.queueCount > 0) &&
+						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics);
+		});
+		return false;
+	}
+
+	bool has_compute_queue() const {
+		return std::any_of(begin(queue_families), end(queue_families), [](const vk::QueueFamilyProperties2& queue) {
+			return (queue.queueFamilyProperties.queueCount > 0) &&
+						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute);
+		});
+		return false;
+	}
+
+	bool has_transfer_queue() const {
+		return std::any_of(begin(queue_families), end(queue_families), [](const vk::QueueFamilyProperties2& queue) {
+			return (queue.queueFamilyProperties.queueCount > 0) &&
+						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer);
+		});
+		return false;
+	}
 
 	bool has_extension(std::string_view extension_name) const {
 		auto does_extension_math = [extension_name](const vk::ExtensionProperties& ext) {
@@ -495,7 +523,7 @@ public:
 
 private:
 	vk::raii::PhysicalDevice physical_device;
-	// vk::raii::SurfaceKHR* surface;
+	vk::raii::SurfaceKHR* surface;
 	vk::PhysicalDeviceProperties2 properties;
 	vk::PhysicalDeviceFeatures2 features;
 	std::vector<vk::LayerProperties> layers;
@@ -507,89 +535,129 @@ private:
 
 class PhysicalDeviceSelector {
 public:
-	PhysicalDeviceSelector(Instance& intance) {
+	PhysicalDeviceSelector(Instance& intance) : intance{intance} {}
+
+	std::vector<PhysicalDevice> enumerate_all() const {
 		auto devices = intance.enumeratePhysicalDevices();
 		if (not devices) {
-			return;
+			return {};
 		}
-
+		std::vector<PhysicalDevice> result;
 		for (auto&& device : *devices)
-			physical_devices.emplace_back(PhysicalDevice{std::move(device)});
+			result.emplace_back(PhysicalDevice{std::move(device), surface});
+
+		return result;
+	}
+
+	PhysicalDeviceSelector& set_require_discrete() {
+		require_discrete_gpu = true;
+		return *this;
+	}
+
+	PhysicalDeviceSelector& set_require_integrated() {
+		require_integrated_gpu = true;
+		return *this;
+	}
+
+	PhysicalDeviceSelector& set_require_graphic() {
+		require_graphic_queue = false;
+		return *this;
+	}
+
+	PhysicalDeviceSelector& set_require_compute() {
+		require_compute_queue = false;
+		return *this;
+	}
+
+	PhysicalDeviceSelector& set_require_transfer() {
+		require_transfer_queue = false;
+		return *this;
+	}
+
+	PhysicalDeviceSelector& set_require_preset() {
+		require_present_queue = false;
+		return *this;
 	}
 
 	std::expected<PhysicalDevice, std::string> select() {
-		auto discrete_gpu_it = get_first_discrete_gpu();
-		if (discrete_gpu_it != end()) {
-			return *discrete_gpu_it;
+		auto devices = intance.enumeratePhysicalDevices();
+		if (not devices) {
+			return std::unexpected{"no available gpus"};
 		}
 
-		auto integrated_gpu_it = get_first_integrated_gpu();
-		if (integrated_gpu_it != end()) {
-			return *integrated_gpu_it;
+		std::vector<PhysicalDevice> physical_devices;
+		for (auto&& device : *devices)
+			physical_devices.emplace_back(PhysicalDevice{std::move(device), surface});
+
+		if (require_discrete_gpu) {
+			erase_if(physical_devices,
+							 [](const PhysicalDevice& physical_device) { return not physical_device.is_discrete(); });
 		}
 
-		auto cpu_gpu_it = get_first_cpu_gpu();
-		if (cpu_gpu_it != end()) {
-			return *cpu_gpu_it;
+		if (require_integrated_gpu) {
+			erase_if(physical_devices,
+							 [](const PhysicalDevice& physical_device) { return not physical_device.is_integrated(); });
 		}
 
-		auto virtual_cpu_gpu_it = get_first_virtual_cpu_gpu();
-		if (virtual_cpu_gpu_it != end()) {
-			return *virtual_cpu_gpu_it;
+		if (require_graphic_queue) {
+			erase_if(physical_devices,
+							 [](const PhysicalDevice& physical_device) { return not physical_device.has_graphic_queue(); });
 		}
 
-		return std::unexpected("No suitable GPU found");
-	}
+		if (require_compute_queue) {
+			erase_if(physical_devices,
+							 [](const PhysicalDevice& physical_device) { return not physical_device.has_compute_queue(); });
+		}
 
-	using PhysicalDeviceVec = std::vector<PhysicalDevice>;
-	using const_iterator = PhysicalDeviceVec::const_iterator;
-	using iterator = PhysicalDeviceVec::iterator;
-	using value_type = PhysicalDeviceVec::value_type;
+		if (require_transfer_queue) {
+			erase_if(physical_devices,
+							 [](const PhysicalDevice& physical_device) { return not physical_device.has_transfer_queue(); });
+		}
 
-	const_iterator begin() const {
-		return physical_devices.begin();
-	}
-	const_iterator end() const {
-		return physical_devices.end();
+		if (physical_devices.empty())
+			return std::unexpected("No suitable GPU found");
+
+		return std::move(physical_devices.front());
 	}
 
 	PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
-		required_gpu_devices.insert(std::end(required_gpu_devices), std::begin(extensions), std::end(extensions));
+		required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
+		return *this;
+	}
+
+	PhysicalDeviceSelector& with_surface(Surface* desired_surface) {
+		surface = desired_surface;
 		return *this;
 	}
 
 private:
-	void select_graphic_queue() {}
-
-	const_iterator get_first_discrete_gpu() const {
-		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_discrete));
-	}
-
-	const_iterator get_first_integrated_gpu() const {
-		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_integrated));
-	}
-
-	const_iterator get_first_cpu_gpu() const {
-		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_cpu));
-	}
-
-	const_iterator get_first_virtual_cpu_gpu() const {
-		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_virtual));
-	}
+	// const_iterator get_first_discrete_gpu() const {
+	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_discrete));
+	// }
+	//
+	// const_iterator get_first_integrated_gpu() const {
+	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_integrated));
+	// }
+	//
+	// const_iterator get_first_cpu_gpu() const {
+	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_cpu));
+	// }
+	//
+	// const_iterator get_first_virtual_cpu_gpu() const {
+	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_virtual));
+	// }
 
 private:
-	std::vector<PhysicalDevice> physical_devices;
-	vk::raii::SurfaceKHR surface{nullptr};
+	Instance& intance;
+	std::vector<const char*> required_gpu_extensions;
+	vk::raii::SurfaceKHR* surface{nullptr};
 
-	std::vector<const char*> required_gpu_devices;
-
-	// std::size_t graphic_queue_index = 0;
-	// std::size_t compute_queue_index = 0;
-	// std::size_t transfer_queue_index = 0;
-
-	// bool separate_queue_graphic = false;
-	// bool separate_queue_transfer = false;
-	// bool separate_queue_compute = false;
+	bool require_discrete_gpu{true};
+	bool require_integrated_gpu{false};
+	bool require_graphic_queue{true};
+	bool require_present_queue{true};
+	bool require_compute_queue{true};
+	bool require_transfer_queue{true};
 };
 
 } // namespace vkh
