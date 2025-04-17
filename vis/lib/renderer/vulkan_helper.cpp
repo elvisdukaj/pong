@@ -106,7 +106,7 @@ std::string vk_version_to_string(uint32_t version) {
 }
 
 std::vector<const char*> get_required_extensions() {
-	std::vector<const char*> required_extensions = {VK_KHR_SURFACE_EXTENSION_NAME};
+	std::vector<const char*> required_extensions;
 
 #if defined(__APPLE__)
 	required_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
@@ -286,7 +286,7 @@ public:
 		return *this;
 	}
 
-	InstanceBuilder& add_required_extensions(std::vector<const char*> extensions) {
+	InstanceBuilder& add_required_extensions(std::span<const char*> extensions) {
 		required_extensions.insert(required_extensions.end(), begin(extensions), end(extensions));
 		return *this;
 	}

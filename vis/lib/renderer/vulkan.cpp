@@ -91,6 +91,7 @@ private:
 		auto required_flags = vkh::get_required_instance_flags();
 		auto required_extensions = vkh::get_required_extensions();
 		auto required_layers = vkh::get_required_layers();
+		auto required_windows_extensions = window->get_required_renderer_extension();
 
 		vk_instance = vkh::InstanceBuilder{context}
 											.with_app_name("Pong")
@@ -100,9 +101,16 @@ private:
 											.with_app_flags(required_flags)
 											.add_required_layers(required_layers)
 											.add_required_extensions(required_extensions)
+											.add_required_extensions(required_windows_extensions)
 											.build();
 
 		vk_config["instance"] = context.serialize();
+		for (const auto& required_extension : required_extensions) {
+			vk_config["instance"]["required extensions"].push_back(required_extension);
+		}
+		for (const auto& required_extension : required_windows_extensions) {
+			vk_config["instance"]["required windows extensions"].push_back(required_extension);
+		}
 	}
 
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
