@@ -6,3 +6,5 @@
 # IDEs
 **/.cache/
 **/.idea
+.fleet
+**/.vscode/
