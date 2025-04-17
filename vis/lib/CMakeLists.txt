@@ -14,6 +14,7 @@ target_sources(vis_obj
         # module implementation files
         PRIVATE 
         graphic/vulkan_impl.cpp
+        window/window_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
         ecs/ecs.cpp
