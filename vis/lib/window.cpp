@@ -3,7 +3,7 @@ module;
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
-export module vis:window;
+export module vis.window;
 
 import std;
 

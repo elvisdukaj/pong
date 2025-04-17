@@ -2,12 +2,12 @@ module;
 
 #include <box2d/box2d.h>
 
-export module vis:physic;
+export module vis.physic;
 
 import std;
-import :math;
-import :chrono;
-import :ecs;
+import vis.math;
+import vis.chrono;
+import vis.ecs;
 
 // non exported
 namespace vis::physics {

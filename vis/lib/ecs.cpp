@@ -2,7 +2,8 @@ module;
 
 #include "ecs/entt.hpp"
 
-export module vis:ecs;
+export module vis.ecs;
+
 export import std;
 
 #include "ecs/container/dense_map.inc"

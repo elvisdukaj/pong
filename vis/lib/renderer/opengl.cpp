@@ -18,11 +18,11 @@ module;
 	} while (false)
 #endif
 
-export module vis:opengl;
+export module vis.graphic.opengl;
 
 import std;
-import :math;
-import :window;
+import vis.math;
+import vis.window;
 
 export namespace vis::gl {
 
@@ -450,4 +450,4 @@ private:
 	SDL_GLContext context;
 };
 
-} // namespace vis::opengl
+} // namespace vis::gl

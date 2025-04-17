@@ -1,12 +1,12 @@
 module;
 
-#include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 
-export module vis:app;
+export module vis.app;
 
 import std;
-import :window;
+import vis.window;
 
 export namespace vis::app {
 enum class AppResult { app_continue = SDL_APP_CONTINUE, success = SDL_APP_SUCCESS, failure = SDL_APP_FAILURE };

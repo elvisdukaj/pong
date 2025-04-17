@@ -3,10 +3,10 @@ module;
 #include <SDL3/SDL.h>
 #include <chrono>
 
-export module vis:chrono;
+export module vis.chrono;
 
 import std;
-import :math;
+import vis.math;
 
 export namespace vis {
 

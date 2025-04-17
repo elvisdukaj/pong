@@ -5,10 +5,11 @@ module;
 #include <cassert>
 #include <vector>
 
-export module vis:mesh;
+export module vis.graphic.mesh;
 
 import std;
-import :opengl;
+import vis.graphic.opengl;
+import vis.math;
 
 #ifdef NDEBUG
 #define CHECK_LAST_GL_CALL

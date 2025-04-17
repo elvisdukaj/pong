@@ -9,14 +9,14 @@ module;
 
 #include <cassert>
 
-export module vis:vulkan;
+export module vis.graphic.vulkan;
 
 import std;
 
 import vulkan_helper;
 
-import :math;
-import :window;
+import vis.math;
+import vis.window;
 
 namespace views = std::ranges::views;
 

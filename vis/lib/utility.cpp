@@ -1,10 +1,10 @@
 module;
 
-export module vis:utility;
+export module vis.utility;
 
 import std;
 
-import :math;
+import vis.math;
 
 export namespace vis {
 // Function to generate a random float between min and max
