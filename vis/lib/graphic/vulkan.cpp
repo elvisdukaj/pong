@@ -1,18 +1,8 @@
-module;
-
-#include <SDL3/SDL_vulkan.h>
-#include <vulkan/vulkan.hpp>
-
-#include <SDL3/SDL.h>
-
-#include <yaml-cpp/yaml.h>
-
 export module vis.graphic.vulkan;
 
 import std;
-import vulkan_helper;
-import vis.math;
 import vis.window;
+import vis.math;
 
 export namespace vis::vulkan {
 
@@ -20,15 +10,13 @@ class Renderer {
 public:
 	static std::expected<Renderer, std::string> create(Window* window);
 
-	~Renderer() = default;
+	Renderer(Renderer&&);
+	Renderer& operator=(Renderer&&);
 
-	Renderer(Renderer&) = delete;
-	Renderer& operator=(Renderer&) = delete;
+	Renderer(const Renderer&) = delete;
+	Renderer& operator=(const Renderer&) = delete;
 
-	friend void swap(Renderer& lhs, Renderer& rhs);
-
-	Renderer(Renderer&& other) = default;
-	Renderer& operator=(Renderer&& rhs);
+	~Renderer();
 
 	void set_clear_color([[maybe_unused]] const vec4& color) {}
 	void clear() {}
@@ -44,19 +32,9 @@ public:
 private:
 	explicit Renderer(Window* window);
 
-	void create_instance();
-	void create_surface();
-	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector);
-	void select_gpu(vkh::PhysicalDeviceSelector& device_selector);
-
 private:
-	Window* window;
-	vkh::Context context;
-	vkh::Instance vk_instance{nullptr};
-	vkh::Surface surface{nullptr};
-	std::vector<vkh::PhysicalDevice> physical_devices;
-	vkh::PhysicalDevice selected_physical_device;
-	YAML::Node vk_config;
+	class Impl;
+	std::unique_ptr<Impl> impl;
 }; // namespace vis::vk
 
 } // namespace vis::vulkan
