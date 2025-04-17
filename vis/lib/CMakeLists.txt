@@ -12,18 +12,19 @@ add_library(vis_obj::vis_obj ALIAS vis_obj)
 
 target_sources(vis_obj
         PUBLIC FILE_SET CXX_MODULES FILES
-        app.cpp
-        opengl.cpp
+        app.cpp        
         vis.cpp
         math.cpp
         entt.cpp
-        mesh.cpp
         physic.cpp
         time.cpp
         utility.cpp
         window.cpp
-        vulkan_helper.cpp
-        vulkan.cpp
+
+        renderer/mesh.cpp
+        renderer/opengl.cpp
+        renderer/vulkan_helper.cpp
+        renderer/vulkan.cpp
 
         PRIVATE FILE_SET HEADERS
         FILES

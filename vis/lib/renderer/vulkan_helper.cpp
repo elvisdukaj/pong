@@ -366,6 +366,8 @@ private:
 
 class PhysicalDevice {
 public:
+	PhysicalDevice() : physical_device{nullptr} {}
+
 	PhysicalDevice(vk::raii::PhysicalDevice&& device) : physical_device{std::move(device)} {
 		properties = physical_device.getProperties2();
 		features = physical_device.getFeatures2();
@@ -461,6 +463,19 @@ public:
 		return std::string_view{properties.properties.deviceName};
 	}
 
+	bool is_discrete() const {
+		return properties.properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+	}
+	bool is_integrated() const {
+		return properties.properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu;
+	}
+	bool is_cpu() const {
+		return properties.properties.deviceType == vk::PhysicalDeviceType::eCpu;
+	}
+	bool is_virtual() const {
+		return properties.properties.deviceType == vk::PhysicalDeviceType::eVirtualGpu;
+	}
+
 	YAML::Node dump() const {
 		return configuration;
 	}
@@ -478,8 +493,39 @@ private:
 
 class PhysicalDeviceSelector {
 public:
-	PhysicalDeviceSelector(Instance& intance) : intance(intance) {
-		enumerate_all();
+	PhysicalDeviceSelector(Instance& intance) {
+		auto devices = intance.enumeratePhysicalDevices();
+		if (not devices) {
+			return;
+		}
+
+		for (auto&& device : *devices) {
+			physical_devices.emplace_back(std::move(device));
+		}
+	}
+
+	std::expected<PhysicalDevice, std::string> select() {
+		auto discrete_gpu_it = get_first_discrete_gpu();
+		if (discrete_gpu_it != end()) {
+			return *discrete_gpu_it;
+		}
+
+		auto integrated_gpu_it = get_first_integrated_gpu();
+		if (integrated_gpu_it != end()) {
+			return *integrated_gpu_it;
+		}
+
+		auto cpu_gpu_it = get_first_cpu_gpu();
+		if (cpu_gpu_it != end()) {
+			return *cpu_gpu_it;
+		}
+
+		auto virtual_cpu_gpu_it = get_first_virtual_cpu_gpu();
+		if (virtual_cpu_gpu_it != end()) {
+			return *virtual_cpu_gpu_it;
+		}
+
+		return std::unexpected("No suitable GPU found");
 	}
 
 	using PhysicalDeviceVec = std::vector<PhysicalDevice>;
@@ -495,20 +541,34 @@ public:
 	}
 
 private:
-	void enumerate_all() {
-		auto devices = intance.enumeratePhysicalDevices();
-		if (not devices) {
-			return;
-		}
+	void select_graphic_queue() {}
 
-		for (auto&& device : *devices) {
-			physical_devices.emplace_back(std::move(device));
-		}
+	const_iterator get_first_discrete_gpu() const {
+		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_discrete));
+	}
+
+	const_iterator get_first_integrated_gpu() const {
+		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_integrated));
+	}
+
+	const_iterator get_first_cpu_gpu() const {
+		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_cpu));
+	}
+
+	const_iterator get_first_virtual_cpu_gpu() const {
+		return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_virtual));
 	}
 
 private:
-	Instance& intance;
 	std::vector<PhysicalDevice> physical_devices;
+
+	// std::size_t graphic_queue_index = 0;
+	// std::size_t compute_queue_index = 0;
+	// std::size_t transfer_queue_index = 0;
+
+	// bool separate_queue_graphic = false;
+	// bool separate_queue_transfer = false;
+	// bool separate_queue_compute = false;
 };
 
 } // namespace vkh

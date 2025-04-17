@@ -43,6 +43,7 @@ public:
 		std::swap(lhs.window, rhs.window);
 		std::swap(lhs.context, rhs.context);
 		std::swap(lhs.vk_instance, rhs.vk_instance);
+		std::swap(lhs.physical_devices, rhs.physical_devices);
 		// std::swap(lhs.scored_physical_devices, rhs.scored_physical_devices);
 		// std::swap(lhs.physical_device, rhs.physical_device);
 		// std::swap(lhs.graphic_queue_index, rhs.graphic_queue_index);
@@ -79,7 +80,10 @@ private:
 	explicit Renderer(Window* window)
 			: window{window} /*, vk_instance{nullptr}, physical_device{nullptr}, device{nullptr}*/ {
 		create_instance();
-		enumerate_gpus();
+
+		auto device_selector = vkh::PhysicalDeviceSelector{vk_instance};
+		enumerate_gpus(device_selector);
+		select_gpu(device_selector);
 		// create_device();
 	}
 
@@ -101,34 +105,22 @@ private:
 		vk_config["instance"] = context.serialize();
 	}
 
-	void enumerate_gpus() {
-		auto device_selector = vkh::PhysicalDeviceSelector{vk_instance};
+	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
+		physical_devices.insert(end(physical_devices), std::begin(device_selector), std::end(device_selector));
 
-		for (const auto& device : device_selector) {
+		for (const auto& device : physical_devices) {
 			vk_config["GPUs"].push_back(device.dump());
 		}
+	}
 
-		// 	scored_physical_devices = enumerated_scored_gpus(vk_instance);
+	void select_gpu(vkh::PhysicalDeviceSelector& device_selector) {
+		auto expected_device = device_selector.select();
+		if (not expected_device) {
+			throw std::runtime_error{expected_device.error()};
+		}
 
-		// 	if (empty(scored_physical_devices)) {
-		// 		throw std::runtime_error("No GPUs found!");
-		// 	}
-
-		// 	auto order_by_score = [](const ScoredGPU& lhs, const ScoredGPU& rhs) { return lhs.score < rhs.score; };
-		// 	std::ranges::sort(scored_physical_devices, order_by_score);
-
-		// 	for (const auto& scored_gpu : scored_physical_devices) {
-		// 		vk_config["gpus"].push_back(serialize_gpu_to_yaml(scored_gpu));
-		// 	}
-
-		// 	physical_device = scored_physical_devices.back().device;
-		// 	vk_config["selected gpu"] = std::string{physical_device.getProperties().deviceName};
-
-		// 	graphic_queue_index = select_queue_index_for(vk::QueueFlagBits::eGraphics);
-		// 	vk_config["selected graphic queue index"] = graphic_queue_index;
-
-		// 	transfer_queue_index = select_queue_index_for(vk::QueueFlagBits::eTransfer);
-		// 	vk_config["selected transfer queue index"] = transfer_queue_index;
+		selected_physical_device = *expected_device;
+		vk_config["selected physical device"] = selected_physical_device.name();
 	}
 
 	// size_t select_queue_index_for(vk::QueueFlagBits flag) const {
@@ -142,38 +134,6 @@ private:
 	// 		throw std::runtime_error{"No Graphic queue found!"};
 
 	// 	return static_cast<std::size_t>(std::distance(begin(queue_properties), it));
-	// }
-
-	// YAML::Node serialize_gpu_to_yaml(const ScoredGPU& scored_gpu) const {
-	// 	const auto properties = scored_gpu.device.getProperties();
-	// 	const auto queue_properties = scored_gpu.device.getQueueFamilyProperties();
-	// 	const auto extensions = scored_gpu.device.enumerateDeviceExtensionProperties();
-
-	// 	YAML::Node physical_device_config;
-	// 	physical_device_config["name"] = std::string{properties.deviceName};
-	// 	physical_device_config["type"] = vk::to_string(properties.deviceType);
-	// 	physical_device_config["api version"] = vk_version_to_string(properties.apiVersion);
-	// 	physical_device_config["driver version"] = vk_version_to_string(properties.driverVersion);
-
-	// 	YAML::Node extensions_config;
-	// 	auto extensions_str = std::vector<std::string>(extensions.size());
-	// 	std::transform(begin(extensions), end(extensions), begin(extensions_str),
-	// 								 [](auto& extension) { return std::string{extension.extensionName}; });
-	// 	for (const auto& extension : extensions_str) {
-	// 		extensions_config.push_back(extension);
-	// 	}
-	// 	physical_device_config["extensions"] = extensions_config;
-
-	// 	physical_device_config["score"] = scored_gpu.score;
-
-	// 	for (const auto& queue : queue_properties) {
-	// 		YAML::Node queue_config;
-	// 		queue_config["flags"] = vk::to_string(queue.queueFlags);
-	// 		queue_config["count"] = queue.queueCount;
-	// 		physical_device_config["queues"].push_back(queue_config);
-	// 	}
-
-	// 	return physical_device_config;
 	// }
 
 	// void create_device() {
@@ -205,6 +165,8 @@ private:
 	Window* window;
 	vkh::Context context;
 	vkh::Instance vk_instance{nullptr};
+	std::vector<vkh::PhysicalDevice> physical_devices;
+	vkh::PhysicalDevice selected_physical_device;
 	// std::vector<ScoredGPU> scored_physical_devices;
 	// vk::raii::PhysicalDevice physical_device;
 	// size_t graphic_queue_index;
