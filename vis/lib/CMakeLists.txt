@@ -21,10 +21,10 @@ target_sources(vis_obj
         utility.cpp
         window.cpp
 
-        renderer/mesh.cpp
-        renderer/opengl.cpp
-        renderer/vulkan_helper.cpp
-        renderer/vulkan.cpp
+        graphic/mesh.cpp
+        graphic/opengl.cpp
+        graphic/vulkan_helper.cpp
+        graphic/vulkan.cpp
 
         PRIVATE FILE_SET HEADERS
         FILES
