@@ -1,8 +1,10 @@
 module;
 
+#include <SDL3/SDL_vulkan.h>
+#include <vulkan/vulkan.hpp>
+
 #include <SDL3/SDL.h>
 
-// #include <vulkan/vulkan_raii.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
@@ -43,9 +45,9 @@ public:
 		std::swap(lhs.window, rhs.window);
 		std::swap(lhs.context, rhs.context);
 		std::swap(lhs.vk_instance, rhs.vk_instance);
+		std::swap(lhs.surface, rhs.surface);
 		std::swap(lhs.physical_devices, rhs.physical_devices);
-		// std::swap(lhs.scored_physical_devices, rhs.scored_physical_devices);
-		// std::swap(lhs.physical_device, rhs.physical_device);
+		std::swap(lhs.selected_physical_device, rhs.selected_physical_device);
 		// std::swap(lhs.graphic_queue_index, rhs.graphic_queue_index);
 		// std::swap(lhs.transfer_queue_index, rhs.transfer_queue_index);
 		// std::swap(lhs.device, rhs.device);
@@ -80,6 +82,7 @@ private:
 	explicit Renderer(Window* window)
 			: window{window} /*, vk_instance{nullptr}, physical_device{nullptr}, device{nullptr}*/ {
 		create_instance();
+		create_surface();
 
 		auto device_selector = vkh::PhysicalDeviceSelector{vk_instance};
 		enumerate_gpus(device_selector);
@@ -113,7 +116,16 @@ private:
 		}
 	}
 
+	void create_surface() {
+		const auto& cpp_instance = static_cast<vk::Instance>(vk_instance);
+		auto c_instance = static_cast<VkInstance>(cpp_instance);
+
+		VkSurfaceKHR vk_surface = window->create_renderer_surface(c_instance, nullptr);
+		surface = vkh::Surface{vk_instance, vk_surface, nullptr};
+	}
+
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
+
 		physical_devices.insert(end(physical_devices), std::begin(device_selector), std::end(device_selector));
 
 		for (const auto& device : physical_devices) {
@@ -173,6 +185,7 @@ private:
 	Window* window;
 	vkh::Context context;
 	vkh::Instance vk_instance{nullptr};
+	vkh::Surface surface{nullptr};
 	std::vector<vkh::PhysicalDevice> physical_devices;
 	vkh::PhysicalDevice selected_physical_device;
 	// std::vector<ScoredGPU> scored_physical_devices;

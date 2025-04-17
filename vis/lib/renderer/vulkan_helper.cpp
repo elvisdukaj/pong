@@ -90,6 +90,7 @@ namespace {
 export namespace vkh {
 
 using ::vk::raii::Instance;
+using Surface = ::vk::raii::SurfaceKHR;
 // using ::vk::raii::PhysicalDevice;
 
 // constexpr std::vector<const char*> get_physical_device_extensions() {
@@ -146,7 +147,7 @@ class InstanceBuilder;
 class PhysicalDeviceSelector;
 
 class Context {
-	friend InstanceBuilder;
+	friend class InstanceBuilder;
 
 public:
 	Context() {
@@ -366,9 +367,10 @@ private:
 
 class PhysicalDevice {
 public:
-	PhysicalDevice() : physical_device{nullptr} {}
+	PhysicalDevice() : physical_device{nullptr} /*, surface{nullptr}*/ {}
 
-	PhysicalDevice(vk::raii::PhysicalDevice&& device) : physical_device{std::move(device)} {
+	PhysicalDevice(vk::raii::PhysicalDevice&& device /*, vk::raii::SurfaceKHR* surface = nullptr*/)
+			: physical_device{std::move(device)} /*, surface{surface}*/ {
 		properties = physical_device.getProperties2();
 		features = physical_device.getFeatures2();
 		layers = physical_device.enumerateDeviceLayerProperties();
@@ -482,6 +484,7 @@ public:
 
 private:
 	vk::raii::PhysicalDevice physical_device;
+	// vk::raii::SurfaceKHR* surface;
 	vk::PhysicalDeviceProperties2 properties;
 	vk::PhysicalDeviceFeatures2 features;
 	std::vector<vk::LayerProperties> layers;
@@ -561,6 +564,7 @@ private:
 
 private:
 	std::vector<PhysicalDevice> physical_devices;
+	vk::raii::SurfaceKHR surface{nullptr};
 
 	// std::size_t graphic_queue_index = 0;
 	// std::size_t compute_queue_index = 0;

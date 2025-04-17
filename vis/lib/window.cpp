@@ -82,7 +82,7 @@ public:
 		return window;
 	}
 
-	VkSurfaceKHR crete_surface(VkInstance instance, const VkAllocationCallbacks* allocator) const {
+	VkSurfaceKHR create_renderer_surface(VkInstance instance, const VkAllocationCallbacks* allocator) const {
 		VkSurfaceKHR surface;
 		if (not SDL_Vulkan_CreateSurface(window, instance, allocator, &surface)) {
 			throw std::runtime_error("Unable to create the Vulkan Surface");
