@@ -16,14 +16,15 @@ target_sources(vis_obj
         graphic/vulkan_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
-        app.cpp        
+        ecs/ecs.cpp
+        app/app.cpp        
+        math/math.cpp
+        physic/physic.cpp
+        utility/time.cpp
+        utility/utility.cpp
+        window/window.cpp
         vis.cpp
-        math.cpp
-        ecs.cpp
-        physic.cpp
-        time.cpp
-        utility.cpp
-        window.cpp
+
 
         graphic/mesh.cpp
         graphic/opengl.cpp
