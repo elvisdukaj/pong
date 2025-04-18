@@ -463,18 +463,32 @@ public:
 		return std::string_view{properties.properties.deviceName};
 	}
 
+	bool has_any(std::span<vk::PhysicalDeviceType> types) const {
+		return std::any_of(begin(types), end(types),
+											 [this](vk::PhysicalDeviceType type) { return properties.properties.deviceType == type; });
+	}
+
+	bool has_not_any(std::span<vk::PhysicalDeviceType> types) const {
+		return not std::any_of(begin(types), end(types),
+													 [this](vk::PhysicalDeviceType type) { return properties.properties.deviceType == type; });
+	}
+
 	bool is_discrete() const {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
 	}
+
 	bool is_integrated() const {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu;
 	}
+
 	bool is_cpu() const {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eCpu;
 	}
+
 	bool is_virtual() const {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eVirtualGpu;
 	}
+
 	bool has_preset() const {
 		(void)(surface);
 		return false;
@@ -549,13 +563,13 @@ public:
 		return result;
 	}
 
-	PhysicalDeviceSelector& set_require_discrete() {
-		require_discrete_gpu = true;
+	PhysicalDeviceSelector& allow_discrete_device() {
+		allowed_physical_device_types.push_back(vk::PhysicalDeviceType::eDiscreteGpu);
 		return *this;
 	}
 
-	PhysicalDeviceSelector& set_require_integrated() {
-		require_integrated_gpu = true;
+	PhysicalDeviceSelector& allow_integrate_device() {
+		allowed_physical_device_types.push_back(vk::PhysicalDeviceType::eIntegratedGpu);
 		return *this;
 	}
 
@@ -589,15 +603,9 @@ public:
 		for (auto&& device : *devices)
 			physical_devices.emplace_back(PhysicalDevice{std::move(device), surface});
 
-		if (require_discrete_gpu) {
-			erase_if(physical_devices,
-							 [](const PhysicalDevice& physical_device) { return not physical_device.is_discrete(); });
-		}
-
-		if (require_integrated_gpu) {
-			erase_if(physical_devices,
-							 [](const PhysicalDevice& physical_device) { return not physical_device.is_integrated(); });
-		}
+		erase_if(physical_devices, [this](const PhysicalDevice& physical_device) {
+			return physical_device.has_not_any(allowed_physical_device_types);
+		});
 
 		if (require_graphic_queue) {
 			erase_if(physical_devices,
@@ -652,8 +660,8 @@ private:
 	std::vector<const char*> required_gpu_extensions;
 	vk::raii::SurfaceKHR* surface{nullptr};
 
-	bool require_discrete_gpu{true};
-	bool require_integrated_gpu{false};
+	std::vector<vk::PhysicalDeviceType> allowed_physical_device_types;
+
 	bool require_graphic_queue{true};
 	bool require_present_queue{true};
 	bool require_compute_queue{true};
