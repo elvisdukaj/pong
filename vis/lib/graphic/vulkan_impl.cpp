@@ -94,15 +94,15 @@ private:
 
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
 		physical_devices = device_selector.enumerate_all();
-
+		auto nodes = vk_config["physical devices"];
 		for (const auto& device : physical_devices) {
-			vk_config["physical devices"].push_back(device.dump());
+			nodes.push_back(device.dump());
 		}
 	}
 
 	void select_gpu(vkh::PhysicalDeviceSelector& device_selector) {
 		auto required_gpu_extensions = vkh::get_physical_device_extensions();
-		vk_config["physical devices"]["required extensions"] = required_gpu_extensions;
+		vk_config["physical device"]["required extensions"] = required_gpu_extensions;
 
 		// clang-format off
 		auto expected_device = device_selector
