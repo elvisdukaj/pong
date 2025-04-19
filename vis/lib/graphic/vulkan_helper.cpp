@@ -89,6 +89,7 @@ export namespace vkh {
 
 using ::vk::raii::Instance;
 using Surface = ::vk::raii::SurfaceKHR;
+using Device = ::vk::raii::Device;
 // using ::vk::raii::PhysicalDevice;
 
 constexpr std::vector<const char*> get_physical_device_extensions() {
@@ -547,6 +548,46 @@ public:
 
 	YAML::Node dump() const {
 		return configuration;
+	}
+
+	vk::raii::Device create_device() const {
+		auto indexes = std::views::iota(0u, queue_families.size());
+		// clang-format off
+		auto queue_info_vec =
+				std::views::zip(queue_families, indexes)
+				| std::views::transform([&](auto&& zipped) {
+					const auto& [family, index] = zipped;
+					auto priorities = std::vector<float>(family.queueFamilyProperties.queueCount, 1.0f);
+
+					vk::DeviceQueueCreateInfo queue_create_info{};
+					queue_create_info.pQueuePriorities = priorities.data();
+					queue_create_info.queueCount = family.queueFamilyProperties.queueCount;
+					queue_create_info.queueFamilyIndex = index;
+					return queue_create_info;
+				})
+			| std::ranges::to<std::vector<vk::DeviceQueueCreateInfo>>();
+		// clang-format on
+
+		auto enabled_layers = layers | std::views::transform([](const auto& layer) { return layer.layerName; }) |
+													std::ranges::to<std::vector<const char*>>();
+		auto enabled_extensions = extensions |
+															std::views::transform([](const auto& extension) { return extension.extensionName; }) |
+															std::ranges::to<std::vector<const char*>>();
+
+		auto device_create_info = vk::DeviceCreateInfo{};
+		device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_info_vec.size());
+		device_create_info.pQueueCreateInfos = queue_info_vec.data();
+		device_create_info.enabledLayerCount = static_cast<uint32_t>(enabled_layers.size());
+		device_create_info.ppEnabledLayerNames = enabled_layers.data();
+		device_create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
+		device_create_info.ppEnabledExtensionNames = enabled_extensions.data();
+
+		auto device = physical_device.createDevice(device_create_info);
+		if (not device) {
+			throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
+		}
+
+		return std::move(*device);
 	}
 
 private:

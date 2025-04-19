@@ -42,9 +42,9 @@ public:
 		std::swap(lhs.surface, rhs.surface);
 		std::swap(lhs.physical_devices, rhs.physical_devices);
 		std::swap(lhs.selected_physical_device, rhs.selected_physical_device);
+		std::swap(lhs.device, rhs.device);
 		// std::swap(lhs.graphic_queue_index, rhs.graphic_queue_index);
 		// std::swap(lhs.transfer_queue_index, rhs.transfer_queue_index);
-		// std::swap(lhs.device, rhs.device);
 		// std::swap(lhs.gpu_score, rhs.gpu_score);
 		// std::swap(lhs.gpu_queue_index, rhs.gpu_queue_index);
 		// std::swap(lhs.device, rhs.device);
@@ -94,8 +94,8 @@ private:
 
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
 		auto nodes = vk_config["physical devices"];
-		for (auto&& device : device_selector.enumerate_all()) {
-			nodes.push_back(device.dump());
+		for (auto&& physical_device : device_selector.enumerate_all()) {
+			nodes.push_back(physical_device.dump());
 		}
 	}
 
@@ -123,6 +123,8 @@ private:
 
 		selected_physical_device = *expected_device;
 		vk_config["selected physical device"] = selected_physical_device.name();
+
+		device = selected_physical_device.create_device();
 	}
 
 private:
@@ -132,6 +134,7 @@ private:
 	vkh::Surface surface{nullptr};
 	std::vector<vkh::PhysicalDevice> physical_devices;
 	vkh::PhysicalDevice selected_physical_device;
+	vkh::Device device{nullptr};
 	YAML::Node vk_config;
 };
 
