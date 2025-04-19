@@ -27,7 +27,7 @@ public:
 		create_instance();
 		create_surface();
 
-		vkh::PhysicalDeviceSelector device_selector{vk_instance};
+		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
 		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
 		// create_device();
@@ -93,14 +93,15 @@ private:
 	}
 
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
-		physical_devices = device_selector.enumerate_all();
 		auto nodes = vk_config["physical devices"];
-		for (const auto& device : physical_devices) {
+		for (auto&& device : device_selector.enumerate_all()) {
 			nodes.push_back(device.dump());
 		}
 	}
 
 	void select_gpu(vkh::PhysicalDeviceSelector& device_selector) {
+		device_selector.with_surface(&surface);
+
 		auto required_gpu_extensions = vkh::get_physical_device_extensions();
 		vk_config["physical device"]["required extensions"] = required_gpu_extensions;
 
@@ -110,6 +111,7 @@ private:
 				.with_surface(&surface)
 				.allow_discrete_device()
 				.allow_integrate_device()
+				.set_require_preset()
 				.set_require_compute()
 				.set_require_transfer()
 				.select();

@@ -451,11 +451,20 @@ public:
 			configuration["extension"] = node;
 		}
 
+		auto queue_family_index = 0u;
 		for (const auto& queue_family : queue_families) {
 			YAML::Node node;
 			node["flags"] = vk::to_string(queue_family.queueFamilyProperties.queueFlags);
 			node["count"] = queue_family.queueFamilyProperties.queueCount;
+
+			if (surface != nullptr) {
+				auto preset_support = physical_device.getSurfaceSupportKHR(queue_family_index, *surface);
+				node["preset support"] = static_cast<bool>(preset_support);
+			}
+
 			configuration["queue families"] = node;
+
+			++queue_family_index;
 		}
 	}
 
@@ -490,7 +499,13 @@ public:
 	}
 
 	bool has_preset() const {
-		(void)(surface);
+		assert(surface != nullptr && "To check for preset the surface should be set");
+		for (auto i = 0u; i < queue_families.size(); i++) {
+			auto preset_support = physical_device.getSurfaceSupportKHR(i, *surface);
+			if (preset_support != 0)
+				return true;
+		}
+
 		return false;
 	}
 
@@ -499,7 +514,6 @@ public:
 			return (queue.queueFamilyProperties.queueCount > 0) &&
 						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics);
 		});
-		return false;
 	}
 
 	bool has_compute_queue() const {
@@ -549,7 +563,7 @@ private:
 
 class PhysicalDeviceSelector {
 public:
-	PhysicalDeviceSelector(Instance& intance) : intance{intance} {}
+	PhysicalDeviceSelector(Instance& intance, Surface* surface = nullptr) : intance{intance}, surface{surface} {}
 
 	std::vector<PhysicalDevice> enumerate_all() const {
 		auto devices = intance.enumeratePhysicalDevices();
@@ -573,6 +587,11 @@ public:
 		return *this;
 	}
 
+	PhysicalDeviceSelector& set_require_preset() {
+		require_preset_queue = false;
+		return *this;
+	}
+
 	PhysicalDeviceSelector& set_require_graphic() {
 		require_graphic_queue = false;
 		return *this;
@@ -588,8 +607,13 @@ public:
 		return *this;
 	}
 
-	PhysicalDeviceSelector& set_require_preset() {
-		require_present_queue = false;
+	PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
+		required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
+		return *this;
+	}
+
+	PhysicalDeviceSelector& with_surface(Surface* desired_surface) {
+		surface = desired_surface;
 		return *this;
 	}
 
@@ -606,6 +630,11 @@ public:
 		erase_if(physical_devices, [this](const PhysicalDevice& physical_device) {
 			return physical_device.has_not_any(allowed_physical_device_types);
 		});
+
+		if (require_preset_queue) {
+			erase_if(physical_devices,
+							 [](const PhysicalDevice& physical_device) { return not physical_device.has_preset(); });
+		}
 
 		if (require_graphic_queue) {
 			erase_if(physical_devices,
@@ -625,17 +654,48 @@ public:
 		if (physical_devices.empty())
 			return std::unexpected("No suitable GPU found");
 
-		return std::move(physical_devices.front());
+		if (physical_devices.size() == 1) {
+			return std::move(physical_devices.front());
+		}
+
+		// more suitable devices
+		if (is_discrete_gpu_allowed()) {
+			auto discrete_gpu_it = find_first_discrete_gpu(physical_devices);
+			if (discrete_gpu_it != end(physical_devices)) {
+				return std::move(*discrete_gpu_it);
+			}
+		}
+
+		if (is_integrated_gpu_allowed()) {
+			auto integrated_gpu_it = find_first_integrated_gpu(physical_devices);
+			if (integrated_gpu_it != end(physical_devices)) {
+				return std::move(*integrated_gpu_it);
+			}
+		}
+
+		return std::unexpected("No suitable GPU found");
 	}
 
-	PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
-		required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
-		return *this;
+	bool is_discrete_gpu_allowed() const {
+		return std::find(begin(allowed_physical_device_types), end(allowed_physical_device_types),
+										 vk::PhysicalDeviceType::eDiscreteGpu) != end(allowed_physical_device_types);
 	}
 
-	PhysicalDeviceSelector& with_surface(Surface* desired_surface) {
-		surface = desired_surface;
-		return *this;
+	bool is_integrated_gpu_allowed() const {
+		return std::find(begin(allowed_physical_device_types), end(allowed_physical_device_types),
+										 vk::PhysicalDeviceType::eIntegratedGpu) != end(allowed_physical_device_types);
+	}
+
+	auto find_first_discrete_gpu(const std::vector<PhysicalDevice>& physical_devices) const
+			-> decltype(begin(physical_devices)) {
+		return std::find_if(begin(physical_devices), end(physical_devices),
+												[](const PhysicalDevice& device) { return device.is_discrete(); });
+	}
+
+	auto find_first_integrated_gpu(const std::vector<PhysicalDevice>& physical_devices) const
+			-> decltype(begin(physical_devices)) {
+		return std::find_if(begin(physical_devices), end(physical_devices),
+												[](const PhysicalDevice& device) { return device.is_integrated(); });
 	}
 
 private:
@@ -662,8 +722,8 @@ private:
 
 	std::vector<vk::PhysicalDeviceType> allowed_physical_device_types;
 
+	bool require_preset_queue{true};
 	bool require_graphic_queue{true};
-	bool require_present_queue{true};
 	bool require_compute_queue{true};
 	bool require_transfer_queue{true};
 };
