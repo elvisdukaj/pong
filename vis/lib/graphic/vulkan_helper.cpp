@@ -9,82 +9,6 @@ export module vkh;
 
 import std;
 
-namespace {
-
-// int score_gpu_type(const vk::raii::PhysicalDevice& physical_device) {
-// 	int score = 0;
-// 	auto props = physical_device.getProperties();
-// 	score += props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 4000 : 0;
-// 	score += props.deviceType == vk::PhysicalDeviceType::eIntegratedGpu ? 500 : 0;
-// 	score += props.deviceType == vk::PhysicalDeviceType::eCpu ? 100 : 0;
-// 	score += props.deviceType == vk::PhysicalDeviceType::eVirtualGpu ? 50 : 0;
-// 	score += props.deviceType == vk::PhysicalDeviceType::eOther ? 10 : 0;
-// 	return score;
-// }
-
-// int score_features(const vk::PhysicalDevice& physical_device) {
-// 	int score = 0;
-// 	auto features = physical_device.getFeatures();
-// 	score += features.geometryShader ? 100 : 0;
-// 	score += features.tessellationShader ? 200 : 0;
-// 	return score;
-// }
-
-// int score_queue_family(const vk::PhysicalDevice& physical_device) {
-// 	int score = 0;
-// 	auto queue_family_props = physical_device.getQueueFamilyProperties();
-// 	for (const auto& prop : queue_family_props) {
-// 		score += prop.queueFlags & vk::QueueFlagBits::eGraphics ? 500 : 0;
-// 		score += prop.queueFlags & vk::QueueFlagBits::eCompute ? 200 : 0;
-// 	}
-// 	return score;
-// }
-
-// int score_gpu_vulkan_version(const vk::raii::PhysicalDevice& physical_device) {
-// 	int score = 0;
-// 	vk::PhysicalDeviceProperties props = physical_device.getProperties();
-// 	score += props.apiVersion == VK_API_VERSION_1_4 ? 100 : 0;
-// 	score += props.apiVersion == VK_API_VERSION_1_3 ? 90 : 0;
-// 	score += props.apiVersion == VK_API_VERSION_1_2 ? 80 : 0;
-// 	return score;
-// }
-
-// int score_gpu(const vk::raii::PhysicalDevice& physical_device) {
-// 	int score = 0;
-
-// 	score += score_gpu_type(physical_device);
-// 	score += score_features(physical_device);
-// 	score += score_queue_family(physical_device);
-// 	score += score_gpu_vulkan_version(physical_device);
-// 	return score;
-// }
-
-// struct ScoredGPU {
-// 	vk::raii::PhysicalDevice device;
-// 	int score;
-// };
-
-// std::vector<ScoredGPU> enumerated_scored_gpus(vk::raii::Instance& vk_instance) {
-// 	return vk_instance.enumeratePhysicalDevices()
-// 			.and_then([](const std::vector<vk::raii::PhysicalDevice>& devices)
-// 										-> std::expected<std::vector<ScoredGPU>, vk::Result> {
-// 				auto scores = devices | std::views::transform(score_gpu);
-
-// 				auto map_gpu_score = [](std::tuple<const vk::raii::PhysicalDevice&, int> g) {
-// 					return ScoredGPU{.device = std::get<0>(g), .score = std::get<1>(g)};
-// 				};
-
-// 				// clang-format off
-// 				return std::ranges::views::zip(devices, scores)
-// 					| std::views::transform(map_gpu_score)
-// 					| std::ranges::to<std::vector<ScoredGPU>>();
-// 				// clang-format on
-// 			})
-// 			.value_or(std::vector<ScoredGPU>{});
-// }
-
-} // namespace
-
 export namespace vkh {
 
 using ::vk::raii::Instance;
@@ -179,18 +103,19 @@ public:
 	uint32_t api_version;
 
 	std::vector<const char*> get_available_layers() const {
-		auto to_layer_name = [](const vk::LayerProperties& layer) -> const char* { return layer.layerName; };
-
-		return std::ranges::views::transform(available_layers, to_layer_name) | std::ranges::to<std::vector<const char*>>();
-	}
+		// clang-format off
+		return available_layers
+			| std::views::transform([](const auto& layer) -> const char* { return layer.layerName; })
+			| std::ranges::to<std::vector<const char*>>();
+		// clang-format on
+	};
 
 	std::vector<const char*> get_available_extensions() const {
-		auto to_extension_name = [](const vk::ExtensionProperties& extension) -> const char* {
-			return extension.extensionName;
-		};
-
-		return std::ranges::views::transform(available_extensions, to_extension_name) |
-					 std::ranges::to<std::vector<const char*>>();
+		// clang-format off
+		return available_extensions
+			| std::views::transform([](const auto& extension) -> const char* { return extension.extensionName; })
+			| std::ranges::to<std::vector<const char*>>();
+		// clang-format on
 	}
 
 	bool has_extension(std::string_view extension_name) const {
@@ -551,22 +476,16 @@ public:
 	}
 
 	vk::raii::Device create_device() const {
-		auto indexes = std::views::iota(0u, queue_families.size());
-		// clang-format off
-		auto queue_info_vec =
-				std::views::zip(queue_families, indexes)
-				| std::views::transform([&](auto&& zipped) {
-					const auto& [family, index] = zipped;
-					auto priorities = std::vector<float>(family.queueFamilyProperties.queueCount, 1.0f);
 
-					vk::DeviceQueueCreateInfo queue_create_info{};
-					queue_create_info.pQueuePriorities = priorities.data();
-					queue_create_info.queueCount = family.queueFamilyProperties.queueCount;
-					queue_create_info.queueFamilyIndex = index;
-					return queue_create_info;
-				})
-			| std::ranges::to<std::vector<vk::DeviceQueueCreateInfo>>();
-		// clang-format on
+		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
+		for (auto i = 0u; i < queue_families.size(); i++) {
+			auto priorities = std::vector<float>(queue_families[i].queueFamilyProperties.queueCount, 1.0f);
+			queue_info_vec.emplace_back(vk::DeviceQueueCreateInfo{
+					.queueFamilyIndex = i,
+					.queueCount = queue_families[i].queueFamilyProperties.queueCount,
+					.pQueuePriorities = priorities.data(),
+			});
+		}
 
 		auto enabled_layers = layers | std::views::transform([](const auto& layer) { return layer.layerName; }) |
 													std::ranges::to<std::vector<const char*>>();

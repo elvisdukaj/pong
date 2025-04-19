@@ -168,29 +168,4 @@ void Renderer::clear() {}
 void Renderer::set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
 														[[maybe_unused]] int height) {}
 
-// void create_device() {
-// 	float prio[1] = {0.0f};
-// 	std::vector<vk::DeviceQueueCreateInfo> queue_create_info = {vk::DeviceQueueCreateInfo{
-// 			.queueFamilyIndex = static_cast<uint32_t>(graphic_queue_index),
-// 			.queueCount = 1,
-// 			.pQueuePriorities = prio,
-// 	}};
-
-// 	auto extensions = get_physical_device_extensions();
-// 	auto create_info = vk::DeviceCreateInfo{
-// 			// .flags = VK_QUEUE_GRAPHICS_BIT,
-// 			.queueCreateInfoCount = 1,
-// 			.pQueueCreateInfos = queue_create_info.data(),
-// 			.enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-// 			.ppEnabledExtensionNames = extensions.data(),
-// 	};
-
-// 	auto expected_device = physical_device.createDevice(create_info);
-// 	if (not expected_device) {
-// 		throw std::runtime_error{vk::to_string(expected_device.error())};
-// 	}
-
-// 	device = std::move(*expected_device);
-// }
-
 } // namespace vis::vulkan
