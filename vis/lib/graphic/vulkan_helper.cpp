@@ -13,8 +13,15 @@ export namespace vkh {
 
 using ::vk::raii::Instance;
 using Surface = ::vk::raii::SurfaceKHR;
-using Device = ::vk::raii::Device;
-// using ::vk::raii::PhysicalDevice;
+using ::vk::CommandPool;
+using ::vk::raii::Device;
+using ::vk::raii::RenderPass;
+
+// Forward declarations
+class Context;
+class InstanceBuilder;
+class PhysicalDeviceSelector;
+class RenderPassBuilder;
 
 constexpr std::vector<const char*> get_physical_device_extensions() {
 	std::vector<const char*> required_extensions = {};
@@ -64,10 +71,6 @@ constexpr ::vk::InstanceCreateFlags get_required_instance_flags() {
 #endif
 	return flags;
 }
-
-class Context;
-class InstanceBuilder;
-class PhysicalDeviceSelector;
 
 class Context {
 	friend class InstanceBuilder;
@@ -289,6 +292,53 @@ private:
 	// bool with_yaml_serialization = true;
 };
 
+// class MyCommandPool : private vk::raii::CommandPool {
+// public:
+// explicit CommandPool(vk::raii::CommandPool&& command_pool) : vk::raii::CommandPool{std::move(command_pool)} {};
+// };
+
+// class Device : private vk::raii::Device {
+// public:
+// explicit Device(vk::raii::Device&& device) : vk::raii::Device{std::move(device)} {}
+
+// CommandPool create_command_pool()
+// };
+
+class CommandPoolBuilder {
+public:
+	CommandPoolBuilder(vk::raii::Device& device) : device{device} {}
+
+	CommandPoolBuilder& with_queue_family_index(size_t index) {
+		queue_family_index = index;
+		return *this;
+	}
+
+	CommandPoolBuilder& with_flags(vk::CommandPoolCreateFlagBits required_flags) {
+		flags = required_flags;
+		return *this;
+	}
+
+	vk::raii::CommandPool create() const {
+		vk::CommandPoolCreateInfo create_info{
+				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+				.queueFamilyIndex = static_cast<uint32_t>(queue_family_index),
+		};
+
+		auto command_pool = device.createCommandPool(create_info, nullptr);
+		if (not command_pool) {
+			throw std::runtime_error{
+					std::format("Unable to create a Vulkan Command Pool: {}", vk::to_string(command_pool.error()))};
+		}
+
+		return std::move(*command_pool);
+	}
+
+private:
+	vk::raii::Device& device;
+	size_t queue_family_index = 0;
+	vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+};
+
 class PhysicalDevice {
 public:
 	PhysicalDevice() : physical_device{nullptr} /*, surface{nullptr}*/ {}
@@ -475,7 +525,7 @@ public:
 		return configuration;
 	}
 
-	vk::raii::Device create_device() const {
+	Device create_device() const {
 
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < queue_families.size(); i++) {
@@ -506,7 +556,7 @@ public:
 			throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
 		}
 
-		return std::move(*device);
+		return Device{std::move(*device)};
 	}
 
 private:
@@ -686,6 +736,138 @@ private:
 	bool require_graphic_queue{true};
 	bool require_compute_queue{true};
 	bool require_transfer_queue{true};
+};
+
+class Texture {
+public:
+	bool is_stencil() const {
+		return true;
+	}
+	bool is_depth() const {
+		return true;
+	}
+	bool is_color() const {
+		return true;
+	}
+
+	vk::Format format() const {
+		return vk::Format{};
+	}
+
+	vk::ImageLayout layout() const {
+		return vk::ImageLayout{};
+	}
+};
+
+class RenderPassBuilder {
+public:
+	explicit RenderPassBuilder(vk::raii::Device& device) : device{device} {}
+
+	RenderPassBuilder& add_attachment(std::shared_ptr<Texture> attachment) {
+		attachments.push_back(attachment);
+		return *this;
+	}
+
+	RenderPassBuilder& add_attachments(std::span<std::shared_ptr<Texture>> required_attachments) {
+		attachments.insert(end(attachments), begin(required_attachments), end(required_attachments));
+		return *this;
+	}
+
+	RenderPassBuilder& add_load_op(vk::AttachmentLoadOp load_op) {
+		load_ops.push_back(load_op);
+		return *this;
+	}
+
+	RenderPassBuilder& add_store_op(vk::AttachmentStoreOp store_op) {
+		store_ops.push_back(store_op);
+		return *this;
+	}
+
+	RenderPassBuilder& add_load_ops(std::span<vk::AttachmentLoadOp> required_load_ops) {
+		load_ops.insert(end(load_ops), begin(required_load_ops), end(required_load_ops));
+		return *this;
+	}
+
+	RenderPassBuilder& add_store_ops(std::span<vk::AttachmentStoreOp> required_store_op) {
+		store_ops.insert(end(store_ops), begin(required_store_op), end(required_store_op));
+		return *this;
+	}
+
+	vk::raii::RenderPass build() {
+		std::vector<vk::AttachmentDescription2> attachment_descriptions;
+		std::vector<vk::AttachmentReference2> color_attachment_references;
+		std::vector<vk::AttachmentReference2> depth_stencil_attachment_references;
+
+		for (auto i = 0u; i < attachments.size(); i++) {
+			auto& attachment = attachments[i];
+			auto store_op = store_ops[i];
+			auto load_op = load_ops[i];
+			auto layout = image_layouts[i];
+
+			attachment_descriptions.emplace_back(vk::AttachmentDescription2{
+					.format = attachment->format(),
+					.samples = vk::SampleCountFlagBits::e1,
+					.loadOp = attachment->is_stencil() ? vk::AttachmentLoadOp::eDontCare : load_op,
+					.storeOp = attachment->is_stencil() ? vk::AttachmentStoreOp::eDontCare : store_op,
+					.stencilLoadOp = attachment->is_stencil() ? load_op : vk::AttachmentLoadOp::eDontCare,
+					.stencilStoreOp = attachment->is_stencil() ? store_op : vk::AttachmentStoreOp::eDontCare,
+					.initialLayout = attachment->layout(),
+					.finalLayout = layout,
+			});
+
+			if (attachment->is_color()) {
+				color_attachment_references.emplace_back(vk::AttachmentReference2{
+						.attachment = i,
+						.layout = vk::ImageLayout::eColorAttachmentOptimal,
+				});
+			} else {
+				color_attachment_references.emplace_back(vk::AttachmentReference2{
+						.attachment = i,
+						.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
+				});
+			}
+		}
+
+		vk::SubpassDescription2 subpass_description{
+				.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+				.colorAttachmentCount = static_cast<uint32_t>(color_attachment_references.size()),
+				.pColorAttachments = color_attachment_references.data(),
+				.pDepthStencilAttachment = nullptr,
+		};
+
+		vk::SubpassDependency2 subpass_dependency{
+				.srcSubpass = VK_SUBPASS_EXTERNAL,
+				// .dstSubpass = 0,
+				.srcStageMask =
+						vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+				.dstStageMask =
+						vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+				.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+		};
+
+		auto render_pass_info = vk::RenderPassCreateInfo2{
+				.attachmentCount = static_cast<uint32_t>(attachment_descriptions.size()),
+				.pAttachments = attachment_descriptions.data(),
+				.subpassCount = 1,
+				.pSubpasses = &subpass_description,
+				.dependencyCount = 1,
+				.pDependencies = &subpass_dependency,
+		};
+		auto render_pass = device.createRenderPass2(render_pass_info);
+		if (not render_pass) {
+			throw std::runtime_error{
+					std::format("Unable to create a Vulkan RenderPass: {}", vk::to_string(render_pass.error()))};
+		}
+
+		return vk::raii::RenderPass{std::move(*render_pass)};
+	}
+
+private:
+	vk::raii::Device& device;
+	std::vector<std::shared_ptr<Texture>> attachments;
+	std::vector<vk::ImageLayout> image_layouts;
+	std::vector<vk::AttachmentLoadOp> load_ops;
+	std::vector<vk::AttachmentStoreOp> store_ops;
 };
 
 } // namespace vkh

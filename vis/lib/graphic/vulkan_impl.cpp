@@ -30,7 +30,7 @@ public:
 		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
 		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
-		// create_device();
+		create_device_and_command_pool();
 	}
 
 	friend void swap(Renderer::Impl& lhs, Renderer::Impl& rhs) {
@@ -43,11 +43,9 @@ public:
 		std::swap(lhs.physical_devices, rhs.physical_devices);
 		std::swap(lhs.selected_physical_device, rhs.selected_physical_device);
 		std::swap(lhs.device, rhs.device);
-		// std::swap(lhs.graphic_queue_index, rhs.graphic_queue_index);
-		// std::swap(lhs.transfer_queue_index, rhs.transfer_queue_index);
-		// std::swap(lhs.gpu_score, rhs.gpu_score);
-		// std::swap(lhs.gpu_queue_index, rhs.gpu_queue_index);
-		// std::swap(lhs.device, rhs.device);
+		std::swap(lhs.command_pool, rhs.command_pool);
+		std::swap(lhs.buffer_textures, rhs.buffer_textures);
+		std::swap(lhs.render_pass, rhs.render_pass);
 		std::swap(lhs.vk_config, rhs.vk_config);
 	}
 
@@ -123,8 +121,31 @@ private:
 
 		selected_physical_device = *expected_device;
 		vk_config["selected physical device"] = selected_physical_device.name();
+	}
 
+	void create_device_and_command_pool() {
 		device = selected_physical_device.create_device();
+		// clang-format off
+		command_pool = vkh::CommandPoolBuilder{device}
+				.with_queue_family_index(0)
+				.create();
+		// clang-format on
+
+		std::shared_ptr<vkh::Texture> front_buffer;
+		std::shared_ptr<vkh::Texture> back_buffer;
+		std::shared_ptr<vkh::Texture> stencil_buffer;
+		std::shared_ptr<vkh::Texture> depth_buffer;
+
+		buffer_textures.emplace_back(std::move(front_buffer));
+		buffer_textures.emplace_back(std::move(back_buffer));
+		buffer_textures.emplace_back(std::move(stencil_buffer));
+		buffer_textures.emplace_back(std::move(depth_buffer));
+
+		// clang-format off
+		render_pass = vkh::RenderPassBuilder{device}
+				.add_attachments(buffer_textures)
+				.build();
+		// clang-format on
 	}
 
 private:
@@ -135,6 +156,9 @@ private:
 	std::vector<vkh::PhysicalDevice> physical_devices;
 	vkh::PhysicalDevice selected_physical_device;
 	vkh::Device device{nullptr};
+	vkh::CommandPool command_pool{nullptr};
+	std::vector<std::shared_ptr<vkh::Texture>> buffer_textures;
+	vkh::RenderPass render_pass{nullptr};
 	YAML::Node vk_config;
 };
 
