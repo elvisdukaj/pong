@@ -30,7 +30,7 @@ public:
 		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
 		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
-		// create_device();
+		create_device_and_command_pool();
 	}
 
 	friend void swap(Renderer::Impl& lhs, Renderer::Impl& rhs) {
@@ -43,7 +43,7 @@ public:
 		std::swap(lhs.physical_devices, rhs.physical_devices);
 		std::swap(lhs.selected_physical_device, rhs.selected_physical_device);
 		std::swap(lhs.device, rhs.device);
-		// std::swap(lhs.graphic_queue_index, rhs.graphic_queue_index);
+		std::swap(lhs.command_pool, rhs.command_pool);
 		// std::swap(lhs.transfer_queue_index, rhs.transfer_queue_index);
 		// std::swap(lhs.gpu_score, rhs.gpu_score);
 		// std::swap(lhs.gpu_queue_index, rhs.gpu_queue_index);
@@ -123,8 +123,11 @@ private:
 
 		selected_physical_device = *expected_device;
 		vk_config["selected physical device"] = selected_physical_device.name();
+	}
 
+	void create_device_and_command_pool() {
 		device = selected_physical_device.create_device();
+		command_pool = vkh::CommandPoolBuilder{device}.with_queue_family_index(0).create();
 	}
 
 private:
@@ -135,6 +138,7 @@ private:
 	std::vector<vkh::PhysicalDevice> physical_devices;
 	vkh::PhysicalDevice selected_physical_device;
 	vkh::Device device{nullptr};
+	vkh::CommandPool command_pool{nullptr};
 	YAML::Node vk_config;
 };
 

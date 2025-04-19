@@ -13,8 +13,16 @@ export namespace vkh {
 
 using ::vk::raii::Instance;
 using Surface = ::vk::raii::SurfaceKHR;
-using Device = ::vk::raii::Device;
+using ::vk::CommandPool;
+using ::vk::raii::Device;
 // using ::vk::raii::PhysicalDevice;
+
+// Forwward declarations
+class Context;
+class InstanceBuilder;
+class PhysicalDeviceSelector;
+// class Device;
+// class CommandPool;
 
 constexpr std::vector<const char*> get_physical_device_extensions() {
 	std::vector<const char*> required_extensions = {};
@@ -64,10 +72,6 @@ constexpr ::vk::InstanceCreateFlags get_required_instance_flags() {
 #endif
 	return flags;
 }
-
-class Context;
-class InstanceBuilder;
-class PhysicalDeviceSelector;
 
 class Context {
 	friend class InstanceBuilder;
@@ -289,6 +293,53 @@ private:
 	// bool with_yaml_serialization = true;
 };
 
+// class CommandPool : private vk::raii::CommandPool {
+// public:
+// explicit CommandPool(vk::raii::CommandPool&& command_pool) : vk::raii::CommandPool{std::move(command_pool)} {};
+// };
+
+// class Device : private vk::raii::Device {
+// public:
+// explicit Device(vk::raii::Device&& device) : vk::raii::Device{std::move(device)} {}
+
+// CommandPool create_command_pool()
+// };
+
+class CommandPoolBuilder {
+public:
+	CommandPoolBuilder(vk::raii::Device& device) : device{device} {}
+
+	CommandPoolBuilder& with_queue_family_index(size_t index) {
+		queue_family_index = index;
+		return *this;
+	}
+
+	CommandPoolBuilder& with_flags(vk::CommandPoolCreateFlagBits required_flags) {
+		flags = required_flags;
+		return *this;
+	}
+
+	vk::raii::CommandPool create() const {
+		vk::CommandPoolCreateInfo create_info{
+				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+				.queueFamilyIndex = static_cast<uint32_t>(queue_family_index),
+		};
+
+		auto command_pool = device.createCommandPool(create_info, nullptr);
+		if (not command_pool) {
+			throw std::runtime_error{
+					std::format("Unable to create a Vulkan Command Pool: {}", vk::to_string(command_pool.error()))};
+		}
+
+		return std::move(*command_pool);
+	}
+
+private:
+	vk::raii::Device& device;
+	size_t queue_family_index = 0;
+	vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+};
+
 class PhysicalDevice {
 public:
 	PhysicalDevice() : physical_device{nullptr} /*, surface{nullptr}*/ {}
@@ -475,7 +526,7 @@ public:
 		return configuration;
 	}
 
-	vk::raii::Device create_device() const {
+	Device create_device() const {
 
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < queue_families.size(); i++) {
@@ -506,7 +557,7 @@ public:
 			throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
 		}
 
-		return std::move(*device);
+		return Device{std::move(*device)};
 	}
 
 private:
