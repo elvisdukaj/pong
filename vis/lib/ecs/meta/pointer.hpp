@@ -4,8 +4,12 @@
 #define ENTT_META_POINTER_HPP
 
 #include "type_traits.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <memory>
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

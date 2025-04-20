@@ -8,9 +8,13 @@
 #include "group.hpp"
 #include "storage.hpp"
 #include "view.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <memory>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

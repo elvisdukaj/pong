@@ -14,6 +14,7 @@
 #include "range.hpp"
 #include "resolve.hpp"
 #include "utility.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -21,6 +22,9 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

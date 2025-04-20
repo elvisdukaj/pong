@@ -9,6 +9,7 @@
 #include "fwd.hpp"
 #include "loader.hpp"
 #include "resource.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -16,6 +17,9 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

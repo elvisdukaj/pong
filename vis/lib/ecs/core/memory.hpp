@@ -2,11 +2,15 @@
 #define ENTT_CORE_MEMORY_HPP
 
 #include "../config/config.h"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

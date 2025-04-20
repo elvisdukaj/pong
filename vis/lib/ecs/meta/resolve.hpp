@@ -7,7 +7,11 @@
 #include "meta.hpp"
 #include "node.hpp"
 #include "range.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

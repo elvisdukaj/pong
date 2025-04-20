@@ -2,8 +2,12 @@
 #define ENTT_LOCATOR_LOCATOR_HPP
 
 #include "../config/config.h"
+#if not defined(ENTT_IMPORT_STD)
 #include <memory>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

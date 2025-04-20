@@ -2,11 +2,15 @@
 #define ENTT_CORE_ALGORITHM_HPP
 
 #include "utility.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <algorithm>
 #include <functional>
 #include <iterator>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

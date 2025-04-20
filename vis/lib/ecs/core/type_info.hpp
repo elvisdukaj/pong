@@ -5,9 +5,13 @@
 #include "../core/attribute.h"
 #include "fwd.hpp"
 #include "hashed_string.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

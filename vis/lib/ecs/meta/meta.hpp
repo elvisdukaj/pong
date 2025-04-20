@@ -15,12 +15,17 @@
 #include "node.hpp"
 #include "range.hpp"
 #include "type_traits.hpp"
+
+#if not defined(ENTT_IMPORT_STD)
 #include <array>
 #include <cstddef>
 #include <iterator>
 #include <memory>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

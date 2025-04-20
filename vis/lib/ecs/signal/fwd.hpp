@@ -1,7 +1,11 @@
 #ifndef ENTT_SIGNAL_FWD_HPP
 #define ENTT_SIGNAL_FWD_HPP
 
+#if not defined(ENTT_IMPORT_STD)
 #include <memory>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

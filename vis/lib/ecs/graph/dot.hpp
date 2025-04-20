@@ -2,8 +2,12 @@
 #define ENTT_GRAPH_DOT_HPP
 
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <ostream>
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

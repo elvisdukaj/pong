@@ -4,12 +4,16 @@
 #include "../config/config.h"
 #include "../core/iterator.hpp"
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <iterator>
 #include <memory>
 #include <type_traits>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

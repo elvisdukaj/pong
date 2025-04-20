@@ -6,6 +6,7 @@
 #include "../core/compressed_pair.hpp"
 #include "../core/type_traits.hpp"
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -16,7 +17,9 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-
+#else
+import std;
+#endif
 namespace vis::ecs {
 
 /*! @cond TURN_OFF_DOXYGEN */

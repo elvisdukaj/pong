@@ -1,8 +1,12 @@
 #ifndef ENTT_CORE_UTILITY_HPP
 #define ENTT_CORE_UTILITY_HPP
 
+#if not defined(ENTT_IMPORT_STD)
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

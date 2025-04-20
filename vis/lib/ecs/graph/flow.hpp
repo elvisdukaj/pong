@@ -10,6 +10,7 @@
 #include "../core/utility.hpp"
 #include "adjacency_matrix.hpp"
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -18,6 +19,9 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

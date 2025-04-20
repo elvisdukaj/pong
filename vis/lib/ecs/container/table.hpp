@@ -4,11 +4,15 @@
 #include "../config/config.h"
 #include "../core/iterator.hpp"
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <iterator>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

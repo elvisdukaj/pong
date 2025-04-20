@@ -18,6 +18,8 @@
 #include "sparse_set.hpp"
 #include "storage.hpp"
 #include "view.hpp"
+
+#if not defined(ENTT_IMPORT_STD)
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -28,6 +30,9 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

@@ -2,8 +2,12 @@
 #define ENTT_GRAPH_FWD_HPP
 
 #include "../core/fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <memory>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

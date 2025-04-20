@@ -1,7 +1,11 @@
 #ifndef ENTT_META_POLICY_HPP
 #define ENTT_META_POLICY_HPP
 
+#if not defined(ENTT_IMPORT_STD)
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

@@ -10,6 +10,7 @@
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "sparse_set.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -17,6 +18,9 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

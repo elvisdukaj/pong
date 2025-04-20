@@ -2,9 +2,13 @@
 #define ENTT_PROCESS_PROCESS_HPP
 
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstdint>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

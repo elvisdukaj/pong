@@ -1,10 +1,14 @@
 #ifndef ENTT_CONTAINER_FWD_HPP
 #define ENTT_CONTAINER_FWD_HPP
 
+#if not defined(ENTT_IMPORT_STD)
 #include <functional>
 #include <memory>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

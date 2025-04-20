@@ -8,10 +8,14 @@
 #include "../graph/flow.hpp"
 #include "fwd.hpp"
 #include "helper.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <type_traits>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

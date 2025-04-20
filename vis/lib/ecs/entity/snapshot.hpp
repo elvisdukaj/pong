@@ -7,12 +7,16 @@
 #include "entity.hpp"
 #include "fwd.hpp"
 #include "view.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <iterator>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

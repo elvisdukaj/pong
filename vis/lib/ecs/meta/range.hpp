@@ -4,9 +4,13 @@
 #include "../core/fwd.hpp"
 #include "../core/iterator.hpp"
 #include "context.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <iterator>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

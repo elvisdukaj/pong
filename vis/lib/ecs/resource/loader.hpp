@@ -2,8 +2,12 @@
 #define ENTT_RESOURCE_LOADER_HPP
 
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <memory>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

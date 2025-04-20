@@ -2,9 +2,13 @@
 #define ENTT_RESOURCE_RESOURCE_HPP
 
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <memory>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

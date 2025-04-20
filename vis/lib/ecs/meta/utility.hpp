@@ -6,10 +6,14 @@
 #include "meta.hpp"
 #include "node.hpp"
 #include "policy.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <functional>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

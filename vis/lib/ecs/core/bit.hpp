@@ -2,9 +2,13 @@
 #define ENTT_CORE_BIT_HPP
 
 #include "../config/config.h"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

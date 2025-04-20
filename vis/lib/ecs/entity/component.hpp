@@ -3,8 +3,12 @@
 
 #include "../config/config.h"
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

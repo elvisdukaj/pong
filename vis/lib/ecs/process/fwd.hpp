@@ -1,8 +1,12 @@
 #ifndef ENTT_PROCESS_FWD_HPP
 #define ENTT_PROCESS_FWD_HPP
 
+#if not defined(ENTT_IMPORT_STD)
 #include <cstdint>
 #include <memory>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

@@ -8,6 +8,7 @@
 #include "context.hpp"
 #include "meta.hpp"
 #include "type_traits.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <array>
 #include <deque>
 #include <iterator>
@@ -18,6 +19,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

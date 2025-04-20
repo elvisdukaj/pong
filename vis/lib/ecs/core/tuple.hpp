@@ -1,9 +1,13 @@
 #ifndef ENTT_CORE_TUPLE_HPP
 #define ENTT_CORE_TUPLE_HPP
 
+#if not defined(ENTT_IMPORT_STD)
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

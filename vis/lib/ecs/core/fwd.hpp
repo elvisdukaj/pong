@@ -2,8 +2,12 @@
 #define ENTT_CORE_FWD_HPP
 
 #include "../config/config.h"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <cstdint>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

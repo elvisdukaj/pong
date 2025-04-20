@@ -4,9 +4,13 @@
 #include "../config/config.h"
 #include "../core/fwd.hpp"
 #include "../core/type_traits.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstdint>
 #include <memory>
 #include <type_traits>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

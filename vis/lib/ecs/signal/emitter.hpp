@@ -7,9 +7,13 @@
 #include "../core/type_info.hpp"
 #include "../core/utility.hpp"
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <functional>
 #include <type_traits>
 #include <utility>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 

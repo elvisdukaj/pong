@@ -2,9 +2,13 @@
 #define ENTT_CORE_HASHED_STRING_HPP
 
 #include "fwd.hpp"
+#if not defined(ENTT_IMPORT_STD)
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#else
+import std;
+#endif
 
 namespace vis::ecs {
 
