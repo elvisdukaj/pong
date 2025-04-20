@@ -130,9 +130,9 @@ private:
 		buffer_textures.emplace_back(std::move(depth_buffer));
 
 		// clang-format off
-		render_pass = vkh::RenderPassBuilder{device}
-				.add_attachments(buffer_textures)
-				.build();
+		// render_pass = vkh::RenderPassBuilder{device}
+				// .add_attachments(buffer_textures)
+				// .build();
 		// clang-format on
 	}
 
