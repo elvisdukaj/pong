@@ -18,7 +18,7 @@ public:
 
 	~Renderer();
 
-	void set_clear_color([[maybe_unused]] const vec4& color);
+	void set_clear_color(vec4 color);
 	void clear();
 	void render() const;
 

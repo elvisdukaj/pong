@@ -1,19 +1,13 @@
 module;
 
-// #include <SDL3/SDL_vulkan.h>
 #include <yaml-cpp/yaml.h>
-
-#include <cassert>
 
 module vis.graphic.vulkan;
 
 import std;
-
 import vkh;
 import vis.math;
 import vis.window;
-
-namespace views = std::ranges::views;
 
 namespace vis::vulkan {
 
@@ -49,6 +43,10 @@ public:
 		std::stringstream ss;
 		ss << vk_config;
 		return ss.str();
+	}
+
+	void set_clear_color(vec4 color) {
+		clear_color = color;
 	}
 
 private:
@@ -152,6 +150,8 @@ private:
 	std::vector<std::shared_ptr<vkh::Texture>> buffer_textures;
 	vkh::RenderPass render_pass{nullptr};
 	YAML::Node vk_config;
+
+	vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
 };
 
 std::expected<Renderer, std::string> Renderer::create(Window* window) {
@@ -179,7 +179,9 @@ void Renderer::render() const {
 	// SDL_GL_SwapWindow(*context.window);
 }
 
-void Renderer::set_clear_color([[maybe_unused]] const vec4& color) {}
+void Renderer::set_clear_color(vec4 color) {
+	impl->set_clear_color(color);
+}
 void Renderer::clear() {}
 void Renderer::set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
 														[[maybe_unused]] int height) {}
