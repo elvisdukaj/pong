@@ -15,7 +15,7 @@ add_library(vis_obj::vis_obj ALIAS vis_obj)
 target_sources(vis_obj
         # module implementation files
         PRIVATE
-        graphic/vulkan_impl.cpp
+        graphic/vulkan/vulkan_impl.cpp
         window/window_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
@@ -31,9 +31,9 @@ target_sources(vis_obj
 
         graphic/mesh.cpp
         graphic/opengl.cpp
-        graphic/vulkan_helper.cpp
-        graphic/vulkan.cpp
-        graphic/vulkan.cppm
+        graphic/vulkan/vulkan_helper.cpp
+        graphic/vulkan/vulkan.cpp
+        graphic/vulkan/vulkan.cppm
 
         PRIVATE FILE_SET HEADERS
         FILES

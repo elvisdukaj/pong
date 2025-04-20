@@ -24,8 +24,6 @@ public:
 	}
 
 	friend void swap(Renderer::Impl& lhs, Renderer::Impl& rhs) {
-		// std::swap(lhs.required_extensions, rhs.required_extensions);
-		// std::swap(lhs.required_layers, rhs.required_layers);
 		std::swap(lhs.window, rhs.window);
 		std::swap(lhs.context, rhs.context);
 		std::swap(lhs.vk_instance, rhs.vk_instance);
