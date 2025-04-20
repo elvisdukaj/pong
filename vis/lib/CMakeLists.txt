@@ -4,21 +4,23 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
+find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanLoader CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
+
 
 add_library(vis_obj OBJECT)
 add_library(vis_obj::vis_obj ALIAS vis_obj)
 
 target_sources(vis_obj
         # module implementation files
-        PRIVATE 
+        PRIVATE
         graphic/vulkan_impl.cpp
         window/window_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
         ecs/ecs.cpp
-        app/app.cpp        
+        app/app.cpp
         math/math.cpp
         physic/physic.cpp
         utility/time.cpp
@@ -31,6 +33,7 @@ target_sources(vis_obj
         graphic/opengl.cpp
         graphic/vulkan_helper.cpp
         graphic/vulkan.cpp
+        graphic/vulkan.cppm
 
         PRIVATE FILE_SET HEADERS
         FILES
@@ -109,6 +112,7 @@ target_sources(vis_obj
 
 target_compile_definitions(vis_obj PUBLIC
         "SDL_MAIN_USE_CALLBACKS=1"
+        VULKAN_HPP_ENABLE_STD_MODULE
         ENTT_STANDARD_CPP
         VULKAN_HPP_RAII_NO_EXCEPTIONS VULKAN_HPP_NO_CONSTRUCTORS
         $<$<STREQUAL:$<PLATFORM_ID>,Linux>:VK_USE_PLATFORM_WAYLAND_KHR>
@@ -116,7 +120,15 @@ target_compile_definitions(vis_obj PUBLIC
         $<$<STREQUAL:$<PLATFORM_ID>,Darwin>:VK_USE_PLATFORM_METAL_EXT>
 )
 
-target_link_libraries(vis_obj PUBLIC SDL3::SDL3 glm::glm GLEW::GLEW box2d::box2d Vulkan::Loader yaml-cpp::yaml-cpp)
+
+target_link_libraries(vis_obj PUBLIC
+        SDL3::SDL3
+        glm::glm
+        GLEW::GLEW
+        box2d::box2d
+        Vulkan::Headers
+        Vulkan::Loader
+        yaml-cpp::yaml-cpp)
 
 target_add_extra_warnings(vis_obj PUBLIC)
 target_set_warnings_as_error(vis_obj)

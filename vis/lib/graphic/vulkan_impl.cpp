@@ -1,10 +1,6 @@
 module;
 
-#include <SDL3/SDL_vulkan.h>
-#include <vulkan/vulkan.hpp>
-
-#include <SDL3/SDL.h>
-
+// #include <SDL3/SDL_vulkan.h>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
@@ -83,11 +79,7 @@ private:
 	}
 
 	void create_surface() {
-		const auto& cpp_instance = static_cast<vk::Instance>(vk_instance);
-		auto c_instance = static_cast<VkInstance>(cpp_instance);
-
-		VkSurfaceKHR vk_surface = window->create_renderer_surface(c_instance, nullptr);
-		surface = vkh::Surface{vk_instance, vk_surface, nullptr};
+		surface = vkh::SurfaceBuilder{vk_instance, window}.build();
 	}
 
 	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {

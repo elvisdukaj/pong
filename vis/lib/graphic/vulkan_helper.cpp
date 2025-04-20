@@ -1,12 +1,13 @@
 module;
 
-#include <vulkan/vulkan_raii.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
 
 export module vkh;
 
+import vulkan_hpp;
+import vis.window;
 import std;
 
 export namespace vkh {
@@ -33,15 +34,16 @@ constexpr std::vector<const char*> get_physical_device_extensions() {
 }
 
 std::string vk_version_to_string(uint32_t version) {
-	return std::format("{}.{}.{}", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+	return std::format("{}.{}.{}", vk::apiVersionMajor(version), vk::apiVersionMinor(version),
+										 vk::apiVersionPatch(version));
 }
 
 std::vector<const char*> get_required_extensions() {
 	std::vector<const char*> required_extensions;
 
 #if defined(__APPLE__)
-	required_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
-	required_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+	required_extensions.push_back(vk::EXTMetalSurfaceExtensionName);
+	required_extensions.push_back(vk::KHRPortabilityEnumerationExtensionName);
 #endif
 
 	return required_extensions;
@@ -180,7 +182,7 @@ public:
 	}
 
 	InstanceBuilder& with_app_version(int major, int minor, int patch) {
-		app_version = VK_MAKE_VERSION(major, minor, patch);
+		app_version = vk::makeApiVersion(0, major, minor, patch);
 		return *this;
 	}
 
@@ -195,7 +197,7 @@ public:
 	}
 
 	InstanceBuilder& with_engine_version(int major, int minor, int patch) {
-		engine_version = VK_MAKE_VERSION(major, minor, patch);
+		engine_version = vk::makeApiVersion(0, major, minor, patch);
 		return *this;
 	}
 
@@ -270,15 +272,14 @@ public:
 private:
 	Context& context;
 
-	uint32_t minimim_instance_version = VK_MAKE_VERSION(1, 0, 0);
-	uint32_t required_api_version = VK_API_VERSION_1_0;
+	uint32_t minimim_instance_version = vk::makeApiVersion(0, 1, 0, 0);
+	uint32_t required_api_version = vk::makeApiVersion(0, 1, 0, 0);
 
 	// VkApplicationInfo
 	std::string app_name = "";
 	std::string engine_name = "vis game engine";
 	uint32_t app_version = 0;
-	uint32_t engine_version = VK_MAKE_API_VERSION(0, 0, 0, 1);
-
+	uint32_t engine_version = vk::makeApiVersion(0, 0, 0, 1);
 	// VLInstanceCreateInfo
 	std::vector<const char*> required_layers;
 	std::vector<const char*> required_extensions;
@@ -738,6 +739,23 @@ private:
 	bool require_transfer_queue{true};
 };
 
+class SurfaceBuilder {
+public:
+	explicit SurfaceBuilder(vk::raii::Instance& instance, vis::Window* window) : instance{instance}, window{window} {}
+
+	vk::raii::SurfaceKHR build() {
+		const auto& cpp_instance = static_cast<vk::Instance>(instance);
+		auto c_instance = static_cast<vk::Instance::NativeType>(cpp_instance);
+
+		auto vk_surface = window->create_renderer_surface(c_instance, nullptr);
+		return vkh::Surface{instance, vk_surface, nullptr};
+	}
+
+private:
+	vk::raii::Instance& instance;
+	vis::Window* window;
+};
+
 class Texture {
 public:
 	bool is_stencil() const {
@@ -836,7 +854,7 @@ public:
 		};
 
 		vk::SubpassDependency2 subpass_dependency{
-				.srcSubpass = VK_SUBPASS_EXTERNAL,
+				.srcSubpass = vk::SubpassExternal,
 				// .dstSubpass = 0,
 				.srcStageMask =
 						vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
