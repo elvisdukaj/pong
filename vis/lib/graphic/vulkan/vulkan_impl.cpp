@@ -64,16 +64,17 @@ private:
 											.add_required_extensions(required_extensions)
 											.add_required_extensions(required_windows_extensions)
 											.with_minimum_required_instance_version(0, 1, 2, 0)
-											.with_maximum_required_instance_version(0, 1, 3, 0)
+											.with_maximum_required_instance_version(0, 1, 2, 0)
 											.build();
 
-		vk_config["instance"] = context.serialize();
+		vk_config["context"] = context.serialize();
 		for (const auto& required_extension : required_extensions) {
-			vk_config["instance"]["required extensions"].push_back(required_extension);
+			vk_config["context"]["required extensions"].push_back(required_extension);
 		}
 		for (const auto& required_extension : required_windows_extensions) {
-			vk_config["instance"]["required windows extensions"].push_back(required_extension);
+			vk_config["context"]["required windows extensions"].push_back(required_extension);
 		}
+		vk_config["instance"] = vk_instance.dump();
 	}
 
 	void create_surface() {
@@ -114,7 +115,7 @@ private:
 	}
 
 	void create_device_and_command_pool() {
-		device = selected_physical_device.create_device(context, vk_instance);
+		device = selected_physical_device.create_device(vk_instance);
 
 		// clang-format off
 		command_pool = vkh::CommandPoolBuilder{device}

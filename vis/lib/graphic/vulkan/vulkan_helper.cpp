@@ -17,9 +17,9 @@ export namespace vkh {
 // forward and using
 class Context;
 class InstanceBuilder;
-using ::vk::raii::Instance;
-// class Instance;
-using Surface = ::vk::raii::SurfaceKHR;
+class Instance;
+// using Surface = ::vk::raii::SurfaceKHR;
+class Surface;
 class PhysicalDeviceSelector;
 using ::vk::CommandPool;
 class Device;
@@ -108,7 +108,6 @@ public:
 	}
 
 	uint32_t api_version;
-	uint32_t instance_api_version;
 
 	std::vector<const char*> get_available_layers() const {
 		// clang-format off
@@ -163,6 +162,53 @@ private:
 	std::vector<vk::ExtensionProperties> available_extensions;
 	std::vector<vk::LayerProperties> available_layers;
 	YAML::Node config_;
+};
+
+class Instance : public vk::raii::Instance {
+public:
+	using vk::raii::Instance::CType;
+	using vk::raii::Instance::Instance;
+
+	Instance(vk::raii::Instance&& instance, uint32_t required_version)
+			: vk::raii::Instance{std::move(instance)}, api_version{required_version} {
+		config["version"] = vk_version_to_string(api_version);
+	}
+
+	YAML::Node dump() const {
+		return config;
+	}
+
+	void swap(Instance& other) noexcept {
+		std::swap(static_cast<vk::raii::Instance&>(*this), static_cast<vk::raii::Instance&>(other));
+		std::swap(api_version, other.api_version);
+		std::swap(config, other.config);
+	}
+
+	Instance(const Instance& other) = delete;
+	Instance& operator=(const Instance& other) = delete;
+
+	Instance(Instance&& other) : vk::raii::Instance{nullptr}, api_version{0} {
+		swap(other);
+	}
+
+	Instance& operator=(Instance&& other) {
+		swap(other);
+		return *this;
+	}
+
+	uint32_t get_api_version() const noexcept {
+		return api_version;
+	}
+
+	CType native_handle() const noexcept {
+		return static_cast<CType>(static_cast<CppType>(*this));
+	}
+
+	using vk::raii::Instance::enumeratePhysicalDevices;
+
+private:
+	uint32_t api_version;
+	YAML::Node config;
 };
 
 class InstanceBuilder {
@@ -234,7 +280,7 @@ public:
 		return *this;
 	}
 
-	vk::raii::Instance build() {
+	Instance build() {
 		maximum_instance_version = std::min(maximum_instance_version, context.api_version);
 		if (minimim_instance_version > maximum_instance_version) {
 			throw std::runtime_error{std::format("The minimum vulkan version is {} bu the minimum required is {}",
@@ -243,8 +289,6 @@ public:
 		}
 
 		auto required_api_version = std::max(minimim_instance_version, maximum_instance_version);
-
-		context.instance_api_version = required_api_version;
 
 		auto avilable_layers = context.get_available_layers();
 		if (not context.has_layers(required_layers)) {
@@ -279,7 +323,7 @@ public:
 			throw std::runtime_error{std::format("Unable to create a Vulkan Instance: {}", vk::to_string(instance.error()))};
 		}
 
-		return std::move(*instance);
+		return Instance(std::move(*instance), required_api_version);
 	}
 
 private:
@@ -377,11 +421,41 @@ private:
 	vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 };
 
+class Surface : public vk::raii::SurfaceKHR {
+public:
+	using vk::raii::SurfaceKHR::CppType;
+	using vk::raii::SurfaceKHR::CType;
+
+	using vk::raii::SurfaceKHR::SurfaceKHR;
+
+	CType native_handle() const noexcept {
+		return static_cast<CType>(static_cast<CppType>(*this));
+	}
+
+	CppType cpp_handle() const noexcept {
+		return static_cast<CType>(static_cast<CppType>(*this));
+	}
+};
+
+class SurfaceBuilder {
+public:
+	explicit SurfaceBuilder(Instance& instance, vis::Window* window) : instance{instance}, window{window} {}
+
+	Surface build() {
+		auto vk_surface = window->create_renderer_surface(instance.native_handle(), nullptr);
+		return Surface{instance, vk_surface, nullptr};
+	}
+
+private:
+	Instance& instance;
+	vis::Window* window;
+};
+
 class PhysicalDevice {
 public:
 	PhysicalDevice() : physical_device{nullptr} /*, surface{nullptr}*/ {}
 
-	PhysicalDevice(vk::raii::PhysicalDevice&& device, vk::raii::SurfaceKHR* surface = nullptr)
+	PhysicalDevice(vk::raii::PhysicalDevice&& device, Surface* surface = nullptr)
 			: physical_device{std::move(device)}, surface{surface} {
 		properties = physical_device.getProperties2();
 		features = physical_device.getFeatures2();
@@ -472,7 +546,7 @@ public:
 			node["count"] = queue_family.queueFamilyProperties.queueCount;
 
 			if (surface != nullptr) {
-				auto preset_support = physical_device.getSurfaceSupportKHR(queue_family_index, *surface);
+				auto preset_support = physical_device.getSurfaceSupportKHR(queue_family_index, surface->cpp_handle());
 				node["preset support"] = static_cast<bool>(preset_support);
 			}
 
@@ -563,7 +637,7 @@ public:
 		return configuration;
 	}
 
-	Device create_device(Context& context, Instance& instance) const {
+	Device create_device(Instance& instance) const {
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < queue_families.size(); i++) {
 			auto priorities = std::vector<float>(queue_families[i].queueFamilyProperties.queueCount, 1.0f);
@@ -607,8 +681,8 @@ public:
 				.pDeviceMemoryCallbacks = nullptr,
 				.pHeapSizeLimit = nullptr,
 				.pVulkanFunctions = &functions, //
-				.instance = static_cast<vk::raii::Instance::CType>(static_cast<vk::raii::Instance::CppType>(instance)),
-				.vulkanApiVersion = context.instance_api_version,
+				.instance = instance.native_handle(),
+				.vulkanApiVersion = instance.get_api_version(),
 				.pTypeExternalMemoryHandleTypes = nullptr,
 		};
 
@@ -620,7 +694,7 @@ public:
 
 private:
 	vk::raii::PhysicalDevice physical_device;
-	vk::raii::SurfaceKHR* surface;
+	Surface* surface;
 	vk::PhysicalDeviceProperties2 properties;
 	vk::PhysicalDeviceFeatures2 features;
 	std::vector<vk::LayerProperties> layers;
@@ -770,7 +844,7 @@ public:
 private:
 	Instance& intance;
 	std::vector<const char*> required_gpu_extensions;
-	vk::raii::SurfaceKHR* surface{nullptr};
+	Surface* surface{nullptr};
 
 	std::vector<vk::PhysicalDeviceType> allowed_physical_device_types;
 
@@ -778,23 +852,6 @@ private:
 	bool require_graphic_queue{true};
 	bool require_compute_queue{true};
 	bool require_transfer_queue{true};
-};
-
-class SurfaceBuilder {
-public:
-	explicit SurfaceBuilder(vk::raii::Instance& instance, vis::Window* window) : instance{instance}, window{window} {}
-
-	vk::raii::SurfaceKHR build() {
-		const auto& cpp_instance = static_cast<vk::Instance>(instance);
-		auto c_instance = static_cast<vk::Instance::NativeType>(cpp_instance);
-
-		auto vk_surface = window->create_renderer_surface(c_instance, nullptr);
-		return vkh::Surface{instance, vk_surface, nullptr};
-	}
-
-private:
-	vk::raii::Instance& instance;
-	vis::Window* window;
 };
 
 class Texture {
