@@ -24,6 +24,9 @@ class PongRecipe(ConanFile):
         "vis/*",
     )
 
+    def build_requirements(self):
+        self.tool_requires("glslang/1.3.268.0")
+
     def requirements(self):
         self.requires("sdl/3.2.6")
         self.requires("glm/1.0.1")

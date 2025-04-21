@@ -7,6 +7,9 @@ set(CMAKE_CXX_MODULE_STD 1)
 option(BUILD_PRE_EXAMPLES "Build the pre examples" ON)
 option(WITH_TIDY "Enable clang-tidy" OFF)
 
+set(RESOURCE_DIR ${CMAKE_SOURCE_DIR}/resources)
+set(RESOURCE_SHADER_DIR ${CMAKE_SOURCE_DIR}/resources/shaders)
+
 if (WITH_TIDY)
     set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-p;${CMAKE_BINARY_DIR}")
 endif ()

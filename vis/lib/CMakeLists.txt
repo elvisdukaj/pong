@@ -6,8 +6,8 @@ find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanLoader CONFIG REQUIRED)
+#find_package(glslang CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
-
 
 add_library(vis_obj OBJECT)
 add_library(vis_obj::vis_obj ALIAS vis_obj)
@@ -31,6 +31,7 @@ target_sources(vis_obj
 
         graphic/mesh.cpp
         graphic/opengl.cpp
+        graphic/spirv/spirv.cpp
         graphic/vulkan/vulkan_helper.cpp
         graphic/vulkan/vulkan.cpp
         graphic/vulkan/vulkan.cppm
@@ -127,9 +128,11 @@ target_link_libraries(vis_obj PUBLIC
         glm::glm
         GLEW::GLEW
         box2d::box2d
+        #        glslang::glslang
         Vulkan::Headers
         Vulkan::Loader
-        yaml-cpp::yaml-cpp)
+        yaml-cpp::yaml-cpp
+)
 
 target_add_extra_warnings(vis_obj PUBLIC)
 target_set_warnings_as_error(vis_obj)
