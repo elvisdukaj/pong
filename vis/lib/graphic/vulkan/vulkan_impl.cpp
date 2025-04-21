@@ -113,6 +113,7 @@ private:
 
 	void create_device_and_command_pool() {
 		device = selected_physical_device.create_device();
+
 		// clang-format off
 		command_pool = vkh::CommandPoolBuilder{device}
 				.with_queue_family_index(0)

@@ -34,7 +34,7 @@ target_sources(vis_obj
         graphic/spirv/spirv.cpp
         graphic/vulkan/vulkan_helper.cpp
         graphic/vulkan/vulkan.cpp
-        graphic/vulkan/vulkan.cppm
+        graphic/vulkan/vulkan_hpp.cpp
 
         PRIVATE FILE_SET HEADERS
         FILES

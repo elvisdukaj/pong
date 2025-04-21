@@ -1,5 +1,7 @@
 module;
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
 #include <yaml-cpp/yaml.h>
 
 #include <cassert>
@@ -15,7 +17,8 @@ export namespace vkh {
 using ::vk::raii::Instance;
 using Surface = ::vk::raii::SurfaceKHR;
 using ::vk::CommandPool;
-using ::vk::raii::Device;
+// using ::vk::raii::Device;
+class Device;
 using ::vk::raii::RenderPass;
 
 // Forward declarations
@@ -293,21 +296,22 @@ private:
 	// bool with_yaml_serialization = true;
 };
 
-// class MyCommandPool : private vk::raii::CommandPool {
-// public:
-// explicit CommandPool(vk::raii::CommandPool&& command_pool) : vk::raii::CommandPool{std::move(command_pool)} {};
-// };
+class Device : private vk::raii::Device {
+public:
+	explicit Device(std::nullptr_t) : vk::raii::Device{nullptr}, physical_device{nullptr} {}
 
-// class Device : private vk::raii::Device {
-// public:
-// explicit Device(vk::raii::Device&& device) : vk::raii::Device{std::move(device)} {}
+	Device(vk::raii::PhysicalDevice physical_device, vk::raii::Device&& device)
+			: vk::raii::Device{std::move(device)}, physical_device{std::move(physical_device)} {}
 
-// CommandPool create_command_pool()
-// };
+	using vk::raii::Device::createCommandPool;
+
+private:
+	vk::raii::PhysicalDevice physical_device;
+};
 
 class CommandPoolBuilder {
 public:
-	CommandPoolBuilder(vk::raii::Device& device) : device{device} {}
+	CommandPoolBuilder(Device& device) : device{device} {}
 
 	CommandPoolBuilder& with_queue_family_index(size_t index) {
 		queue_family_index = index;
@@ -335,7 +339,7 @@ public:
 	}
 
 private:
-	vk::raii::Device& device;
+	Device& device;
 	size_t queue_family_index = 0;
 	vk::CommandPoolCreateFlagBits flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 };
@@ -527,7 +531,6 @@ public:
 	}
 
 	Device create_device() const {
-
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < queue_families.size(); i++) {
 			auto priorities = std::vector<float>(queue_families[i].queueFamilyProperties.queueCount, 1.0f);
@@ -557,7 +560,7 @@ public:
 			throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
 		}
 
-		return Device{std::move(*device)};
+		return Device{physical_device, std::move(*device)};
 	}
 
 private:
@@ -710,23 +713,6 @@ public:
 	}
 
 private:
-	// const_iterator get_first_discrete_gpu() const {
-	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_discrete));
-	// }
-	//
-	// const_iterator get_first_integrated_gpu() const {
-	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_integrated));
-	// }
-	//
-	// const_iterator get_first_cpu_gpu() const {
-	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_cpu));
-	// }
-	//
-	// const_iterator get_first_virtual_cpu_gpu() const {
-	// 	return std::find_if(begin(), end(), std::mem_fn(&PhysicalDevice::is_virtual));
-	// }
-
-private:
 	Instance& intance;
 	std::vector<const char*> required_gpu_extensions;
 	vk::raii::SurfaceKHR* surface{nullptr};
@@ -876,7 +862,6 @@ public:
 			throw std::runtime_error{
 					std::format("Unable to create a Vulkan RenderPass: {}", vk::to_string(render_pass.error()))};
 		}
-
 		return vk::raii::RenderPass{std::move(*render_pass)};
 	}
 
