@@ -14,17 +14,16 @@ import vis.window;
 
 export namespace vkh {
 
-using ::vk::raii::Instance;
-using Surface = ::vk::raii::SurfaceKHR;
-using ::vk::CommandPool;
-// using ::vk::raii::Device;
-class Device;
-using ::vk::raii::RenderPass;
-
-// Forward declarations
+// forward and using
 class Context;
 class InstanceBuilder;
+using ::vk::raii::Instance;
+// class Instance;
+using Surface = ::vk::raii::SurfaceKHR;
 class PhysicalDeviceSelector;
+using ::vk::CommandPool;
+class Device;
+using ::vk::raii::RenderPass;
 class RenderPassBuilder;
 
 constexpr std::vector<const char*> get_physical_device_extensions() {
@@ -109,6 +108,7 @@ public:
 	}
 
 	uint32_t api_version;
+	uint32_t instance_api_version;
 
 	std::vector<const char*> get_available_layers() const {
 		// clang-format off
@@ -169,8 +169,13 @@ class InstanceBuilder {
 public:
 	InstanceBuilder(Context& context) : context{context} {}
 
-	InstanceBuilder& with_minimum_required_instance_version(uint32_t version) {
-		minimim_instance_version = version;
+	InstanceBuilder& with_minimum_required_instance_version(int variant, int major, int minor, int patch) {
+		minimim_instance_version = vk::makeApiVersion(variant, major, minor, patch);
+		return *this;
+	}
+
+	InstanceBuilder& with_maximum_required_instance_version(int variant, int major, int minor, int patch) {
+		maximum_instance_version = vk::makeApiVersion(variant, major, minor, patch);
 		return *this;
 	}
 
@@ -230,11 +235,16 @@ public:
 	}
 
 	vk::raii::Instance build() {
-		if (required_api_version > context.api_version) {
+		maximum_instance_version = std::min(maximum_instance_version, context.api_version);
+		if (minimim_instance_version > maximum_instance_version) {
 			throw std::runtime_error{std::format("The minimum vulkan version is {} bu the minimum required is {}",
-																					 vk_version_to_string(context.api_version),
+																					 vk_version_to_string(maximum_instance_version),
 																					 vk_version_to_string(minimim_instance_version))};
 		}
+
+		auto required_api_version = std::max(minimim_instance_version, maximum_instance_version);
+
+		context.instance_api_version = required_api_version;
 
 		auto avilable_layers = context.get_available_layers();
 		if (not context.has_layers(required_layers)) {
@@ -276,7 +286,7 @@ private:
 	Context& context;
 
 	uint32_t minimim_instance_version = vk::makeApiVersion(0, 1, 0, 0);
-	uint32_t required_api_version = vk::makeApiVersion(0, 1, 0, 0);
+	uint32_t maximum_instance_version = vk::makeApiVersion(0, 1, 0, 0);
 
 	// VkApplicationInfo
 	std::string app_name = "";
@@ -298,15 +308,38 @@ private:
 
 class Device : private vk::raii::Device {
 public:
-	explicit Device(std::nullptr_t) : vk::raii::Device{nullptr}, physical_device{nullptr} {}
+	explicit Device(std::nullptr_t) : vk::raii::Device{nullptr}, allocator{VK_NULL_HANDLE} {}
 
-	Device(vk::raii::PhysicalDevice physical_device, vk::raii::Device&& device)
-			: vk::raii::Device{std::move(device)}, physical_device{std::move(physical_device)} {}
+	Device(VmaAllocator allocator, vk::raii::Device&& device)
+			: vk::raii::Device{std::move(device)}, allocator(allocator) {}
+
+	~Device() {
+		if (allocator != VK_NULL_HANDLE) {
+			vmaDestroyAllocator(allocator);
+		}
+	}
+
+	void swap(Device& other) noexcept {
+		std::swap(allocator, other.allocator);
+		std::swap(static_cast<vk::raii::Device&>(*this), static_cast<vk::raii::Device&>(other));
+	}
+
+	Device(const Device& other) = delete;
+	Device& operator=(const Device& other) = delete;
+
+	Device(Device&& other) noexcept : vk::raii::Device{nullptr}, allocator{VK_NULL_HANDLE} {
+		swap(other);
+	}
+
+	Device& operator=(Device&& other) noexcept {
+		swap(other);
+		return *this;
+	}
 
 	using vk::raii::Device::createCommandPool;
 
 private:
-	vk::raii::PhysicalDevice physical_device;
+	VmaAllocator allocator = VK_NULL_HANDLE;
 };
 
 class CommandPoolBuilder {
@@ -530,7 +563,7 @@ public:
 		return configuration;
 	}
 
-	Device create_device() const {
+	Device create_device(Context& context, Instance& instance) const {
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < queue_families.size(); i++) {
 			auto priorities = std::vector<float>(queue_families[i].queueFamilyProperties.queueCount, 1.0f);
@@ -560,7 +593,29 @@ public:
 			throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
 		}
 
-		return Device{physical_device, std::move(*device)};
+		VmaVulkanFunctions functions = {};
+		functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+		functions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
+		auto allocator_info = VmaAllocatorCreateInfo{
+				.flags = 0,
+				.physicalDevice = static_cast<vk::raii::PhysicalDevice::CType>(
+						static_cast<vk::raii::PhysicalDevice::CppType>(physical_device)),
+				.device = static_cast<vk::raii::Device::CType>(static_cast<vk::raii::Device::CppType>(*device)),
+				.preferredLargeHeapBlockSize = 0, // default
+				.pAllocationCallbacks = nullptr,	//
+				.pDeviceMemoryCallbacks = nullptr,
+				.pHeapSizeLimit = nullptr,
+				.pVulkanFunctions = &functions, //
+				.instance = static_cast<vk::raii::Instance::CType>(static_cast<vk::raii::Instance::CppType>(instance)),
+				.vulkanApiVersion = context.instance_api_version,
+				.pTypeExternalMemoryHandleTypes = nullptr,
+		};
+
+		VmaAllocator allocator;
+		vmaCreateAllocator(&allocator_info, &allocator);
+
+		return Device{allocator, std::move(*device)};
 	}
 
 private:

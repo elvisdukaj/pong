@@ -63,6 +63,8 @@ private:
 											.add_required_layers(required_layers)
 											.add_required_extensions(required_extensions)
 											.add_required_extensions(required_windows_extensions)
+											.with_minimum_required_instance_version(0, 1, 2, 0)
+											.with_maximum_required_instance_version(0, 1, 3, 0)
 											.build();
 
 		vk_config["instance"] = context.serialize();
@@ -112,7 +114,7 @@ private:
 	}
 
 	void create_device_and_command_pool() {
-		device = selected_physical_device.create_device();
+		device = selected_physical_device.create_device(context, vk_instance);
 
 		// clang-format off
 		command_pool = vkh::CommandPoolBuilder{device}
@@ -120,6 +122,7 @@ private:
 				.create();
 		// clang-format on
 
+#if HAS_RENDER_PASS
 		std::shared_ptr<vkh::Texture> front_buffer;
 		std::shared_ptr<vkh::Texture> back_buffer;
 		std::shared_ptr<vkh::Texture> stencil_buffer;
@@ -135,6 +138,7 @@ private:
 				// .add_attachments(buffer_textures)
 				// .build();
 		// clang-format on
+#endif
 	}
 
 private:
