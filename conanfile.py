@@ -34,6 +34,7 @@ class PongRecipe(ConanFile):
         self.requires("glew/2.2.0")
         self.requires("sml/1.1.9")
         self.requires("vulkan-loader/1.4.309.0")
+        self.requires("vulkan-memory-allocator/3.2.1")
         self.requires("yaml-cpp/0.8.0")
 
     def layout(self):

@@ -6,7 +6,7 @@ find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanLoader CONFIG REQUIRED)
-#find_package(glslang CONFIG REQUIRED)
+find_package(vulkan-memory-allocator CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_library(vis_obj OBJECT)
@@ -128,9 +128,9 @@ target_link_libraries(vis_obj PUBLIC
         glm::glm
         GLEW::GLEW
         box2d::box2d
-        #        glslang::glslang
         Vulkan::Headers
         Vulkan::Loader
+        vulkan-memory-allocator::vulkan-memory-allocator
         yaml-cpp::yaml-cpp
 )
 
