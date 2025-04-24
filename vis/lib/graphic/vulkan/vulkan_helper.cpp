@@ -46,6 +46,8 @@ std::vector<const char*> get_required_extensions() {
 #if defined(__APPLE__)
 	required_extensions.push_back(vk::EXTMetalSurfaceExtensionName);
 	required_extensions.push_back(vk::KHRPortabilityEnumerationExtensionName);
+#elif defined(__linux__)
+	// required_extensions.push_back(vk::)
 #endif
 
 	return required_extensions;
@@ -92,18 +94,16 @@ public:
 			layer_conf["name"] = std::string_view{layer.layerName};
 			layer_conf["description"] = std::string_view{layer.description};
 			layer_conf["implementation version"] = layer.implementationVersion;
-			layer_conf["spec version"] = layer.specVersion;
+			layer_conf["spec version"] = vk_version_to_string(layer.specVersion);
 			config_["available layers"].push_back(layer_conf);
 
 			auto layer_extensions = context.enumerateInstanceExtensionProperties(std::string{layer.layerName});
 			available_extensions.insert(end(available_extensions), begin(layer_extensions), end(layer_extensions));
 		}
 
+		YAML::Node node = config_["available extensions"];
 		for (const auto& extension : available_extensions) {
-			YAML::Node ext_conf;
-			ext_conf["name"] = std::string_view{extension.extensionName};
-			ext_conf["spec version"] = extension.specVersion;
-			config_["available extensions"].push_back(ext_conf);
+			node.push_back(std::string_view{extension.extensionName});
 		}
 	}
 
@@ -175,13 +175,13 @@ public:
 	}
 
 	YAML::Node dump() const {
-		return config;
+		return YAML::Clone(config);
 	}
 
 	void swap(Instance& other) noexcept {
 		std::swap(static_cast<vk::raii::Instance&>(*this), static_cast<vk::raii::Instance&>(other));
 		std::swap(api_version, other.api_version);
-		std::swap(config, other.config);
+		config = YAML::Clone(other.config);
 	}
 
 	Instance(const Instance& other) = delete;
@@ -556,6 +556,28 @@ public:
 		}
 	}
 
+	void swap(PhysicalDevice& other) noexcept {
+		std::swap(this->physical_device, other.physical_device);
+		std::swap(this->surface, other.surface);
+		std::swap(this->properties, other.properties);
+		std::swap(this->features, other.features);
+		std::swap(this->extensions, other.extensions);
+		std::swap(this->queue_families, other.queue_families);
+		this->configuration = YAML::Clone(other.configuration);
+	}
+
+	PhysicalDevice(PhysicalDevice&) = delete;
+	PhysicalDevice& operator=(PhysicalDevice&) = delete;
+
+	PhysicalDevice(PhysicalDevice&& other) noexcept : physical_device{nullptr}, surface{nullptr} {
+		swap(other);
+	}
+
+	PhysicalDevice& operator=(PhysicalDevice&& other) noexcept {
+		swap(other);
+		return *this;
+	}
+
 	std::string_view name() const {
 		return std::string_view{properties.properties.deviceName};
 	}
@@ -829,13 +851,25 @@ public:
 										 vk::PhysicalDeviceType::eIntegratedGpu) != end(allowed_physical_device_types);
 	}
 
-	auto find_first_discrete_gpu(const std::vector<PhysicalDevice>& physical_devices) const
+	auto find_first_discrete_gpu(const std::vector<PhysicalDevice>& physical_devices) const noexcept
 			-> decltype(begin(physical_devices)) {
 		return std::find_if(begin(physical_devices), end(physical_devices),
 												[](const PhysicalDevice& device) { return device.is_discrete(); });
 	}
 
-	auto find_first_integrated_gpu(const std::vector<PhysicalDevice>& physical_devices) const
+	auto find_first_integrated_gpu(const std::vector<PhysicalDevice>& physical_devices) const noexcept
+			-> decltype(begin(physical_devices)) {
+		return std::find_if(begin(physical_devices), end(physical_devices),
+												[](const PhysicalDevice& device) { return device.is_integrated(); });
+	}
+
+	auto find_first_discrete_gpu(std::vector<PhysicalDevice>& physical_devices) noexcept
+			-> decltype(begin(physical_devices)) {
+		return std::find_if(begin(physical_devices), end(physical_devices),
+												[](const PhysicalDevice& device) { return device.is_discrete(); });
+	}
+
+	auto find_first_integrated_gpu(std::vector<PhysicalDevice>& physical_devices) noexcept
 			-> decltype(begin(physical_devices)) {
 		return std::find_if(begin(physical_devices), end(physical_devices),
 												[](const PhysicalDevice& device) { return device.is_integrated(); });

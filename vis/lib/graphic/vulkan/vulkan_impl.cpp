@@ -74,7 +74,9 @@ private:
 		for (const auto& required_extension : required_windows_extensions) {
 			vk_config["context"]["required windows extensions"].push_back(required_extension);
 		}
-		vk_config["instance"] = vk_instance.dump();
+
+		auto node = vk_config["instance"];
+		node = vk_instance.dump();
 	}
 
 	void create_surface() {
@@ -110,17 +112,17 @@ private:
 			throw std::runtime_error{expected_device.error()};
 		}
 
-		selected_physical_device = *expected_device;
+		selected_physical_device = std::move(*expected_device);
 		vk_config["selected physical device"] = selected_physical_device.name();
 	}
 
 	void create_device_and_command_pool() {
-		device = selected_physical_device.create_device(vk_instance);
+		// device = selected_physical_device.create_device(vk_instance);
 
-		// clang-format off
-		command_pool = vkh::CommandPoolBuilder{device}
-				.with_queue_family_index(0)
-				.create();
+		// // clang-format off
+		// command_pool = vkh::CommandPoolBuilder{device}
+		// 		.with_queue_family_index(0)
+		// 		.create();
 		// clang-format on
 
 #if HAS_RENDER_PASS
