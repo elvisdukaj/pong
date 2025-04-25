@@ -345,12 +345,9 @@ private:
 
 	// Custom allocator
 	std::optional<vk::AllocationCallbacks> allocation_callbacks = std::nullopt;
-
-	// bool use_debug_messenger = false;
-	// bool with_yaml_serialization = true;
 };
 
-class Device : private vk::raii::Device {
+class Device : public vk::raii::Device {
 public:
 	explicit Device(std::nullptr_t) : vk::raii::Device{nullptr}, allocator{VK_NULL_HANDLE} {}
 
@@ -529,14 +526,11 @@ public:
 			node["description"] = (std::string_view{layer.description});
 			node["spec version"] = vk_version_to_string(layer.specVersion);
 			node["implementation version"] = layer.implementationVersion;
-			configuration["layers"] = node;
+			configuration["layers"].push_back(node);
 		}
 
 		for (const auto& extension : extensions) {
-			YAML::Node node;
-			node["name"] = std::string_view{extension.extensionName};
-			node["spec version"] = vk_version_to_string(extension.specVersion);
-			configuration["extension"] = node;
+			configuration["extension"].push_back(std::string_view{extension.extensionName});
 		}
 
 		auto queue_family_index = 0u;
@@ -550,7 +544,7 @@ public:
 				node["preset support"] = static_cast<bool>(preset_support);
 			}
 
-			configuration["queue families"] = node;
+			configuration["queue families"].push_back(node);
 
 			++queue_family_index;
 		}
@@ -561,6 +555,7 @@ public:
 		std::swap(this->surface, other.surface);
 		std::swap(this->properties, other.properties);
 		std::swap(this->features, other.features);
+		std::swap(this->layers, other.layers);
 		std::swap(this->extensions, other.extensions);
 		std::swap(this->queue_families, other.queue_families);
 		this->configuration = YAML::Clone(other.configuration);
