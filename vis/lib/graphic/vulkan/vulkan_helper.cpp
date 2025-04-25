@@ -200,8 +200,12 @@ public:
 		return api_version;
 	}
 
+	CppType cpp_type() const noexcept {
+		return static_cast<CppType>(*this);
+	}
+
 	CType native_handle() const noexcept {
-		return static_cast<CType>(static_cast<CppType>(*this));
+		return static_cast<CType>(cpp_type());
 	}
 
 	using vk::raii::Instance::enumeratePhysicalDevices;
@@ -425,11 +429,11 @@ public:
 
 	using vk::raii::SurfaceKHR::SurfaceKHR;
 
-	CType native_handle() const noexcept {
-		return static_cast<CType>(static_cast<CppType>(*this));
-	}
+	// const CppType& cpp_type() const noexcept {
+	// return static_cast<CppType>(*this);
+	// }
 
-	CppType cpp_handle() const noexcept {
+	CType native_handle() const noexcept {
 		return static_cast<CType>(static_cast<CppType>(*this));
 	}
 };
@@ -540,7 +544,7 @@ public:
 			node["count"] = queue_family.queueFamilyProperties.queueCount;
 
 			if (surface != nullptr) {
-				auto preset_support = physical_device.getSurfaceSupportKHR(queue_family_index, surface->cpp_handle());
+				auto preset_support = physical_device.getSurfaceSupportKHR(queue_family_index, *surface);
 				node["preset support"] = static_cast<bool>(preset_support);
 			}
 
@@ -1012,6 +1016,141 @@ private:
 	std::vector<vk::ImageLayout> image_layouts;
 	std::vector<vk::AttachmentLoadOp> load_ops;
 	std::vector<vk::AttachmentStoreOp> store_ops;
+};
+
+class SwapChain : public vk::raii::SwapchainKHR {
+public:
+	using vk::raii::SwapchainKHR::CppType;
+	using vk::raii::SwapchainKHR::CType;
+	using vk::raii::SwapchainKHR::SwapchainKHR;
+
+	SwapChain(vk::raii::SwapchainKHR&& swapchain) : vk::raii::SwapchainKHR{std::move(swapchain)} {}
+
+	CType native_handle() const noexcept {
+		return static_cast<CType>(static_cast<CppType>(*this));
+	}
+};
+
+class SwapChainBuilder {
+public:
+	SwapChainBuilder(Surface& surface, Device& device) : surface{surface}, device{device} {}
+
+	SwapChainBuilder& set_flags(vk::SwapchainCreateFlagsKHR required_flags) {
+		flags = required_flags;
+		return *this;
+	}
+
+	SwapChainBuilder& set_min_image_count(uint32_t required_min_count) {
+		min_image_count = required_min_count;
+		return *this;
+	}
+
+	SwapChainBuilder& set_required_format(vk::Format required_format) {
+		format = required_format;
+		return *this;
+	}
+
+	SwapChainBuilder& set_required_image_color_space(vk::ColorSpaceKHR required_color_space) {
+		color_space = required_color_space;
+		return *this;
+	}
+
+	SwapChainBuilder& set_extent(vk::Extent2D required_extent_2d) {
+		extent = required_extent_2d;
+		return *this;
+	}
+
+	SwapChainBuilder& set_image_arrat_layers(uint32_t required_image_array_layers) {
+		image_arrat_layers = required_image_array_layers;
+		return *this;
+	}
+
+	SwapChainBuilder& set_image_usage(vk::ImageUsageFlags required_image_usage) {
+		image_usage = required_image_usage;
+		return *this;
+	}
+
+	SwapChainBuilder& set_image_sharing_mode(vk::SharingMode required_image_sharing_mode) {
+		sharing_mode = required_image_sharing_mode;
+		return *this;
+	}
+
+	SwapChainBuilder& add_queue_fanily_index(uint32_t queue_family_index) {
+		queue_family_indices.push_back(queue_family_index);
+		return *this;
+	}
+
+	SwapChainBuilder& add_queue_fanily_index(std::span<uint32_t> required_queue_family_indes) {
+		queue_family_indices.insert(end(queue_family_indices), begin(required_queue_family_indes),
+																end(required_queue_family_indes));
+		return *this;
+	}
+
+	SwapChainBuilder& set_pre_transform(vk::SurfaceTransformFlagBitsKHR required_pre_transform) {
+		pre_transform = required_pre_transform;
+		return *this;
+	}
+
+	SwapChainBuilder& set_composite_alpha(vk::CompositeAlphaFlagBitsKHR required_composite_alpha) {
+		composite_alpha = required_composite_alpha;
+		return *this;
+	}
+
+	SwapChainBuilder& set_present_mode(vk::PresentModeKHR required_present_mode) {
+		present_mode = required_present_mode;
+		return *this;
+	}
+
+	SwapChainBuilder& set_clipped(bool required_clipped) {
+		clipped = required_clipped;
+		return *this;
+	}
+
+	SwapChainBuilder& set_old_swapchain(SwapChain& use_old_swapchain) {
+		old_swapchain = use_old_swapchain.native_handle();
+		return *this;
+	}
+
+	SwapChain build() const {
+		vk::SwapchainCreateInfoKHR swapchain_create_info{
+				.flags = flags,
+				.surface = surface.native_handle(),
+				.minImageCount = min_image_count,
+				.imageFormat = format,
+				.imageColorSpace = color_space,
+				.imageExtent = extent,
+				.imageArrayLayers = image_arrat_layers,
+				.imageUsage = image_usage,
+				.imageSharingMode = sharing_mode,
+				.queueFamilyIndexCount = static_cast<uint32_t>(queue_family_indices.size()),
+				.pQueueFamilyIndices = queue_family_indices.data(),
+				.preTransform = pre_transform,
+				.compositeAlpha = composite_alpha,
+				.presentMode = present_mode,
+				.clipped = clipped,
+				.oldSwapchain = VK_NULL_HANDLE,
+		};
+
+		return vk::raii::SwapchainKHR{std::move(*device.createSwapchainKHR(swapchain_create_info))};
+	}
+
+private:
+	Surface& surface;
+	Device& device;
+	vk::SwapchainCreateFlagsKHR flags{};
+	uint32_t min_image_count = 2;
+	vk::Format format = vk::Format::eB8G8R8A8Unorm;
+	vk::ColorSpaceKHR color_space = vk::ColorSpaceKHR::eSrgbNonlinear;
+	vk::Extent2D extent;
+	uint32_t image_arrat_layers = 1;
+	vk::ImageUsageFlags image_usage = vk::ImageUsageFlagBits::eColorAttachment;
+	vk::SharingMode sharing_mode = vk::SharingMode::eExclusive;
+	std::vector<uint32_t> queue_family_indices;
+	vk::SurfaceTransformFlagBitsKHR pre_transform = vk::SurfaceTransformFlagBitsKHR::eIdentity;
+	vk::CompositeAlphaFlagBitsKHR composite_alpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+	vk::PresentModeKHR present_mode = vk::PresentModeKHR::eFifo;
+	bool clipped = VK_TRUE;
+	vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE;
 };
 
 } // namespace vkh
