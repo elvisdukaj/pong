@@ -8,7 +8,7 @@ module;
 
 export module vkh;
 
-import std;
+export import std;
 import vulkan_hpp;
 import vis.window;
 
