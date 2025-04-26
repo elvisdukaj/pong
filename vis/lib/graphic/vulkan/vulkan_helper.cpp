@@ -474,6 +474,19 @@ public:
 		extensions = physical_device.enumerateDeviceExtensionProperties();
 		queue_families = physical_device.getQueueFamilyProperties2();
 
+		for (auto i = 0u; i < queue_families.size(); i++) {
+			auto queue_porp = queue_families[i].queueFamilyProperties;
+			if (queue_porp.queueFlags & vk::QueueFlagBits::eGraphics) {
+				graphic_queue_indees.push_back(static_cast<uint32_t>(i));
+			}
+			if (queue_porp.queueFlags & vk::QueueFlagBits::eTransfer) {
+				transfer_queue_indees.push_back(static_cast<uint32_t>(i));
+			}
+			if (queue_porp.queueFlags & vk::QueueFlagBits::eCompute) {
+				compute_queue_indees.push_back(static_cast<uint32_t>(i));
+			}
+		}
+
 		for (const auto& layer : layers) {
 			auto layer_extension = physical_device.enumerateDeviceExtensionProperties(std::string{layer.layerName});
 			extensions.insert(end(extensions), begin(layer_extension), end(layer_extension));
@@ -572,6 +585,9 @@ public:
 		std::swap(this->layers, other.layers);
 		std::swap(this->extensions, other.extensions);
 		std::swap(this->queue_families, other.queue_families);
+		std::swap(this->graphic_queue_indees, other.graphic_queue_indees);
+		std::swap(this->transfer_queue_indees, other.transfer_queue_indees);
+		std::swap(this->compute_queue_indees, other.compute_queue_indees);
 		this->configuration = YAML::Clone(other.configuration);
 	}
 
@@ -587,7 +603,11 @@ public:
 		return *this;
 	}
 
-	std::string_view name() const {
+	const std::vector<uint32_t>& get_graphic_queue_indees() const noexcept {
+		return graphic_queue_indees;
+	}
+
+	std::string_view name() const noexcept {
 		return std::string_view{properties.properties.deviceName};
 	}
 
@@ -731,6 +751,9 @@ private:
 	std::vector<vk::LayerProperties> layers;
 	std::vector<vk::ExtensionProperties> extensions;
 	std::vector<vk::QueueFamilyProperties2> queue_families;
+	std::vector<uint32_t> graphic_queue_indees;
+	std::vector<uint32_t> transfer_queue_indees;
+	std::vector<uint32_t> compute_queue_indees;
 
 	YAML::Node configuration;
 };
