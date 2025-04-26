@@ -27,7 +27,10 @@ using ::vk::raii::RenderPass;
 class RenderPassBuilder;
 
 constexpr std::vector<const char*> get_physical_device_extensions() {
-	std::vector<const char*> required_extensions = {};
+	std::vector<const char*> required_extensions = {
+			vk::KHRSwapchainExtensionName,
+			vk::KHRDynamicRenderingExtensionName,
+	};
 
 #if defined(__APPLE__)
 	required_extensions.push_back("VK_KHR_portability_subset");
