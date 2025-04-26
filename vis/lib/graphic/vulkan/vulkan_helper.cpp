@@ -708,8 +708,8 @@ public:
 		}
 
 		VmaVulkanFunctions functions = {};
-		functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-		functions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+		functions.vkGetInstanceProcAddr = physical_device.getDispatcher()->vkGetInstanceProcAddr;
+		functions.vkGetDeviceProcAddr = physical_device.getDispatcher()->vkGetDeviceProcAddr;
 
 		auto allocator_info = VmaAllocatorCreateInfo{
 				.flags = 0,
