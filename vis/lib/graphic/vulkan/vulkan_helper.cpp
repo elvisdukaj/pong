@@ -26,7 +26,7 @@ class Device;
 class RenderPass;
 class RenderPassBuilder;
 
-constexpr std::vector<const char*> get_physical_device_extensions() {
+constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
 	std::vector<const char*> required_extensions = {
 			vk::KHRSwapchainExtensionName,
 			vk::KHRDynamicRenderingExtensionName,
@@ -38,12 +38,12 @@ constexpr std::vector<const char*> get_physical_device_extensions() {
 	return required_extensions;
 }
 
-std::string vk_version_to_string(uint32_t version) {
+std::string vk_version_to_string(uint32_t version) noexcept {
 	return std::format("{}.{}.{}", vk::apiVersionMajor(version), vk::apiVersionMinor(version),
 										 vk::apiVersionPatch(version));
 }
 
-std::vector<const char*> get_required_extensions() {
+std::vector<const char*> get_required_extensions() noexcept {
 	std::vector<const char*> required_extensions;
 
 #if defined(__APPLE__)
@@ -56,7 +56,7 @@ std::vector<const char*> get_required_extensions() {
 	return required_extensions;
 }
 
-std::vector<const char*> get_required_layers() {
+std::vector<const char*> get_required_layers() noexcept {
 	std::vector<const char*> required_layers;
 
 #if not defined(NDEBUG)
@@ -71,7 +71,7 @@ std::vector<const char*> get_required_layers() {
 	return required_layers;
 }
 
-constexpr ::vk::InstanceCreateFlags get_required_instance_flags() {
+constexpr ::vk::InstanceCreateFlags get_required_instance_flags() noexcept {
 	vk::InstanceCreateFlags flags;
 
 #if defined(__APPLE__)
@@ -112,7 +112,7 @@ public:
 
 	uint32_t api_version;
 
-	std::vector<const char*> get_available_layers() const {
+	[[nodiscard]] std::vector<const char*> get_available_layers() const noexcept {
 		// clang-format off
 		return available_layers
 			| std::views::transform([](const auto& layer) -> const char* { return layer.layerName; })
@@ -120,7 +120,7 @@ public:
 		// clang-format on
 	};
 
-	std::vector<const char*> get_available_extensions() const {
+	[[nodiscard]] std::vector<const char*> get_available_extensions() const noexcept {
 		// clang-format off
 		return available_extensions
 			| std::views::transform([](const auto& extension) -> const char* { return extension.extensionName; })
@@ -128,34 +128,28 @@ public:
 		// clang-format on
 	}
 
-	bool has_extension(std::string_view extension_name) const {
-		auto match_extension_name = [extension_name](const vk::ExtensionProperties& extension) -> bool {
-			return std::string_view{extension.extensionName} == extension_name;
-		};
-
-		auto it = std::find_if(begin(available_extensions), end(available_extensions), match_extension_name);
-		return it != end(available_extensions);
+	[[nodiscard]] bool has_extension(std::string_view extension_name) const noexcept {
+		return std::ranges::find_if(available_extensions, [extension_name](const auto& extension) -> bool {
+						 return std::string_view{extension.extensionName} == extension_name;
+					 }) != end(available_extensions);
 	}
 
-	bool has_extensions(std::span<const char*> extensions) {
-		return std::all_of(begin(extensions), end(extensions),
-											 [this](const char* extension_name) { return has_extension(extension_name); });
+	[[nodiscard]] bool has_extensions(std::span<const char*> extensions) const noexcept {
+		return std::ranges::all_of(extensions,
+															 [this](const char* extension_name) { return has_extension(extension_name); });
 	}
 
-	bool has_layer(std::string_view layer_name) const {
-		auto match_layer_name = [layer_name](const vk::LayerProperties& layer) -> bool {
-			return std::string_view{layer.layerName} == layer_name;
-		};
-
-		auto it = std::find_if(begin(available_layers), end(available_layers), match_layer_name);
-		return it != end(available_layers);
+	[[nodiscard]] bool has_layer(std::string_view layer_name) const {
+		return std::ranges::find_if(available_layers, [layer_name](const vk::LayerProperties& layer) -> bool {
+						 return std::string_view{layer.layerName} == layer_name;
+					 }) != end(available_layers);
 	}
 
-	bool has_layers(std::span<const char*> layers) {
-		return std::all_of(begin(layers), end(layers), [this](const char* layer_name) { return has_layer(layer_name); });
+	[[nodiscard]] bool has_layers(std::span<const char*> layers) const noexcept {
+		return std::ranges::all_of(layers, [this](const char* layer_name) { return has_layer(layer_name); });
 	}
 
-	YAML::Node serialize() const {
+	YAML::Node serialize() const noexcept {
 		return config_;
 	}
 
@@ -171,6 +165,8 @@ class Instance : public vk::raii::Instance {
 public:
 	using vk::raii::Instance::CType;
 	using vk::raii::Instance::Instance;
+
+	explicit Instance(std::nullopt_t) : vk::raii::Instance{nullptr}, api_version{} {}
 
 	Instance(vk::raii::Instance&& instance, uint32_t required_version)
 			: vk::raii::Instance{std::move(instance)}, api_version{required_version} {
@@ -190,16 +186,16 @@ public:
 	Instance(const Instance& other) = delete;
 	Instance& operator=(const Instance& other) = delete;
 
-	Instance(Instance&& other) : vk::raii::Instance{nullptr}, api_version{0} {
+	Instance(Instance&& other) noexcept : vk::raii::Instance{nullptr}, api_version{0} {
 		swap(other);
 	}
 
-	Instance& operator=(Instance&& other) {
+	Instance& operator=(Instance&& other) noexcept {
 		swap(other);
 		return *this;
 	}
 
-	uint32_t get_api_version() const noexcept {
+	[[nodiscard]] uint32_t get_api_version() const noexcept {
 		return api_version;
 	}
 
@@ -220,91 +216,91 @@ private:
 
 class InstanceBuilder {
 public:
-	InstanceBuilder(Context& context) : context{context} {}
+	explicit InstanceBuilder(Context& context) : context{context} {}
 
-	InstanceBuilder& with_minimum_required_instance_version(int variant, int major, int minor, int patch) {
-		minimim_instance_version = vk::makeApiVersion(variant, major, minor, patch);
+	InstanceBuilder& with_minimum_required_instance_version(int variant, int major, int minor, int patch) noexcept {
+		minimum_instance_version = vk::makeApiVersion(variant, major, minor, patch);
 		return *this;
 	}
 
-	InstanceBuilder& with_maximum_required_instance_version(int variant, int major, int minor, int patch) {
+	InstanceBuilder& with_maximum_required_instance_version(int variant, int major, int minor, int patch) noexcept {
 		maximum_instance_version = vk::makeApiVersion(variant, major, minor, patch);
 		return *this;
 	}
 
-	InstanceBuilder& with_app_name(std::string_view name) {
+	InstanceBuilder& with_app_name(std::string_view name) noexcept {
 		app_name = name;
 		return *this;
 	}
 
-	InstanceBuilder& with_app_version(uint32_t version) {
+	InstanceBuilder& with_app_version(uint32_t version) noexcept {
 		app_version = version;
 		return *this;
 	}
 
-	InstanceBuilder& with_app_version(int major, int minor, int patch) {
+	InstanceBuilder& with_app_version(int major, int minor, int patch) noexcept {
 		app_version = vk::makeApiVersion(0, major, minor, patch);
 		return *this;
 	}
 
-	InstanceBuilder& with_engine_name(std::string_view name) {
+	InstanceBuilder& with_engine_name(std::string_view name) noexcept {
 		engine_name = name;
 		return *this;
 	}
 
-	InstanceBuilder& with_engine_version(uint32_t version) {
+	InstanceBuilder& with_engine_version(uint32_t version) noexcept {
 		engine_version = version;
 		return *this;
 	}
 
-	InstanceBuilder& with_engine_version(int major, int minor, int patch) {
+	InstanceBuilder& with_engine_version(int major, int minor, int patch) noexcept {
 		engine_version = vk::makeApiVersion(0, major, minor, patch);
 		return *this;
 	}
 
-	InstanceBuilder& add_required_layer(const char* layer_name) {
+	InstanceBuilder& add_required_layer(const char* layer_name) noexcept {
 		required_layers.push_back(layer_name);
 		return *this;
 	}
 
-	InstanceBuilder& add_required_layers(std::span<const char*> layers) {
+	InstanceBuilder& add_required_layers(std::span<const char*> layers) noexcept {
 		required_layers.insert(required_layers.end(), begin(layers), end(layers));
 		return *this;
 	}
 
-	InstanceBuilder& add_required_extension(const char* extension) {
+	InstanceBuilder& add_required_extension(const char* extension) noexcept {
 		required_extensions.push_back(extension);
 		return *this;
 	}
 
-	InstanceBuilder& add_required_extensions(std::span<const char*> extensions) {
+	InstanceBuilder& add_required_extensions(std::span<const char*> extensions) noexcept {
 		required_extensions.insert(required_extensions.end(), begin(extensions), end(extensions));
 		return *this;
 	}
 
-	InstanceBuilder& with_app_flags(vk::InstanceCreateFlags instance_flag) {
+	InstanceBuilder& with_app_flags(vk::InstanceCreateFlags instance_flag) noexcept {
 		flags = instance_flag;
 		return *this;
 	}
 
 	Instance build() {
 		maximum_instance_version = std::min(maximum_instance_version, context.api_version);
-		if (minimim_instance_version > maximum_instance_version) {
+		if (minimum_instance_version > maximum_instance_version) {
 			throw std::runtime_error{std::format("The minimum vulkan version is {} bu the minimum required is {}",
 																					 vk_version_to_string(maximum_instance_version),
-																					 vk_version_to_string(minimim_instance_version))};
+																					 vk_version_to_string(minimum_instance_version))};
 		}
 
-		auto required_api_version = std::max(minimim_instance_version, maximum_instance_version);
+		auto required_api_version = std::max(minimum_instance_version, maximum_instance_version);
 
-		auto avilable_layers = context.get_available_layers();
+		auto available_layers = context.get_available_layers();
 		if (not context.has_layers(required_layers)) {
-			throw std::runtime_error("Some required layers are not avilable");
+			throw std::runtime_error("Some required layers are not available");
 		}
 
-		auto avilable_extensions = context.get_available_extensions();
+		auto available_extensions = context.get_available_extensions();
 		if (not context.has_extensions(required_extensions)) {
-			throw std::runtime_error("Some required extensions are not avilable");
+			throw std::runtime_error("Some required extensions are not available");
 		}
 
 		auto app_info = vk::ApplicationInfo{
@@ -330,17 +326,17 @@ public:
 			throw std::runtime_error{std::format("Unable to create a Vulkan Instance: {}", vk::to_string(instance.error()))};
 		}
 
-		return Instance(std::move(*instance), required_api_version);
+		return Instance{std::move(*instance), required_api_version};
 	}
 
 private:
 	Context& context;
 
-	uint32_t minimim_instance_version = vk::makeApiVersion(0, 1, 0, 0);
+	uint32_t minimum_instance_version = vk::makeApiVersion(0, 1, 0, 0);
 	uint32_t maximum_instance_version = vk::makeApiVersion(0, 1, 0, 0);
 
 	// VkApplicationInfo
-	std::string app_name = "";
+	std::string app_name;
 	std::string engine_name = "vis game engine";
 	uint32_t app_version = 0;
 	uint32_t engine_version = vk::makeApiVersion(0, 0, 0, 1);
@@ -348,7 +344,6 @@ private:
 	std::vector<const char*> required_layers;
 	std::vector<const char*> required_extensions;
 	vk::InstanceCreateFlags flags;
-	std::vector<vk::BaseOutStructure> nexts;
 
 	// Custom allocator
 	std::optional<vk::AllocationCallbacks> allocation_callbacks = std::nullopt;
@@ -365,7 +360,7 @@ class Device : public vk::raii::Device {
 public:
 	explicit Device(std::nullptr_t) : vk::raii::Device{nullptr}, allocator{VK_NULL_HANDLE} {}
 
-	Device(VmaAllocator allocator, vk::raii::Device&& device)
+	Device(VmaAllocator allocator, vk::raii::Device&& device) noexcept
 			: vk::raii::Device{std::move(device)}, allocator(allocator) {}
 
 	~Device() {
@@ -399,19 +394,19 @@ private:
 
 class CommandPoolBuilder {
 public:
-	CommandPoolBuilder(Device& device) : device{device} {}
+	explicit CommandPoolBuilder(Device& device) : device{device} {}
 
 	CommandPoolBuilder& with_queue_family_index(size_t index) {
 		queue_family_index = index;
 		return *this;
 	}
 
-	CommandPoolBuilder& with_flags(vk::CommandPoolCreateFlagBits required_flags) {
+	CommandPoolBuilder& with_flags(vk::CommandPoolCreateFlagBits required_flags) noexcept {
 		flags = required_flags;
 		return *this;
 	}
 
-	vk::raii::CommandPool create() const {
+	[[nodiscard]] vk::raii::CommandPool create() const {
 		vk::CommandPoolCreateInfo create_info{
 				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 				.queueFamilyIndex = static_cast<uint32_t>(queue_family_index),
@@ -439,11 +434,7 @@ public:
 
 	using vk::raii::SurfaceKHR::SurfaceKHR;
 
-	// const CppType& cpp_type() const noexcept {
-	// return static_cast<CppType>(*this);
-	// }
-
-	CType native_handle() const noexcept {
+	[[nodiscard]] CType native_handle() const noexcept {
 		return static_cast<CType>(static_cast<CppType>(*this));
 	}
 };
@@ -452,7 +443,7 @@ class SurfaceBuilder {
 public:
 	explicit SurfaceBuilder(Instance& instance, vis::Window* window) : instance{instance}, window{window} {}
 
-	Surface build() {
+	[[nodiscard]] Surface build() const noexcept {
 		auto vk_surface = window->create_renderer_surface(instance.native_handle(), nullptr);
 		return Surface{instance, vk_surface, nullptr};
 	}
@@ -464,9 +455,9 @@ private:
 
 class PhysicalDevice {
 public:
-	PhysicalDevice() : physical_device{nullptr} /*, surface{nullptr}*/ {}
+	PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {}
 
-	PhysicalDevice(vk::raii::PhysicalDevice&& device, Surface* surface = nullptr)
+	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, Surface* surface = nullptr)
 			: physical_device{std::move(device)}, surface{surface} {
 		properties = physical_device.getProperties2();
 		features = physical_device.getFeatures2();
@@ -475,15 +466,15 @@ public:
 		queue_families = physical_device.getQueueFamilyProperties2();
 
 		for (auto i = 0u; i < queue_families.size(); i++) {
-			auto queue_porp = queue_families[i].queueFamilyProperties;
-			if (queue_porp.queueFlags & vk::QueueFlagBits::eGraphics) {
-				graphic_queue_indees.push_back(static_cast<uint32_t>(i));
+			auto queue_props = queue_families[i].queueFamilyProperties;
+			if (queue_props.queueFlags & vk::QueueFlagBits::eGraphics) {
+				graphic_queue_indexes.push_back(static_cast<uint32_t>(i));
 			}
-			if (queue_porp.queueFlags & vk::QueueFlagBits::eTransfer) {
-				transfer_queue_indees.push_back(static_cast<uint32_t>(i));
+			if (queue_props.queueFlags & vk::QueueFlagBits::eTransfer) {
+				transfer_queue_indexes.push_back(static_cast<uint32_t>(i));
 			}
-			if (queue_porp.queueFlags & vk::QueueFlagBits::eCompute) {
-				compute_queue_indees.push_back(static_cast<uint32_t>(i));
+			if (queue_props.queueFlags & vk::QueueFlagBits::eCompute) {
+				compute_queue_indexes.push_back(static_cast<uint32_t>(i));
 			}
 		}
 
@@ -585,9 +576,9 @@ public:
 		std::swap(this->layers, other.layers);
 		std::swap(this->extensions, other.extensions);
 		std::swap(this->queue_families, other.queue_families);
-		std::swap(this->graphic_queue_indees, other.graphic_queue_indees);
-		std::swap(this->transfer_queue_indees, other.transfer_queue_indees);
-		std::swap(this->compute_queue_indees, other.compute_queue_indees);
+		std::swap(this->graphic_queue_indexes, other.graphic_queue_indexes);
+		std::swap(this->transfer_queue_indexes, other.transfer_queue_indexes);
+		std::swap(this->compute_queue_indexes, other.compute_queue_indexes);
 		this->configuration = YAML::Clone(other.configuration);
 	}
 
@@ -603,41 +594,41 @@ public:
 		return *this;
 	}
 
-	const std::vector<uint32_t>& get_graphic_queue_indees() const noexcept {
-		return graphic_queue_indees;
+	const std::vector<uint32_t>& get_graphic_queue_indexes() const noexcept {
+		return graphic_queue_indexes;
 	}
 
 	std::string_view name() const noexcept {
 		return std::string_view{properties.properties.deviceName};
 	}
 
-	bool has_any(std::span<vk::PhysicalDeviceType> types) const {
-		return std::any_of(begin(types), end(types),
-											 [this](vk::PhysicalDeviceType type) { return properties.properties.deviceType == type; });
+	bool has_any(std::span<vk::PhysicalDeviceType> types) const noexcept {
+		return std::ranges::any_of(
+				types, [this](vk::PhysicalDeviceType type) { return properties.properties.deviceType == type; });
 	}
 
-	bool has_not_any(std::span<vk::PhysicalDeviceType> types) const {
-		return not std::any_of(begin(types), end(types),
-													 [this](vk::PhysicalDeviceType type) { return properties.properties.deviceType == type; });
+	bool has_not_any(std::span<vk::PhysicalDeviceType> types) const noexcept {
+		return not std::ranges::any_of(
+				types, [this](vk::PhysicalDeviceType type) { return properties.properties.deviceType == type; });
 	}
 
-	bool is_discrete() const {
+	bool is_discrete() const noexcept {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
 	}
 
-	bool is_integrated() const {
+	bool is_integrated() const noexcept {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu;
 	}
 
-	bool is_cpu() const {
+	bool is_cpu() const noexcept {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eCpu;
 	}
 
-	bool is_virtual() const {
+	bool is_virtual() const noexcept {
 		return properties.properties.deviceType == vk::PhysicalDeviceType::eVirtualGpu;
 	}
 
-	bool has_preset() const {
+	bool has_preset() const noexcept {
 		assert(surface != nullptr && "To check for preset the surface should be set");
 		for (auto i = 0u; i < queue_families.size(); i++) {
 			auto preset_support = physical_device.getSurfaceSupportKHR(i, *surface);
@@ -648,47 +639,45 @@ public:
 		return false;
 	}
 
-	bool has_graphic_queue() const {
-		return std::any_of(begin(queue_families), end(queue_families), [](const vk::QueueFamilyProperties2& queue) {
+	bool has_graphic_queue() const noexcept {
+		return std::ranges::any_of(queue_families, [](const vk::QueueFamilyProperties2& queue) {
 			return (queue.queueFamilyProperties.queueCount > 0) &&
 						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics);
 		});
 	}
 
-	bool has_compute_queue() const {
-		return std::any_of(begin(queue_families), end(queue_families), [](const vk::QueueFamilyProperties2& queue) {
+	bool has_compute_queue() const noexcept {
+		return std::ranges::any_of(queue_families, [](const vk::QueueFamilyProperties2& queue) {
 			return (queue.queueFamilyProperties.queueCount > 0) &&
 						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute);
 		});
-		return false;
 	}
 
-	bool has_transfer_queue() const {
-		return std::any_of(begin(queue_families), end(queue_families), [](const vk::QueueFamilyProperties2& queue) {
+	bool has_transfer_queue() const noexcept {
+		return std::ranges::any_of(queue_families, [](const vk::QueueFamilyProperties2& queue) {
 			return (queue.queueFamilyProperties.queueCount > 0) &&
 						 (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer);
 		});
-		return false;
 	}
 
-	bool has_extension(std::string_view extension_name) const {
-		auto does_extension_math = [extension_name](const vk::ExtensionProperties& ext) {
+	bool has_extension(std::string_view extension_name) const noexcept {
+		auto match_extension = [extension_name](const vk::ExtensionProperties& ext) {
 			return std::string_view{ext.extensionName} == extension_name;
 		};
 
-		return std::find_if(begin(extensions), end(extensions), does_extension_math) != end(extensions);
+		return std::ranges::find_if(extensions, match_extension) != end(extensions);
 	}
 
-	bool has_extensions(std::span<std::string_view> required_extensions) const {
-		return std::all_of(begin(required_extensions), end(required_extensions),
-											 [this](std::string_view extension_name) { return has_extension(extension_name); });
+	bool has_extensions(std::span<std::string_view> required_extensions) const noexcept {
+		return std::ranges::all_of(required_extensions,
+															 [this](std::string_view extension_name) { return has_extension(extension_name); });
 	}
 
-	YAML::Node dump() const {
-		return configuration;
+	YAML::Node dump() const noexcept {
+		return YAML::Clone(configuration);
 	}
 
-	Device create_device(Instance& instance) const {
+	[[nodiscard]] Device create_device(const Instance& instance) const {
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < queue_families.size(); i++) {
 			auto priorities = std::vector<float>(queue_families[i].queueFamilyProperties.queueCount, 1.0f);
@@ -751,31 +740,31 @@ private:
 	std::vector<vk::LayerProperties> layers;
 	std::vector<vk::ExtensionProperties> extensions;
 	std::vector<vk::QueueFamilyProperties2> queue_families;
-	std::vector<uint32_t> graphic_queue_indees;
-	std::vector<uint32_t> transfer_queue_indees;
-	std::vector<uint32_t> compute_queue_indees;
-
+	std::vector<uint32_t> graphic_queue_indexes;
+	std::vector<uint32_t> transfer_queue_indexes;
+	std::vector<uint32_t> compute_queue_indexes;
 	YAML::Node configuration;
 };
 
 class PhysicalDeviceSelector {
 public:
-	PhysicalDeviceSelector(Instance& intance, Surface* surface = nullptr) : intance{intance}, surface{surface} {}
+	explicit PhysicalDeviceSelector(Instance& instance, Surface* surface = nullptr)
+			: instance{instance}, surface{surface} {}
 
-	std::vector<PhysicalDevice> enumerate_all() const {
-		auto devices = intance.enumeratePhysicalDevices();
+	[[nodiscard]] std::vector<PhysicalDevice> enumerate_all() const {
+		auto devices = instance.enumeratePhysicalDevices();
 		if (not devices) {
 			return {};
 		}
 		std::vector<PhysicalDevice> result;
 		for (auto&& device : *devices)
-			result.emplace_back(PhysicalDevice{std::move(device), surface});
+			result.emplace_back(std::move(device), surface);
 
 		return result;
 	}
 
 	PhysicalDeviceSelector& allow_discrete_device() {
-		allowed_physical_device_types.push_back(vk::PhysicalDeviceType::eDiscreteGpu);
+		allowed_physical_device_types.emplace_back(vk::PhysicalDeviceType::eDiscreteGpu);
 		return *this;
 	}
 
@@ -820,14 +809,14 @@ public:
 	}
 
 	std::expected<PhysicalDevice, std::string> select() {
-		auto devices = intance.enumeratePhysicalDevices();
+		auto devices = instance.enumeratePhysicalDevices();
 		if (not devices) {
 			return std::unexpected{"no available gpus"};
 		}
 
 		std::vector<PhysicalDevice> physical_devices;
 		for (auto&& device : *devices)
-			physical_devices.emplace_back(PhysicalDevice{std::move(device), surface});
+			physical_devices.emplace_back(std::move(device), surface);
 
 		erase_if(physical_devices, [this](const PhysicalDevice& physical_device) {
 			return physical_device.has_not_any(allowed_physical_device_types);
@@ -878,42 +867,38 @@ public:
 		return std::unexpected("No suitable GPU found");
 	}
 
-	bool is_discrete_gpu_allowed() const {
-		return std::find(begin(allowed_physical_device_types), end(allowed_physical_device_types),
-										 vk::PhysicalDeviceType::eDiscreteGpu) != end(allowed_physical_device_types);
+	[[nodiscard]] bool is_discrete_gpu_allowed() const noexcept {
+		return std::ranges::find(allowed_physical_device_types, vk::PhysicalDeviceType::eDiscreteGpu) !=
+					 end(allowed_physical_device_types);
 	}
 
-	bool is_integrated_gpu_allowed() const {
-		return std::find(begin(allowed_physical_device_types), end(allowed_physical_device_types),
-										 vk::PhysicalDeviceType::eIntegratedGpu) != end(allowed_physical_device_types);
+	[[nodiscard]] bool is_integrated_gpu_allowed() const noexcept {
+		return std::ranges::find(allowed_physical_device_types, vk::PhysicalDeviceType::eIntegratedGpu) !=
+					 end(allowed_physical_device_types);
 	}
 
-	auto find_first_discrete_gpu(const std::vector<PhysicalDevice>& physical_devices) const noexcept
+	static auto find_first_discrete_gpu(const std::vector<PhysicalDevice>& physical_devices) noexcept
 			-> decltype(begin(physical_devices)) {
-		return std::find_if(begin(physical_devices), end(physical_devices),
-												[](const PhysicalDevice& device) { return device.is_discrete(); });
+		return std::ranges::find_if(physical_devices, [](const PhysicalDevice& device) { return device.is_discrete(); });
 	}
 
-	auto find_first_integrated_gpu(const std::vector<PhysicalDevice>& physical_devices) const noexcept
+	static auto find_first_integrated_gpu(const std::vector<PhysicalDevice>& physical_devices) noexcept
 			-> decltype(begin(physical_devices)) {
-		return std::find_if(begin(physical_devices), end(physical_devices),
-												[](const PhysicalDevice& device) { return device.is_integrated(); });
+		return std::ranges::find_if(physical_devices, [](const PhysicalDevice& device) { return device.is_integrated(); });
 	}
 
-	auto find_first_discrete_gpu(std::vector<PhysicalDevice>& physical_devices) noexcept
+	static auto find_first_discrete_gpu(std::vector<PhysicalDevice>& physical_devices) noexcept
 			-> decltype(begin(physical_devices)) {
-		return std::find_if(begin(physical_devices), end(physical_devices),
-												[](const PhysicalDevice& device) { return device.is_discrete(); });
+		return std::ranges::find_if(physical_devices, [](const PhysicalDevice& device) { return device.is_discrete(); });
 	}
 
-	auto find_first_integrated_gpu(std::vector<PhysicalDevice>& physical_devices) noexcept
+	static auto find_first_integrated_gpu(std::vector<PhysicalDevice>& physical_devices) noexcept
 			-> decltype(begin(physical_devices)) {
-		return std::find_if(begin(physical_devices), end(physical_devices),
-												[](const PhysicalDevice& device) { return device.is_integrated(); });
+		return std::ranges::find_if(physical_devices, [](const PhysicalDevice& device) { return device.is_integrated(); });
 	}
 
 private:
-	Instance& intance;
+	Instance& instance;
 	std::vector<const char*> required_gpu_extensions;
 	Surface* surface{nullptr};
 
@@ -927,21 +912,21 @@ private:
 
 class Texture {
 public:
-	bool is_stencil() const {
+	bool is_stencil() const noexcept {
 		return true;
 	}
-	bool is_depth() const {
+	bool is_depth() const noexcept {
 		return true;
 	}
-	bool is_color() const {
+	bool is_color() const noexcept {
 		return true;
 	}
 
-	vk::Format format() const {
+	vk::Format format() const noexcept {
 		return vk::Format{};
 	}
 
-	vk::ImageLayout layout() const {
+	vk::ImageLayout layout() const noexcept {
 		return vk::ImageLayout{};
 	}
 };
@@ -955,7 +940,7 @@ class RenderPassBuilder {
 public:
 	explicit RenderPassBuilder(vk::raii::Device& device) : device{device} {}
 
-	RenderPassBuilder& add_attachment(std::shared_ptr<Texture> attachment) {
+	RenderPassBuilder& add_attachment(std::shared_ptr<Texture>& attachment) {
 		attachments.push_back(attachment);
 		return *this;
 	}
@@ -1067,9 +1052,9 @@ public:
 	using vk::raii::SwapchainKHR::CType;
 	using vk::raii::SwapchainKHR::SwapchainKHR;
 
-	SwapChain(vk::raii::SwapchainKHR&& swapchain) : vk::raii::SwapchainKHR{std::move(swapchain)} {}
+	explicit SwapChain(vk::raii::SwapchainKHR&& swapchain) noexcept : vk::raii::SwapchainKHR{std::move(swapchain)} {}
 
-	CType native_handle() const noexcept {
+	[[nodiscard]] CType native_handle() const noexcept {
 		return static_cast<CType>(static_cast<CppType>(*this));
 	}
 };
@@ -1103,8 +1088,8 @@ public:
 		return *this;
 	}
 
-	SwapChainBuilder& set_image_arrat_layers(uint32_t required_image_array_layers) {
-		image_arrat_layers = required_image_array_layers;
+	SwapChainBuilder& set_image_array_layers(uint32_t required_image_array_layers) {
+		image_array_layers = required_image_array_layers;
 		return *this;
 	}
 
@@ -1118,14 +1103,14 @@ public:
 		return *this;
 	}
 
-	SwapChainBuilder& add_queue_fanily_index(uint32_t queue_family_index) {
+	SwapChainBuilder& add_queue_family_index(uint32_t queue_family_index) {
 		queue_family_indices.push_back(queue_family_index);
 		return *this;
 	}
 
-	SwapChainBuilder& add_queue_fanily_index(std::span<uint32_t> required_queue_family_indes) {
-		queue_family_indices.insert(end(queue_family_indices), begin(required_queue_family_indes),
-																end(required_queue_family_indes));
+	SwapChainBuilder& add_queue_family_index(std::span<uint32_t> required_queue_family_indexes) {
+		queue_family_indices.insert(end(queue_family_indices), begin(required_queue_family_indexes),
+																end(required_queue_family_indexes));
 		return *this;
 	}
 
@@ -1149,12 +1134,12 @@ public:
 		return *this;
 	}
 
-	SwapChainBuilder& set_old_swapchain(SwapChain& use_old_swapchain) {
+	SwapChainBuilder& set_old_swapchain(const SwapChain& use_old_swapchain) {
 		old_swapchain = use_old_swapchain.native_handle();
 		return *this;
 	}
 
-	SwapChain build() const {
+	[[nodiscard]] SwapChain build() const {
 		vk::SwapchainCreateInfoKHR swapchain_create_info{
 				.flags = flags,
 				.surface = surface.native_handle(),
@@ -1162,7 +1147,7 @@ public:
 				.imageFormat = format,
 				.imageColorSpace = color_space,
 				.imageExtent = extent,
-				.imageArrayLayers = image_arrat_layers,
+				.imageArrayLayers = image_array_layers,
 				.imageUsage = image_usage,
 				.imageSharingMode = sharing_mode,
 				.queueFamilyIndexCount = static_cast<uint32_t>(queue_family_indices.size()),
@@ -1174,7 +1159,7 @@ public:
 				.oldSwapchain = VK_NULL_HANDLE,
 		};
 
-		return vk::raii::SwapchainKHR{std::move(*device.createSwapchainKHR(swapchain_create_info))};
+		return SwapChain{std::move(*device.createSwapchainKHR(swapchain_create_info))};
 	}
 
 private:
@@ -1185,7 +1170,7 @@ private:
 	vk::Format format = vk::Format::eB8G8R8A8Unorm;
 	vk::ColorSpaceKHR color_space = vk::ColorSpaceKHR::eSrgbNonlinear;
 	vk::Extent2D extent;
-	uint32_t image_arrat_layers = 1;
+	uint32_t image_array_layers = 1;
 	vk::ImageUsageFlags image_usage = vk::ImageUsageFlagBits::eColorAttachment;
 	vk::SharingMode sharing_mode = vk::SharingMode::eExclusive;
 	std::vector<uint32_t> queue_family_indices;

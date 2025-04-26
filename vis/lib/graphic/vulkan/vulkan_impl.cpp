@@ -23,18 +23,18 @@ public:
 		create_device_and_command_pool();
 	}
 
-	friend void swap(Renderer::Impl& lhs, Renderer::Impl& rhs) {
-		std::swap(lhs.window, rhs.window);
-		std::swap(lhs.context, rhs.context);
-		std::swap(lhs.vk_instance, rhs.vk_instance);
-		std::swap(lhs.surface, rhs.surface);
-		std::swap(lhs.physical_devices, rhs.physical_devices);
-		std::swap(lhs.selected_physical_device, rhs.selected_physical_device);
-		std::swap(lhs.device, rhs.device);
-		std::swap(lhs.command_pool, rhs.command_pool);
-		std::swap(lhs.buffer_textures, rhs.buffer_textures);
-		std::swap(lhs.render_pass, rhs.render_pass);
-		std::swap(lhs.vk_config, rhs.vk_config);
+	void swap(Renderer::Impl& other) noexcept {
+		std::swap(window, other.window);
+		std::swap(context, other.context);
+		std::swap(vk_instance, other.vk_instance);
+		std::swap(surface, other.surface);
+		std::swap(physical_devices, other.physical_devices);
+		std::swap(selected_physical_device, other.selected_physical_device);
+		std::swap(device, other.device);
+		std::swap(command_pool, other.command_pool);
+		std::swap(buffer_textures, other.buffer_textures);
+		std::swap(render_pass, other.render_pass);
+		std::swap(vk_config, other.vk_config);
 	}
 
 	std::string show_info() const {
@@ -74,9 +74,6 @@ private:
 		for (const auto& required_extension : required_windows_extensions) {
 			vk_config["context"]["required windows extensions"].push_back(required_extension);
 		}
-
-		auto node = vk_config["instance"];
-		node = vk_instance.dump();
 	}
 
 	void create_surface() {
@@ -117,12 +114,12 @@ private:
 	}
 
 	void create_device_and_command_pool() {
-		// device = selected_physical_device.create_device(vk_instance);
+		device = selected_physical_device.create_device(vk_instance);
 
-		// // clang-format off
+		// clang-format off
 		// command_pool = vkh::CommandPoolBuilder{device}
-		// 		.with_queue_family_index(0)
-		// 		.create();
+				// .with_queue_family_index(0)
+				// .create();
 		// clang-format on
 
 #if HAS_RENDER_PASS
@@ -181,7 +178,7 @@ std::string Renderer::show_info() const {
 }
 
 void Renderer::render() const {
-	// SDL_Vulka
+	// SDL_Vulkan
 	// SDL_GL_SwapWindow(*context.window);
 }
 
