@@ -21,9 +21,9 @@ class Instance;
 // using Surface = ::vk::raii::SurfaceKHR;
 class Surface;
 class PhysicalDeviceSelector;
-using ::vk::CommandPool;
+class CommandPool;
 class Device;
-using ::vk::raii::RenderPass;
+class RenderPass;
 class RenderPassBuilder;
 
 constexpr std::vector<const char*> get_physical_device_extensions() {
@@ -352,6 +352,13 @@ private:
 
 	// Custom allocator
 	std::optional<vk::AllocationCallbacks> allocation_callbacks = std::nullopt;
+};
+
+class CommandPool : public vk::raii::CommandPool {
+public:
+	using vk::raii::CommandPool::CommandPool;
+	using vk::raii::CommandPool::CppType;
+	using vk::raii::CommandPool::CType;
 };
 
 class Device : public vk::raii::Device {
@@ -779,6 +786,11 @@ public:
 		return *this;
 	}
 
+	PhysicalDeviceSelector& add_required_extensions(const char* extension) {
+		required_gpu_extensions.push_back(extension);
+		return *this;
+	}
+
 	PhysicalDeviceSelector& with_surface(Surface* desired_surface) {
 		surface = desired_surface;
 		return *this;
@@ -909,6 +921,11 @@ public:
 	vk::ImageLayout layout() const {
 		return vk::ImageLayout{};
 	}
+};
+
+class RenderPass : public vk::raii::RenderPass {
+public:
+	using vk::raii::RenderPass::RenderPass;
 };
 
 class RenderPassBuilder {
