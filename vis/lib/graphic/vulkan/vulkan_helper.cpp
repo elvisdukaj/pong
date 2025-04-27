@@ -26,6 +26,12 @@ class Device;
 class RenderPass;
 class RenderPassBuilder;
 
+using vk::ColorSpaceKHR;
+using vk::Format;
+using vk::ImageLayout;
+using vk::ImageUsageFlagBits;
+using vk::PresentModeKHR;
+
 constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
 	std::vector<const char*> required_extensions = {
 			vk::KHRSwapchainExtensionName,
@@ -1046,17 +1052,48 @@ private:
 	std::vector<vk::AttachmentStoreOp> store_ops;
 };
 
+class Image : public vk::Image {
+public:
+	using vk::Image::Image;
+
+	explicit Image(const vk::Image& image) : vk::Image{image} {}
+};
+
+class ImageView : public vk::raii::ImageView {
+public:
+	using vk::raii::ImageView::ImageView;
+};
+
 class SwapChain : public vk::raii::SwapchainKHR {
 public:
 	using vk::raii::SwapchainKHR::CppType;
 	using vk::raii::SwapchainKHR::CType;
 	using vk::raii::SwapchainKHR::SwapchainKHR;
 
-	explicit SwapChain(vk::raii::SwapchainKHR&& swapchain) noexcept : vk::raii::SwapchainKHR{std::move(swapchain)} {}
+	explicit SwapChain(std::nullptr_t) : vk::raii::SwapchainKHR{nullptr} {}
+
+	explicit SwapChain(vk::raii::SwapchainKHR&& swapchain, vk::raii::Device& device) noexcept
+			: vk::raii::SwapchainKHR{std::move(swapchain)}, device{&device} {}
 
 	[[nodiscard]] CType native_handle() const noexcept {
 		return static_cast<CType>(static_cast<CppType>(*this));
 	}
+
+	// vk::raii::Image& get_image(uint32_t index) const noexcept {}
+	std::vector<Image> get_images() const noexcept {
+		// clang-format off
+		vk::raii::SwapchainKHR::getImages()
+			| std::views::transform([](const vk::Image& image) -> Image {
+			return Image{image};
+		}) | std::ranges::to<std::vector<Image>>;
+		// clang-format on
+		// return vk::raii::SwapchainKHR::getImages();
+	}
+
+	// std::vector<vk::ImageView> get_image_views() const noexcept {}
+
+private:
+	vk::raii::Device* device = nullptr;
 };
 
 class SwapChainBuilder {
@@ -1086,6 +1123,13 @@ public:
 	SwapChainBuilder& set_extent(vk::Extent2D required_extent_2d) {
 		extent = required_extent_2d;
 		return *this;
+	}
+
+	SwapChainBuilder& set_extent(int width, int height) {
+		return set_extent({
+				.width = static_cast<uint32_t>(width),
+				.height = static_cast<uint32_t>(height),
+		});
 	}
 
 	SwapChainBuilder& set_image_array_layers(uint32_t required_image_array_layers) {
@@ -1159,7 +1203,7 @@ public:
 				.oldSwapchain = VK_NULL_HANDLE,
 		};
 
-		return SwapChain{std::move(*device.createSwapchainKHR(swapchain_create_info))};
+		return SwapChain{std::move(*device.createSwapchainKHR(swapchain_create_info)), device};
 	}
 
 private:

@@ -23,7 +23,7 @@ public:
 	void render() const;
 
 	void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
-										[[maybe_unused]] int height);
+										[[maybe_unused]] int height) const;
 
 	std::string show_info() const;
 

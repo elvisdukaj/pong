@@ -47,6 +47,11 @@ public:
 		clear_color = color;
 	}
 
+	void set_viewport(int view_width, int view_height) noexcept {
+		width = view_width;
+		height = view_height;
+	}
+
 private:
 	void create_instance() {
 		auto required_flags = vkh::get_required_instance_flags();
@@ -113,6 +118,19 @@ private:
 		vk_config["selected physical device"] = selected_physical_device.name();
 	}
 
+	void create_swapchain() {
+		auto builder = vkh::SwapChainBuilder{surface, device};
+		// clang-format off
+		swapchain =
+			builder.set_extent(width, height)
+			.set_image_usage(vkh::ImageUsageFlagBits::eTransferDst)
+			.set_present_mode(vkh::PresentModeKHR::eFifo)
+			.set_required_format(vkh::Format::eB8G8R8A8Unorm)
+			.set_required_color_space(vkh::ColorSpaceKHR::eSrgbNonlinear)
+			.build();
+		// clang-format on
+	}
+
 	void create_device_and_command_pool() {
 		device = selected_physical_device.create_device(vk_instance);
 
@@ -149,12 +167,15 @@ private:
 	std::vector<vkh::PhysicalDevice> physical_devices;
 	vkh::PhysicalDevice selected_physical_device;
 	vkh::Device device{nullptr};
-	vkh::CommandPool command_pool{nullptr};
+	vkh::SwapChain swapchain{nullptr};
+	std::vector < vk vkh::CommandPool command_pool{nullptr};
 	std::vector<std::shared_ptr<vkh::Texture>> buffer_textures;
 	vkh::RenderPass render_pass{nullptr};
 	YAML::Node vk_config;
 
 	vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
+	int width = 0;
+	int height = 0;
 };
 
 std::expected<Renderer, std::string> Renderer::create(Window* window) {
@@ -185,8 +206,11 @@ void Renderer::render() const {
 void Renderer::set_clear_color(vec4 color) {
 	impl->set_clear_color(color);
 }
+
 void Renderer::clear() {}
-void Renderer::set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
-														[[maybe_unused]] int height) {}
+
+void Renderer::set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int width, int height) noexcept {
+	impl->set_viewport(width, height);
+}
 
 } // namespace vis::vulkan
