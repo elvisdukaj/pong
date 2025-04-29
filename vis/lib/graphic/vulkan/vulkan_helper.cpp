@@ -39,7 +39,7 @@ constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
 	};
 
 #if defined(__APPLE__)
-	required_extensions.push_back("VK_KHR_portability_subset");
+	required_extensions.push_back(vk::PhysicalDevicePortabilitySubsetFeaturesKHR);
 #endif
 	return required_extensions;
 }
@@ -50,7 +50,10 @@ std::string vk_version_to_string(uint32_t version) noexcept {
 }
 
 std::vector<const char*> get_required_extensions() noexcept {
-	std::vector<const char*> required_extensions;
+	std::vector<const char*> required_extensions{
+			vk::KHRGetPhysicalDeviceProperties2ExtensionName,
+			vk::KHRGetSurfaceCapabilities2ExtensionName,
+	};
 
 #if defined(__APPLE__)
 	required_extensions.push_back(vk::EXTMetalSurfaceExtensionName);
@@ -360,6 +363,8 @@ public:
 	using vk::raii::CommandPool::CommandPool;
 	using vk::raii::CommandPool::CppType;
 	using vk::raii::CommandPool::CType;
+
+	// explicit CommandPool(std::nullptr_t) : vk::raii::CommandPool{nullptr} {}
 };
 
 class Device : public vk::raii::Device {
@@ -1072,28 +1077,28 @@ public:
 
 	explicit SwapChain(std::nullptr_t) : vk::raii::SwapchainKHR{nullptr} {}
 
-	explicit SwapChain(vk::raii::SwapchainKHR&& swapchain, vk::raii::Device& device) noexcept
-			: vk::raii::SwapchainKHR{std::move(swapchain)}, device{&device} {}
+	explicit SwapChain(vk::raii::SwapchainKHR&& swapchain /*, vk::raii::Device& device*/) noexcept
+			: vk::raii::SwapchainKHR{std::move(swapchain)} /*, device{&device}*/ {}
 
 	[[nodiscard]] CType native_handle() const noexcept {
 		return static_cast<CType>(static_cast<CppType>(*this));
 	}
 
 	// vk::raii::Image& get_image(uint32_t index) const noexcept {}
-	std::vector<Image> get_images() const noexcept {
-		// clang-format off
-		vk::raii::SwapchainKHR::getImages()
-			| std::views::transform([](const vk::Image& image) -> Image {
-			return Image{image};
-		}) | std::ranges::to<std::vector<Image>>;
-		// clang-format on
-		// return vk::raii::SwapchainKHR::getImages();
+	std::vector<vk::Image> get_images() const noexcept {
+		// // clang-format off
+		// vk::raii::SwapchainKHR::getImages()
+		// 	| std::views::transform([](const ::vk::Image& image) -> ::vkh::Image {
+		// 	return ::vkh::Image{image};
+		// }) | std::ranges::to<std::vector<::vkh::Image>>;
+		// // clang-format on
+		return vk::raii::SwapchainKHR::getImages();
 	}
 
 	// std::vector<vk::ImageView> get_image_views() const noexcept {}
 
-private:
-	vk::raii::Device* device = nullptr;
+	// private:
+	// 	vk::raii::Device* device{nullptr};
 };
 
 class SwapChainBuilder {
@@ -1115,7 +1120,7 @@ public:
 		return *this;
 	}
 
-	SwapChainBuilder& set_required_image_color_space(vk::ColorSpaceKHR required_color_space) {
+	SwapChainBuilder& set_required_color_space(vk::ColorSpaceKHR required_color_space) {
 		color_space = required_color_space;
 		return *this;
 	}
@@ -1203,7 +1208,7 @@ public:
 				.oldSwapchain = VK_NULL_HANDLE,
 		};
 
-		return SwapChain{std::move(*device.createSwapchainKHR(swapchain_create_info)), device};
+		return SwapChain{std::move(*device.createSwapchainKHR(swapchain_create_info)) /*, device*/};
 	}
 
 private:

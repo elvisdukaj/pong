@@ -18,14 +18,14 @@ public:
 
 	~Renderer();
 
-	void set_clear_color(vec4 color);
-	void clear();
-	void render() const;
+	void set_clear_color(vec4 color) noexcept;
+	void clear() noexcept;
+	void render() noexcept;
 
 	void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
-										[[maybe_unused]] int height) const;
+										[[maybe_unused]] int height) noexcept;
 
-	std::string show_info() const;
+	std::string show_info() const noexcept;
 
 private:
 	explicit Renderer(Window* window);

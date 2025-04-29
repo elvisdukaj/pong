@@ -20,7 +20,7 @@ public:
 		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
 		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
-		create_device_and_command_pool();
+		// create_device_and_command_pool();
 	}
 
 	void swap(Renderer::Impl& other) noexcept {
@@ -43,11 +43,11 @@ public:
 		return ss.str();
 	}
 
-	void set_clear_color(vec4 color) {
+	void set_clear_color(vec4 color) noexcept {
 		clear_color = color;
 	}
 
-	void set_viewport(int view_width, int view_height) noexcept {
+	void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
 		width = view_width;
 		height = view_height;
 	}
@@ -168,7 +168,11 @@ private:
 	vkh::PhysicalDevice selected_physical_device;
 	vkh::Device device{nullptr};
 	vkh::SwapChain swapchain{nullptr};
-	std::vector < vk vkh::CommandPool command_pool{nullptr};
+	vkh::CommandPool command_pool{nullptr};
+	// vkh::CommandPool graphic_command_pool;
+	// vkh::CommandPool preset_command_pool;
+	// vkh::CommandPool compute_command_pool;
+	// vkh::CommandPool transfer_command_pool;
 	std::vector<std::shared_ptr<vkh::Texture>> buffer_textures;
 	vkh::RenderPass render_pass{nullptr};
 	YAML::Node vk_config;
@@ -194,23 +198,23 @@ Renderer::~Renderer() = default;
 Renderer::Renderer(Renderer&&) = default;
 Renderer& Renderer::operator=(Renderer&&) = default;
 
-std::string Renderer::show_info() const {
+std::string Renderer::show_info() const noexcept {
 	return impl->show_info();
 }
 
-void Renderer::render() const {
+void Renderer::render() noexcept {
 	// SDL_Vulkan
 	// SDL_GL_SwapWindow(*context.window);
 }
 
-void Renderer::set_clear_color(vec4 color) {
+void Renderer::set_clear_color(vec4 color) noexcept {
 	impl->set_clear_color(color);
 }
 
-void Renderer::clear() {}
+void Renderer::clear() noexcept {}
 
-void Renderer::set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int width, int height) noexcept {
-	impl->set_viewport(width, height);
+void Renderer::set_viewport(int x, int y, int width, int height) noexcept {
+	impl->set_viewport(x, y, width, height);
 }
 
 } // namespace vis::vulkan
