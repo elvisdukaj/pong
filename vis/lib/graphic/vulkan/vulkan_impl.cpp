@@ -20,7 +20,7 @@ public:
 		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
 		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
-		// create_device_and_command_pool();
+		create_device_and_command_pool();
 	}
 
 	void swap(Renderer::Impl& other) noexcept {
@@ -110,11 +110,7 @@ private:
 				.select();
 		// clang-format on
 
-		if (not expected_device) {
-			throw std::runtime_error{expected_device.error()};
-		}
-
-		selected_physical_device = std::move(*expected_device);
+		selected_physical_device = std::move(expected_device);
 		vk_config["selected physical device"] = selected_physical_device.name();
 	}
 
