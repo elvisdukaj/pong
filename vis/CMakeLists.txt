@@ -31,8 +31,6 @@ function(add_spirv_modules TARGET_NAME)
         set(BINARY_FILE ${ARG_BINARY_DIR}/${FILE}.spv)
         file(RELATIVE_PATH BIN_FILE_REL_PATH ${CMAKE_BINARY_DIR} ${BINARY_FILE})
 
-        message("options: ARG_OPTIONS: \"${ARG_OPTIONS}\"")
-
         add_custom_command(
                 OUTPUT ${BINARY_FILE}
                 COMMAND ${GLSL_EXECUTABLE}
