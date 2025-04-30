@@ -471,11 +471,12 @@ public:
 		// std::println("I am empty");
 	}
 
-	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, std::vector<const char*> required_extensions,
-													Surface* surface = nullptr)
-			: physical_device{std::move(device)}, surface{surface}, required_extensions{std::move(required_extensions)} {
-		// std::println("I am creating from vk::raii::PhysicalDevice with {} required extensions.",
-		// 						 this->required_extensions.size());
+	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, std::vector<const char*> requirested_required_layers,
+													std::vector<const char*> requirested_required_extensions, Surface* surface = nullptr)
+			: physical_device{std::move(device)},
+				surface{surface},
+				required_layers(std::move(requirested_required_layers)),
+				required_extensions{std::move(requirested_required_extensions)} {
 		available_properties = physical_device.getProperties2();
 		available_features = physical_device.getFeatures2();
 		available_layers = physical_device.enumerateDeviceLayerProperties();
@@ -568,6 +569,9 @@ public:
 			configuration["extension"].push_back(std::string_view{extension.extensionName});
 		}
 
+		configuration["required layers"] = required_layers;
+		configuration["required extensions"] = required_extensions;
+
 		auto queue_family_index = 0u;
 		for (const auto& queue_family : available_queue_families) {
 			YAML::Node node;
@@ -586,7 +590,6 @@ public:
 	}
 
 	void swap(PhysicalDevice& other) noexcept {
-		// std::println("I am swapping");
 		std::swap(physical_device, other.physical_device);
 		std::swap(surface, other.surface);
 		std::swap(available_properties, other.available_properties);
@@ -594,6 +597,7 @@ public:
 		std::swap(available_layers, other.available_layers);
 		std::swap(available_extensions, other.available_extensions);
 		std::swap(available_queue_families, other.available_queue_families);
+		std::swap(required_layers, other.required_layers);
 		std::swap(required_extensions, other.required_extensions);
 		std::swap(available_graphic_queue_indexes, other.available_graphic_queue_indexes);
 		std::swap(available_transfer_queue_indexes, other.available_transfer_queue_indexes);
@@ -605,12 +609,10 @@ public:
 	PhysicalDevice& operator=(PhysicalDevice&) = delete;
 
 	PhysicalDevice(PhysicalDevice&& other) noexcept : physical_device{nullptr}, surface{nullptr} {
-		// std::println("I am constructing from PhysicalDevice&&");
 		swap(other);
 	}
 
 	PhysicalDevice& operator=(PhysicalDevice&& other) noexcept {
-		// std::println("I am copying from PhysicalDevice&&");
 		swap(other);
 		return *this;
 	}
@@ -718,27 +720,11 @@ public:
 				std::views::transform([](const auto& extension) -> const char* { return extension.extensionName; }) |
 				std::ranges::to<std::vector<const char*>>();
 
-		// for (const auto& extension : layers) {
-		// 	std::println("[{}: enabled extension: {}", name(), extension);
-		// }
-
-		// for (const auto& layer : extensions) {
-		// 	std::println("[{}: enabled layer: {}", name(), layer);
-		// }
-
-		// for (const auto& extension : required_extensions) {
-		// 	std::println("[{}: required extension: {}", name(), extension);
-		// }
-
-		// for (const auto& layer : require) {
-		// 	std::println("[{}: enabled layer: {}", name(), std::string_view{layer.layerName});
-		// }
-
 		auto device_create_info = vk::DeviceCreateInfo{};
 		device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_info_vec.size());
 		device_create_info.pQueueCreateInfos = queue_info_vec.data();
-		device_create_info.enabledLayerCount = 0;		// static_cast<uint32_t>(available_enabled_layers.size());
-		device_create_info.ppEnabledLayerNames = 0; // enabled_layers.data();
+		device_create_info.enabledLayerCount = static_cast<uint32_t>(required_layers.size());
+		device_create_info.ppEnabledLayerNames = required_layers.data();
 		device_create_info.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size());
 		device_create_info.ppEnabledExtensionNames = required_extensions.data();
 
@@ -780,6 +766,7 @@ private:
 	std::vector<vk::LayerProperties> available_layers;
 	std::vector<vk::ExtensionProperties> available_extensions;
 	std::vector<vk::QueueFamilyProperties2> available_queue_families;
+	std::vector<const char*> required_layers;
 	std::vector<const char*> required_extensions;
 	std::vector<uint32_t> available_graphic_queue_indexes;
 	std::vector<uint32_t> available_transfer_queue_indexes;
@@ -799,7 +786,7 @@ public:
 		}
 		std::vector<PhysicalDevice> result;
 		for (auto&& device : *devices)
-			result.emplace_back(std::move(device), std::vector<const char*>{}, surface);
+			result.emplace_back(std::move(device), std::vector<const char*>{}, std::vector<const char*>{}, surface);
 
 		return result;
 	}
@@ -844,13 +831,13 @@ public:
 		return *this;
 	}
 
-	PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
-		required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
+	PhysicalDeviceSelector& add_required_layer(const char* layer_name) noexcept {
+		required_gpu_layers.push_back(layer_name);
 		return *this;
 	}
 
-	PhysicalDeviceSelector& add_required_extensions(const char* extension) {
-		required_gpu_extensions.push_back(extension);
+	PhysicalDeviceSelector& add_required_layers(std::span<const char*> layers) noexcept {
+		required_gpu_layers.insert(required_gpu_layers.end(), begin(layers), end(layers));
 		return *this;
 	}
 
@@ -867,7 +854,7 @@ public:
 
 		std::vector<PhysicalDevice> physical_devices;
 		for (auto&& device : *devices)
-			physical_devices.emplace_back(std::move(device), required_gpu_extensions, surface);
+			physical_devices.emplace_back(std::move(device), required_gpu_layers, required_gpu_extensions, surface);
 
 		erase_if(physical_devices, [this](const PhysicalDevice& physical_device) {
 			return physical_device.has_not_any(allowed_physical_device_types);
@@ -952,6 +939,7 @@ public:
 private:
 	Instance& instance;
 	std::vector<const char*> required_gpu_extensions;
+	std::vector<const char*> required_gpu_layers;
 	Surface* surface{nullptr};
 
 	std::vector<vk::PhysicalDeviceType> allowed_physical_device_types;

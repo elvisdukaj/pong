@@ -96,11 +96,14 @@ private:
 		device_selector.with_surface(&surface);
 
 		auto required_gpu_extensions = vkh::get_physical_device_extensions();
-		vk_config["physical device"]["required extensions"] = required_gpu_extensions;
+		// vk_config["physical device"]["required extensions"] = required_gpu_extensions;
 
 		// clang-format off
 		auto expected_device = device_selector
 				.add_required_extensions(required_gpu_extensions)
+#if not defined(NDEBUG)
+				.add_required_layer("VK_LAYER_KHRONOS_validation")
+#endif
 				.with_surface(&surface)
 				.allow_discrete_device()
 				.allow_integrate_device()
@@ -111,7 +114,7 @@ private:
 		// clang-format on
 
 		selected_physical_device = std::move(expected_device);
-		vk_config["selected physical device"] = selected_physical_device.name();
+		vk_config["selected physical device"] = selected_physical_device.dump();
 	}
 
 	void create_swapchain() {
