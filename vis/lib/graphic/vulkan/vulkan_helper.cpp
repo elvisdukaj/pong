@@ -12,6 +12,10 @@ export import std;
 import vulkan_hpp;
 import vis.window;
 
+namespace {
+
+} // namespace
+
 export namespace vkh {
 
 // forward and using
@@ -25,6 +29,8 @@ class CommandPool;
 class Device;
 class RenderPass;
 class RenderPassBuilder;
+class Semaphore;
+class Fence;
 
 using vk::ColorSpaceKHR;
 using vk::Format;
@@ -363,6 +369,8 @@ public:
 	using vk::raii::CommandPool::CppType;
 	using vk::raii::CommandPool::CType;
 
+	explicit CommandPool(vk::raii::CommandPool&& pool) : vk::raii::CommandPool{std::move(pool)} {}
+
 	// explicit CommandPool(std::nullptr_t) : vk::raii::CommandPool{nullptr} {}
 };
 
@@ -468,7 +476,9 @@ class PhysicalDevice {
 
 public:
 	PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {
-		// std::println("I am empty");
+		feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
+		feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
+		feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
 	}
 
 	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, std::vector<const char*> requirested_required_layers,
@@ -477,7 +487,13 @@ public:
 				surface{surface},
 				required_layers(std::move(requirested_required_layers)),
 				required_extensions{std::move(requirested_required_extensions)} {
+
+		feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
+		feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
+		feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
+
 		available_properties = physical_device.getProperties2();
+
 		available_features = physical_device.getFeatures2();
 		available_layers = physical_device.enumerateDeviceLayerProperties();
 		available_extensions = physical_device.enumerateDeviceExtensionProperties();
@@ -700,6 +716,27 @@ public:
 		return YAML::Clone(configuration);
 	}
 
+	PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan11Features required_feature) {
+		features_11 = required_feature;
+		feature_chain.relink<vk::PhysicalDeviceVulkan11Features>();
+		feature_chain.assign<vk::PhysicalDeviceVulkan11Features>(required_feature);
+		return *this;
+	}
+
+	PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan12Features required_feature) {
+		features_12 = required_feature;
+		feature_chain.relink<vk::PhysicalDeviceVulkan12Features>();
+		feature_chain.assign<vk::PhysicalDeviceVulkan12Features>(required_feature);
+		return *this;
+	}
+
+	PhysicalDevice& with_feature_13(vk::PhysicalDeviceVulkan13Features required_feature) {
+		features_13 = required_feature;
+		feature_chain.relink<vk::PhysicalDeviceVulkan13Features>();
+		feature_chain.assign<vk::PhysicalDeviceVulkan13Features>(required_feature);
+		return *this;
+	}
+
 	[[nodiscard]] Device create_device(const Instance& instance) const {
 		auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
 		for (auto i = 0u; i < available_queue_families.size(); i++) {
@@ -721,6 +758,7 @@ public:
 				std::ranges::to<std::vector<const char*>>();
 
 		auto device_create_info = vk::DeviceCreateInfo{};
+		device_create_info.pNext = &feature_chain.get<vk::PhysicalDeviceFeatures2>();
 		device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_info_vec.size());
 		device_create_info.pQueueCreateInfos = queue_info_vec.data();
 		device_create_info.enabledLayerCount = static_cast<uint32_t>(required_layers.size());
@@ -771,6 +809,10 @@ private:
 	std::vector<uint32_t> available_graphic_queue_indexes;
 	std::vector<uint32_t> available_transfer_queue_indexes;
 	std::vector<uint32_t> available_compute_queue_indexes;
+
+	using DeviceFeatureChain = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+																								vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features>;
+	DeviceFeatureChain feature_chain;
 	YAML::Node configuration;
 };
 
@@ -941,7 +983,6 @@ private:
 	std::vector<const char*> required_gpu_extensions;
 	std::vector<const char*> required_gpu_layers;
 	Surface* surface{nullptr};
-
 	std::vector<vk::PhysicalDeviceType> allowed_physical_device_types;
 
 	bool require_preset_queue{true};
@@ -1257,6 +1298,16 @@ private:
 	vk::PresentModeKHR present_mode = vk::PresentModeKHR::eFifo;
 	bool clipped = VK_TRUE;
 	vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE;
+};
+
+class Semaphore : public vk::Semaphore {
+public:
+	using vk::Semaphore::Semaphore;
+};
+
+class Fence : public vk::Fence {
+public:
+	using vk::Fence::Fence;
 };
 
 } // namespace vkh

@@ -169,8 +169,11 @@ private:
 	YAML::Node vk_config;
 
 	struct FrameData {
+		vkh::Semaphore swapchain_sem, render_sem;
+		vkh::Fence render_fence;
+	};
 
-	}
+	FrameData frame_data[2];
 
 	vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
 	int width = 0;
