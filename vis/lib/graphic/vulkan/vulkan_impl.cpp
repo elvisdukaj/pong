@@ -126,9 +126,9 @@ private:
 		device = selected_physical_device.create_device(vk_instance);
 
 		// clang-format off
-		// command_pool = vkh::CommandPoolBuilder{device}
-				// .with_queue_family_index(0)
-				// .create();
+		command_pool = vkh::CommandPoolBuilder{device}
+				.with_queue_family_index(0)
+				.create();
 		// clang-format on
 
 #if HAS_RENDER_PASS
@@ -167,6 +167,10 @@ private:
 	std::vector<std::shared_ptr<vkh::Texture>> buffer_textures;
 	vkh::RenderPass render_pass{nullptr};
 	YAML::Node vk_config;
+
+	struct FrameData {
+
+	}
 
 	vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
 	int width = 0;

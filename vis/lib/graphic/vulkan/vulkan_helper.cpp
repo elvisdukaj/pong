@@ -416,7 +416,7 @@ public:
 		return *this;
 	}
 
-	[[nodiscard]] vk::raii::CommandPool create() const {
+	[[nodiscard]] CommandPool create() const {
 		vk::CommandPoolCreateInfo create_info{
 				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 				.queueFamilyIndex = static_cast<uint32_t>(queue_family_index),
@@ -428,7 +428,7 @@ public:
 					std::format("Unable to create a Vulkan Command Pool: {}", vk::to_string(command_pool.error()))};
 		}
 
-		return std::move(*command_pool);
+		return CommandPool{std::move(*command_pool)};
 	}
 
 private:
