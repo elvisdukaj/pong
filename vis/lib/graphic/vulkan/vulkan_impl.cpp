@@ -18,7 +18,6 @@ public:
 		create_surface();
 
 		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
-		enumerate_gpus(device_selector);
 		select_gpu(device_selector);
 		create_device_and_command_pool();
 	}
@@ -83,13 +82,6 @@ private:
 
 	void create_surface() {
 		surface = vkh::SurfaceBuilder{vk_instance, window}.build();
-	}
-
-	void enumerate_gpus(vkh::PhysicalDeviceSelector& device_selector) {
-		auto nodes = vk_config["physical devices"];
-		for (auto&& physical_device : device_selector.enumerate_all()) {
-			nodes.push_back(physical_device.dump());
-		}
 	}
 
 	void select_gpu(vkh::PhysicalDeviceSelector& device_selector) {
