@@ -468,13 +468,14 @@ class PhysicalDevice {
 
 public:
 	PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {
-		std::println("I am empty");
+		// std::println("I am empty");
 	}
 
 	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, std::vector<const char*> required_extensions,
 													Surface* surface = nullptr)
 			: physical_device{std::move(device)}, surface{surface}, required_extensions{std::move(required_extensions)} {
-		std::println("I am constructing from vk::raii::PhysicalDevice");
+		// std::println("I am creating from vk::raii::PhysicalDevice with {} required extensions.",
+		// 						 this->required_extensions.size());
 		available_properties = physical_device.getProperties2();
 		available_features = physical_device.getFeatures2();
 		available_layers = physical_device.enumerateDeviceLayerProperties();
@@ -585,7 +586,7 @@ public:
 	}
 
 	void swap(PhysicalDevice& other) noexcept {
-		std::println("I am swapping");
+		// std::println("I am swapping");
 		std::swap(physical_device, other.physical_device);
 		std::swap(surface, other.surface);
 		std::swap(available_properties, other.available_properties);
@@ -604,12 +605,12 @@ public:
 	PhysicalDevice& operator=(PhysicalDevice&) = delete;
 
 	PhysicalDevice(PhysicalDevice&& other) noexcept : physical_device{nullptr}, surface{nullptr} {
-		std::println("I am constructing from PhysicalDevice&&");
+		// std::println("I am constructing from PhysicalDevice&&");
 		swap(other);
 	}
 
 	PhysicalDevice& operator=(PhysicalDevice&& other) noexcept {
-		std::println("I am copying from PhysicalDevice&&");
+		// std::println("I am copying from PhysicalDevice&&");
 		swap(other);
 		return *this;
 	}
@@ -708,27 +709,38 @@ public:
 			});
 		}
 
-		auto enabled_layers = available_layers | std::views::transform([](const auto& layer) { return layer.layerName; }) |
-													std::ranges::to<std::vector<const char*>>();
-		auto enabled_extensions = available_extensions |
-															std::views::transform([](const auto& extension) { return extension.extensionName; }) |
-															std::ranges::to<std::vector<const char*>>();
+		// ACHTUNG: the return type of the lambda has to be const char* since char[] will go out of scope
+		auto layers = available_layers |
+									std::views::transform([](const auto& layer) -> const char* { return layer.layerName; }) |
+									std::ranges::to<std::vector<const char*>>();
+		auto extensions =
+				available_extensions |
+				std::views::transform([](const auto& extension) -> const char* { return extension.extensionName; }) |
+				std::ranges::to<std::vector<const char*>>();
 
-		for (const auto& extension : enabled_extensions) {
-			std::println("[{}: enabled extension: {}", name(), extension);
-		}
+		// for (const auto& extension : layers) {
+		// 	std::println("[{}: enabled extension: {}", name(), extension);
+		// }
 
-		for (const auto& layer : enabled_layers) {
-			std::println("[{}: enabled layer: {}", name(), layer);
-		}
+		// for (const auto& layer : extensions) {
+		// 	std::println("[{}: enabled layer: {}", name(), layer);
+		// }
+
+		// for (const auto& extension : required_extensions) {
+		// 	std::println("[{}: required extension: {}", name(), extension);
+		// }
+
+		// for (const auto& layer : require) {
+		// 	std::println("[{}: enabled layer: {}", name(), std::string_view{layer.layerName});
+		// }
 
 		auto device_create_info = vk::DeviceCreateInfo{};
 		device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_info_vec.size());
 		device_create_info.pQueueCreateInfos = queue_info_vec.data();
-		device_create_info.enabledLayerCount = 0;							// static_cast<uint32_t>(available_enabled_layers.size());
-		device_create_info.ppEnabledLayerNames = 0;						// enabled_layers.data();
-		device_create_info.enabledExtensionCount = 0;					// static_cast<uint32_t>(enabled_extensions.size());
-		device_create_info.ppEnabledExtensionNames = nullptr; // enabled_extensions.data();
+		device_create_info.enabledLayerCount = 0;		// static_cast<uint32_t>(available_enabled_layers.size());
+		device_create_info.ppEnabledLayerNames = 0; // enabled_layers.data();
+		device_create_info.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size());
+		device_create_info.ppEnabledExtensionNames = required_extensions.data();
 
 		auto device = physical_device.createDevice(device_create_info);
 		if (not device) {
@@ -819,6 +831,16 @@ public:
 
 	PhysicalDeviceSelector& set_require_transfer() {
 		require_transfer_queue = false;
+		return *this;
+	}
+
+	PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
+		required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
+		return *this;
+	}
+
+	PhysicalDeviceSelector& add_required_extensions(const char* extension) {
+		required_gpu_extensions.push_back(extension);
 		return *this;
 	}
 
