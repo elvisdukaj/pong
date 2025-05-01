@@ -14,6 +14,100 @@ import vis.window;
 
 namespace {
 
+#define COMBINE(prop) combined.prop = lhs.prop or rhs.prop
+
+vk::PhysicalDeviceVulkan11Features combine(vk::PhysicalDeviceVulkan11Features lhs,
+																					 vk::PhysicalDeviceVulkan11Features rhs) {
+	vk::PhysicalDeviceVulkan11Features combined = {};
+	COMBINE(storageBuffer16BitAccess);
+	COMBINE(uniformAndStorageBuffer16BitAccess);
+	COMBINE(storagePushConstant16);
+	COMBINE(storagePushConstant16);
+	COMBINE(multiview);
+	COMBINE(multiviewGeometryShader);
+	COMBINE(multiviewTessellationShader);
+	COMBINE(variablePointersStorageBuffer);
+	COMBINE(variablePointers);
+	COMBINE(variablePointers);
+	COMBINE(samplerYcbcrConversion);
+	COMBINE(samplerYcbcrConversion);
+	return combined;
+}
+
+vk::PhysicalDeviceVulkan12Features combine(vk::PhysicalDeviceVulkan12Features lhs,
+																					 vk::PhysicalDeviceVulkan12Features rhs) {
+	vk::PhysicalDeviceVulkan12Features combined = {};
+	COMBINE(samplerMirrorClampToEdge);
+	COMBINE(drawIndirectCount);
+	COMBINE(storageBuffer8BitAccess);
+	COMBINE(uniformAndStorageBuffer8BitAccess);
+	COMBINE(storagePushConstant8);
+	COMBINE(shaderBufferInt64Atomics);
+	COMBINE(shaderSharedInt64Atomics);
+	COMBINE(shaderFloat16);
+	COMBINE(shaderInt8);
+	COMBINE(descriptorIndexing);
+	COMBINE(shaderInputAttachmentArrayDynamicIndexing);
+	COMBINE(shaderUniformTexelBufferArrayDynamicIndexing);
+	COMBINE(shaderStorageTexelBufferArrayDynamicIndexing);
+	COMBINE(shaderUniformBufferArrayNonUniformIndexing);
+	COMBINE(shaderSampledImageArrayNonUniformIndexing);
+	COMBINE(shaderStorageBufferArrayNonUniformIndexing);
+	COMBINE(shaderStorageImageArrayNonUniformIndexing);
+	COMBINE(shaderInputAttachmentArrayNonUniformIndexing);
+	COMBINE(shaderUniformTexelBufferArrayNonUniformIndexing);
+	COMBINE(shaderStorageTexelBufferArrayNonUniformIndexing);
+	COMBINE(descriptorBindingUniformBufferUpdateAfterBind);
+	COMBINE(descriptorBindingSampledImageUpdateAfterBind);
+	COMBINE(descriptorBindingStorageImageUpdateAfterBind);
+	COMBINE(descriptorBindingStorageBufferUpdateAfterBind);
+	COMBINE(descriptorBindingUniformTexelBufferUpdateAfterBind);
+	COMBINE(descriptorBindingStorageTexelBufferUpdateAfterBind);
+	COMBINE(descriptorBindingUpdateUnusedWhilePending);
+	COMBINE(descriptorBindingPartiallyBound);
+	COMBINE(descriptorBindingVariableDescriptorCount);
+	COMBINE(runtimeDescriptorArray);
+	COMBINE(samplerFilterMinmax);
+	COMBINE(scalarBlockLayout);
+	COMBINE(imagelessFramebuffer);
+	COMBINE(uniformBufferStandardLayout);
+	COMBINE(shaderSubgroupExtendedTypes);
+	COMBINE(separateDepthStencilLayouts);
+	COMBINE(hostQueryReset);
+	COMBINE(timelineSemaphore);
+	COMBINE(bufferDeviceAddress);
+	COMBINE(bufferDeviceAddressCaptureReplay);
+	COMBINE(bufferDeviceAddressMultiDevice);
+	COMBINE(vulkanMemoryModel);
+	COMBINE(vulkanMemoryModelDeviceScope);
+	COMBINE(vulkanMemoryModelAvailabilityVisibilityChains);
+	COMBINE(shaderOutputViewportIndex);
+	COMBINE(shaderOutputLayer);
+	COMBINE(subgroupBroadcastDynamicId);
+	return combined;
+}
+
+vk::PhysicalDeviceVulkan13Features combine(vk::PhysicalDeviceVulkan13Features lhs,
+																					 vk::PhysicalDeviceVulkan13Features rhs) {
+	vk::PhysicalDeviceVulkan13Features combined = {};
+	COMBINE(robustImageAccess);
+	COMBINE(inlineUniformBlock);
+	COMBINE(descriptorBindingInlineUniformBlockUpdateAfterBind);
+	COMBINE(pipelineCreationCacheControl);
+	COMBINE(privateData);
+	COMBINE(shaderDemoteToHelperInvocation);
+	COMBINE(shaderTerminateInvocation);
+	COMBINE(subgroupSizeControl);
+	COMBINE(computeFullSubgroups);
+	COMBINE(synchronization2);
+	COMBINE(textureCompressionASTC_HDR);
+	COMBINE(shaderZeroInitializeWorkgroupMemory);
+	COMBINE(dynamicRendering);
+	COMBINE(shaderIntegerDotProduct);
+	COMBINE(maintenance4);
+	return combined;
+}
+
 } // namespace
 
 export namespace vkh {
@@ -717,23 +811,38 @@ public:
 	}
 
 	PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan11Features required_feature) {
-		features_11 = required_feature;
-		feature_chain.relink<vk::PhysicalDeviceVulkan11Features>();
-		feature_chain.assign<vk::PhysicalDeviceVulkan11Features>(required_feature);
+		if (not feature_chain.isLink<vk::PhysicalDeviceVulkan11Features>())
+			feature_chain.relink<vk::PhysicalDeviceVulkan11Features>();
+
+		auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan11Features>();
+		feature_chain.assign<vk::PhysicalDeviceVulkan11Features>(combine(feat, required_feature));
 		return *this;
 	}
 
-	PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan12Features required_feature) {
-		features_12 = required_feature;
-		feature_chain.relink<vk::PhysicalDeviceVulkan12Features>();
-		feature_chain.assign<vk::PhysicalDeviceVulkan12Features>(required_feature);
-		return *this;
-	}
+	// PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan12Features required_feature) {
+	// 	if (not feature_chain.isLink<vk::PhysicalDeviceVulkan12Features>())
+	// 		feature_chain.relink<vk::PhysicalDeviceVulkan12Features>();
 
-	PhysicalDevice& with_feature_13(vk::PhysicalDeviceVulkan13Features required_feature) {
-		features_13 = required_feature;
-		feature_chain.relink<vk::PhysicalDeviceVulkan13Features>();
-		feature_chain.assign<vk::PhysicalDeviceVulkan13Features>(required_feature);
+	// 	auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan12Features>();
+	// 	feature_chain.assign<vk::PhysicalDeviceVulkan12Features>(combine(feat, required_feature));
+	// 	return *this;
+	// }
+
+	// PhysicalDevice& with_feature_13(vk::PhysicalDeviceVulkan13Features required_feature) {
+	// 	if (not feature_chain.isLink<vk::PhysicalDeviceVulkan13Features>())
+	// 		feature_chain.relink<vk::PhysicalDeviceVulkan13Features>();
+
+	// 	auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan13Features>();
+	// 	feature_chain.assign<vk::PhysicalDeviceVulkan13Features>(combine(feat, required_feature));
+	// 	return *this;
+	// }
+
+	template <typename T> PhysicalDevice& with_feature(T required_feature) {
+		if (not feature_chain.isLinked<T>())
+			feature_chain.relink<T>();
+
+		auto& feat = feature_chain.get<T>();
+		feature_chain.assign<T>(combine(feat, required_feature));
 		return *this;
 	}
 
@@ -812,7 +921,9 @@ private:
 
 	using DeviceFeatureChain = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
 																								vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features>;
+
 	DeviceFeatureChain feature_chain;
+
 	YAML::Node configuration;
 };
 
