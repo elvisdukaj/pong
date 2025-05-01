@@ -123,7 +123,15 @@ private:
 	}
 
 	void create_device_and_command_pool() {
-		device = selected_physical_device.create_device(vk_instance);
+		auto feature12 = vkh::PhysicalDeviceVulkan12Features{};
+		feature12.descriptorIndexing = vkh::True;
+		feature12.bufferDeviceAddress = vkh::True;
+
+		auto feature13 = vkh::PhysicalDeviceVulkan13Features{};
+		feature13.synchronization2 = vkh::True;
+		feature13.dynamicRendering = vkh::True;
+
+		device = selected_physical_device.with_feature_12(feature12).with_feature_13(feature13).create_device(vk_instance);
 
 		// clang-format off
 		command_pool = vkh::CommandPoolBuilder{device}

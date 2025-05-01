@@ -16,27 +16,27 @@ namespace {
 
 #define COMBINE(prop) combined.prop = lhs.prop or rhs.prop
 
-vk::PhysicalDeviceVulkan11Features combine(vk::PhysicalDeviceVulkan11Features lhs,
-																					 vk::PhysicalDeviceVulkan11Features rhs) {
-	vk::PhysicalDeviceVulkan11Features combined = {};
+[[maybe_unused]] vk::PhysicalDeviceVulkan11Features combine(vk::PhysicalDeviceVulkan11Features lhs,
+																														vk::PhysicalDeviceVulkan11Features rhs) {
+	vk::PhysicalDeviceVulkan11Features combined{};
 	COMBINE(storageBuffer16BitAccess);
 	COMBINE(uniformAndStorageBuffer16BitAccess);
 	COMBINE(storagePushConstant16);
-	COMBINE(storagePushConstant16);
+	COMBINE(storageInputOutput16);
 	COMBINE(multiview);
 	COMBINE(multiviewGeometryShader);
 	COMBINE(multiviewTessellationShader);
 	COMBINE(variablePointersStorageBuffer);
 	COMBINE(variablePointers);
-	COMBINE(variablePointers);
+	COMBINE(protectedMemory);
 	COMBINE(samplerYcbcrConversion);
-	COMBINE(samplerYcbcrConversion);
+	COMBINE(shaderDrawParameters);
 	return combined;
 }
 
-vk::PhysicalDeviceVulkan12Features combine(vk::PhysicalDeviceVulkan12Features lhs,
-																					 vk::PhysicalDeviceVulkan12Features rhs) {
-	vk::PhysicalDeviceVulkan12Features combined = {};
+[[maybe_unused]] vk::PhysicalDeviceVulkan12Features combine(vk::PhysicalDeviceVulkan12Features lhs,
+																														vk::PhysicalDeviceVulkan12Features rhs) {
+	vk::PhysicalDeviceVulkan12Features combined{};
 	COMBINE(samplerMirrorClampToEdge);
 	COMBINE(drawIndirectCount);
 	COMBINE(storageBuffer8BitAccess);
@@ -87,9 +87,9 @@ vk::PhysicalDeviceVulkan12Features combine(vk::PhysicalDeviceVulkan12Features lh
 	return combined;
 }
 
-vk::PhysicalDeviceVulkan13Features combine(vk::PhysicalDeviceVulkan13Features lhs,
-																					 vk::PhysicalDeviceVulkan13Features rhs) {
-	vk::PhysicalDeviceVulkan13Features combined = {};
+[[maybe_unused]] vk::PhysicalDeviceVulkan13Features combine(vk::PhysicalDeviceVulkan13Features lhs,
+																														vk::PhysicalDeviceVulkan13Features rhs) {
+	vk::PhysicalDeviceVulkan13Features combined{};
 	COMBINE(robustImageAccess);
 	COMBINE(inlineUniformBlock);
 	COMBINE(descriptorBindingInlineUniformBlockUpdateAfterBind);
@@ -127,10 +127,15 @@ class Semaphore;
 class Fence;
 
 using vk::ColorSpaceKHR;
+using vk::False;
 using vk::Format;
 using vk::ImageLayout;
 using vk::ImageUsageFlagBits;
+using vk::PhysicalDeviceVulkan11Features;
+using vk::PhysicalDeviceVulkan12Features;
+using vk::PhysicalDeviceVulkan13Features;
 using vk::PresentModeKHR;
+using vk::True;
 
 constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
 	std::vector<const char*> required_extensions = {
@@ -140,7 +145,7 @@ constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
 	};
 
 #if defined(__APPLE__)
-	required_extensions.push_back(vk::PhysicalDevicePortabilitySubsetFeaturesKHR);
+	required_extensions.push_back(vk::KHRPortabilitySubsetExtensionName);
 #endif
 	return required_extensions;
 }
@@ -570,9 +575,9 @@ class PhysicalDevice {
 
 public:
 	PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {
-		feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
-		feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
-		feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
+		// feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
+		// feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
+		// feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
 	}
 
 	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, std::vector<const char*> requirested_required_layers,
@@ -582,9 +587,9 @@ public:
 				required_layers(std::move(requirested_required_layers)),
 				required_extensions{std::move(requirested_required_extensions)} {
 
-		feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
-		feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
-		feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
+		// feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
+		// feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
+		// feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
 
 		available_properties = physical_device.getProperties2();
 
@@ -712,6 +717,7 @@ public:
 		std::swap(available_graphic_queue_indexes, other.available_graphic_queue_indexes);
 		std::swap(available_transfer_queue_indexes, other.available_transfer_queue_indexes);
 		std::swap(available_compute_queue_indexes, other.available_compute_queue_indexes);
+		std::swap(feature_chain, other.feature_chain);
 		this->configuration = YAML::Clone(other.configuration);
 	}
 
@@ -810,39 +816,21 @@ public:
 		return YAML::Clone(configuration);
 	}
 
-	PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan11Features required_feature) {
-		if (not feature_chain.isLink<vk::PhysicalDeviceVulkan11Features>())
-			feature_chain.relink<vk::PhysicalDeviceVulkan11Features>();
-
+	PhysicalDevice& with_feature_11(vk::PhysicalDeviceVulkan11Features required_feature) {
 		auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan11Features>();
-		feature_chain.assign<vk::PhysicalDeviceVulkan11Features>(combine(feat, required_feature));
+		feat = combine(feat, required_feature);
 		return *this;
 	}
 
-	// PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan12Features required_feature) {
-	// 	if (not feature_chain.isLink<vk::PhysicalDeviceVulkan12Features>())
-	// 		feature_chain.relink<vk::PhysicalDeviceVulkan12Features>();
+	PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan12Features required_feature) {
+		auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan12Features>();
+		feat = combine(feat, required_feature);
+		return *this;
+	}
 
-	// 	auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan12Features>();
-	// 	feature_chain.assign<vk::PhysicalDeviceVulkan12Features>(combine(feat, required_feature));
-	// 	return *this;
-	// }
-
-	// PhysicalDevice& with_feature_13(vk::PhysicalDeviceVulkan13Features required_feature) {
-	// 	if (not feature_chain.isLink<vk::PhysicalDeviceVulkan13Features>())
-	// 		feature_chain.relink<vk::PhysicalDeviceVulkan13Features>();
-
-	// 	auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan13Features>();
-	// 	feature_chain.assign<vk::PhysicalDeviceVulkan13Features>(combine(feat, required_feature));
-	// 	return *this;
-	// }
-
-	template <typename T> PhysicalDevice& with_feature(T required_feature) {
-		if (not feature_chain.isLinked<T>())
-			feature_chain.relink<T>();
-
-		auto& feat = feature_chain.get<T>();
-		feature_chain.assign<T>(combine(feat, required_feature));
+	PhysicalDevice& with_feature_13(vk::PhysicalDeviceVulkan13Features required_feature) {
+		auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan13Features>();
+		feat = combine(feat, required_feature);
 		return *this;
 	}
 
@@ -921,7 +909,6 @@ private:
 
 	using DeviceFeatureChain = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
 																								vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features>;
-
 	DeviceFeatureChain feature_chain;
 
 	YAML::Node configuration;
