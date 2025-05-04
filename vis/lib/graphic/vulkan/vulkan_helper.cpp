@@ -15,6 +15,67 @@ import vis.window;
 namespace {
 
 #define COMBINE(prop) combined.prop = lhs.prop or rhs.prop
+#define COMBINE2(prop) combined.features.prop = lhs.features.prop or rhs.features.prop
+
+[[maybe_unused]] vk::PhysicalDeviceFeatures2 combine(vk::PhysicalDeviceFeatures2 lhs, vk::PhysicalDeviceFeatures2 rhs) {
+	vk::PhysicalDeviceFeatures2 combined{};
+	COMBINE2(robustBufferAccess);
+	COMBINE2(fullDrawIndexUint32);
+	COMBINE2(imageCubeArray);
+	COMBINE2(independentBlend);
+	COMBINE2(geometryShader);
+	COMBINE2(tessellationShader);
+	COMBINE2(sampleRateShading);
+	COMBINE2(dualSrcBlend);
+	COMBINE2(logicOp);
+	COMBINE2(multiDrawIndirect);
+	COMBINE2(drawIndirectFirstInstance);
+	COMBINE2(depthClamp);
+	COMBINE2(depthBiasClamp);
+	COMBINE2(fillModeNonSolid);
+	COMBINE2(depthBounds);
+	COMBINE2(wideLines);
+	COMBINE2(largePoints);
+	COMBINE2(alphaToOne);
+	COMBINE2(multiViewport);
+	COMBINE2(samplerAnisotropy);
+	COMBINE2(textureCompressionETC2);
+	COMBINE2(textureCompressionASTC_LDR);
+	COMBINE2(textureCompressionBC);
+	COMBINE2(occlusionQueryPrecise);
+	COMBINE2(pipelineStatisticsQuery);
+	COMBINE2(vertexPipelineStoresAndAtomics);
+	COMBINE2(fragmentStoresAndAtomics);
+	COMBINE2(shaderTessellationAndGeometryPointSize);
+	COMBINE2(shaderImageGatherExtended);
+	COMBINE2(shaderStorageImageExtendedFormats);
+	COMBINE2(shaderStorageImageMultisample);
+	COMBINE2(shaderStorageImageReadWithoutFormat);
+	COMBINE2(shaderStorageImageWriteWithoutFormat);
+	COMBINE2(shaderUniformBufferArrayDynamicIndexing);
+	COMBINE2(shaderSampledImageArrayDynamicIndexing);
+	COMBINE2(shaderStorageBufferArrayDynamicIndexing);
+	COMBINE2(shaderStorageImageArrayDynamicIndexing);
+	COMBINE2(shaderClipDistance);
+	COMBINE2(shaderCullDistance);
+	COMBINE2(shaderFloat64);
+	COMBINE2(shaderInt64);
+	COMBINE2(shaderInt16);
+	COMBINE2(shaderResourceResidency);
+	COMBINE2(shaderResourceMinLod);
+	COMBINE2(sparseBinding);
+	COMBINE2(sparseResidencyBuffer);
+	COMBINE2(sparseResidencyImage2D);
+	COMBINE2(sparseResidencyImage3D);
+	COMBINE2(sparseResidency2Samples);
+	COMBINE2(sparseResidency4Samples);
+	COMBINE2(sparseResidency8Samples);
+	COMBINE2(sparseResidency16Samples);
+	COMBINE2(sparseResidencyAliased);
+	COMBINE2(variableMultisampleRate);
+	COMBINE2(inheritedQueries);
+	return combined;
+}
 
 [[maybe_unused]] vk::PhysicalDeviceVulkan11Features combine(vk::PhysicalDeviceVulkan11Features lhs,
 																														vk::PhysicalDeviceVulkan11Features rhs) {
@@ -131,6 +192,7 @@ using vk::False;
 using vk::Format;
 using vk::ImageLayout;
 using vk::ImageUsageFlagBits;
+using vk::PhysicalDeviceFeatures2;
 using vk::PhysicalDeviceVulkan11Features;
 using vk::PhysicalDeviceVulkan12Features;
 using vk::PhysicalDeviceVulkan13Features;
@@ -574,11 +636,7 @@ class PhysicalDevice {
 	friend class PhysicalDeviceSelector;
 
 public:
-	PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {
-		// feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
-		// feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
-		// feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
-	}
+	PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {}
 
 	explicit PhysicalDevice(vk::raii::PhysicalDevice&& device, std::vector<const char*> requirested_required_layers,
 													std::vector<const char*> requirested_required_extensions, Surface* surface = nullptr)
@@ -586,10 +644,6 @@ public:
 				surface{surface},
 				required_layers(std::move(requirested_required_layers)),
 				required_extensions{std::move(requirested_required_extensions)} {
-
-		// feature_chain.unlink<vk::PhysicalDeviceVulkan11Features>();
-		// feature_chain.unlink<vk::PhysicalDeviceVulkan12Features>();
-		// feature_chain.unlink<vk::PhysicalDeviceVulkan13Features>();
 
 		available_properties = physical_device.getProperties2();
 
@@ -717,19 +771,21 @@ public:
 		std::swap(available_graphic_queue_indexes, other.available_graphic_queue_indexes);
 		std::swap(available_transfer_queue_indexes, other.available_transfer_queue_indexes);
 		std::swap(available_compute_queue_indexes, other.available_compute_queue_indexes);
-		std::swap(feature_chain, other.feature_chain);
+		// std::swap(feature_chain, other.feature_chain);
 		this->configuration = YAML::Clone(other.configuration);
 	}
 
 	PhysicalDevice(PhysicalDevice&) = delete;
 	PhysicalDevice& operator=(PhysicalDevice&) = delete;
 
-	PhysicalDevice(PhysicalDevice&& other) noexcept : physical_device{nullptr}, surface{nullptr} {
+	PhysicalDevice(PhysicalDevice&& other) noexcept
+			: physical_device{nullptr}, surface{nullptr}, feature_chain(std::move(other.feature_chain)) {
 		swap(other);
 	}
 
 	PhysicalDevice& operator=(PhysicalDevice&& other) noexcept {
 		swap(other);
+		feature_chain = std::move(other.feature_chain);
 		return *this;
 	}
 
@@ -814,6 +870,12 @@ public:
 
 	YAML::Node dump() const noexcept {
 		return YAML::Clone(configuration);
+	}
+
+	PhysicalDevice& with_feature_10(vk::PhysicalDeviceFeatures2 required_feature) {
+		auto& feat = feature_chain.get<vk::PhysicalDeviceFeatures2>();
+		feat = combine(feat, required_feature);
+		return *this;
 	}
 
 	PhysicalDevice& with_feature_11(vk::PhysicalDeviceVulkan11Features required_feature) {

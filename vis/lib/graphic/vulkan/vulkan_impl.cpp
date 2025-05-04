@@ -123,17 +123,43 @@ private:
 	}
 
 	void create_device_and_command_pool() {
+		auto feature10 = vkh::PhysicalDeviceFeatures2{};
+		feature10.features.tessellationShader = vkh::True;
+
 		auto feature12 = vkh::PhysicalDeviceVulkan12Features{};
 		feature12.descriptorIndexing = vkh::True;
 		feature12.bufferDeviceAddress = vkh::True;
+		feature12.drawIndirectCount = vkh::True;
+		feature12.samplerMirrorClampToEdge = vkh::True;
+		feature12.storageBuffer8BitAccess = vkh::True;
+		feature12.uniformBufferStandardLayout = vkh::True;
+		feature12.shaderSubgroupExtendedTypes = vkh::True;
+		feature12.shaderOutputLayer = vkh::True;
+		feature12.vulkanMemoryModelAvailabilityVisibilityChains = vkh::True;
+		feature12.shaderOutputViewportIndex = vkh::True;
+		feature12.subgroupBroadcastDynamicId = vkh::True;
+		feature12.separateDepthStencilLayouts = vkh::True;
+		feature12.runtimeDescriptorArray = vkh::True;
+		feature12.drawIndirectCount = vkh::True;
+		feature12.drawIndirectCount = vkh::True;
 
 		auto feature13 = vkh::PhysicalDeviceVulkan13Features{};
 		feature13.synchronization2 = vkh::True;
 		feature13.dynamicRendering = vkh::True;
-
-		device = selected_physical_device.with_feature_12(feature12).with_feature_13(feature13).create_device(vk_instance);
+		feature13.computeFullSubgroups = vkh::True;
+		feature13.textureCompressionASTC_HDR = vkh::True;
+		feature13.shaderZeroInitializeWorkgroupMemory = vkh::True;
+		feature13.shaderIntegerDotProduct = vkh::True;
+		feature13.maintenance4 = vkh::True;
+		feature13.dynamicRendering = vkh::True;
 
 		// clang-format off
+		device = selected_physical_device
+			.with_feature_10(feature10)
+			.with_feature_12(feature12)
+		  .with_feature_13(feature13)
+			.create_device(vk_instance);
+
 		command_pool = vkh::CommandPoolBuilder{device}
 				.with_queue_family_index(0)
 				.create();
