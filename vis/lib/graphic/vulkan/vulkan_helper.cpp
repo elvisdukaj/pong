@@ -905,7 +905,7 @@ public:
 					.queueCount = available_queue_families[i].queueFamilyProperties.queueCount,
 					.pQueuePriorities = priorities.data(),
 			});
-		}
+		}git
 
 		// ACHTUNG: the return type of the lambda has to be const char* since char[] will go out of scope
 		auto layers = available_layers |
