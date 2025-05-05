@@ -39,6 +39,7 @@ Window::~Window() {
   }
 }
 
+// TODO: this should import the vkh library and return a vkh::Surface instead
 VkSurfaceKHR Window::create_renderer_surface(VkInstance instance, const VkAllocationCallbacks* allocator) const {
   VkSurfaceKHR surface;
   if (not SDL_Vulkan_CreateSurface(window, instance, allocator, &surface)) {

@@ -692,9 +692,43 @@ private:
   vis::Window* window;
 };
 
-class PhysicalDevice {
+class Device {
+  friend class PhysicalDevice;
+
 public:
+  explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE}, /*allocator{VK_NULL_HANDLE},*/ graphic_queue_index{} {}
+
+  Device(const Device& other) = delete;
+  Device& operator=(const Device& other) = delete;
+
+  Device(Device&& other) noexcept
+      : handle{other.handle}, /*allocator{other.allocator},*/ graphic_queue_index{other.graphic_queue_index} {
+    other.handle = VK_NULL_HANDLE;
+    // other.allocator = nullptr;
+  }
+
+  Device& operator=(Device&& other) noexcept {
+    std::swap(handle, other.handle);
+    // std::swap(allocator, other.allocator);
+    std::swap(graphic_queue_index, other.graphic_queue_index);
+    return *this;
+  }
+
+  ~Device() {
+    if (handle != VK_NULL_HANDLE) {
+      vkDestroyDevice(handle, nullptr);
+      handle = VK_NULL_HANDLE;
+    }
+  }
+
 private:
+  Device(VkDevice device, /*VmaAllocator allocator,*/ std::size_t graphic_queue_index)
+      : handle{device}, /*allocator{allocator},*/ graphic_queue_index{graphic_queue_index} {}
+
+private:
+  VkDevice handle = VK_NULL_HANDLE;
+  // VmaAllocator allocator = VK_NULL_HANDLE;
+  std::size_t graphic_queue_index = 0;
 };
 
 } // namespace vkh
