@@ -188,13 +188,6 @@ class RenderPassBuilder;
 class Semaphore;
 class Fence;
 
-struct ExtensionProperties {
-	using NativeType = VkExtensionProperties;
-};
-
-struct LayerProperties {
-	using NativeType = VkLayerProperties;
-};
 
 class ApplicationInfoBuilder {
 public:
@@ -304,6 +297,19 @@ public:
 			if (res != VK_SUCCESS)
 				throw std::runtime_error("volkInitialize failed");
 		});
+
+		available_layers = get_available_layers();
+		available_extensions = get_available_extensions();
+
+		std::println("Initializing the Context");
+		std::println("available layers:");
+		for(const auto& layer : available_layers) {
+			std::println("  - {}", std::string_view{layer.layerName});
+		}
+		std::println("available extensions:");
+		for(const auto& ext : available_extensions) {
+			std::println("  - {}", std::string_view{ext.extensionName});
+		}
 	}
 
 	[[nodiscard]] VkInstance create_instance(VkInstanceCreateInfo& create_info) {
@@ -326,8 +332,8 @@ public:
 		return api_version;
 	}
 
-	std::vector<LayerProperties> get_available_layers() noexcept {
-		std::vector<LayerProperties> properties;
+	std::vector<VkLayerProperties> get_available_layers() noexcept {
+		std::vector<VkLayerProperties> properties;
 		uint32_t propertyCount;
 		Result result;
 		do {
@@ -347,8 +353,8 @@ public:
 		return properties;
 	}
 
-	std::vector<ExtensionProperties> get_available_extensions(std::optional<std::string_view> layer_name) {
-		std::vector<ExtensionProperties> properties;
+	std::vector<VkExtensionProperties> get_available_extensions(std::optional<std::string_view> layer_name = std::nullopt) {
+		std::vector<VkExtensionProperties> properties;
 		uint32_t propertyCount;
 		Result result;
 		do {
