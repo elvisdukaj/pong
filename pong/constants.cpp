@@ -11,6 +11,7 @@ constexpr vis::vec2 up{0.0f, 1.0f};
 constexpr vis::vec2 down{0.0f, -1.0f};
 constexpr auto origin = vis::vec2{0.0f, 0.0f};
 
+constexpr std::string_view TITLE{"Vis Engine"};
 constexpr int SCREEN_HEIGHT = 600;
 constexpr int SCREEN_WIDTH = 800;
 
@@ -33,7 +34,7 @@ constexpr auto ball_angle_max = vis::radians(+30.0f);
 
 constexpr auto world_width = 2.0f;
 constexpr auto world_height =
-		world_width * static_cast<float>(ASPECT_RATIO::num) / static_cast<float>(ASPECT_RATIO::den);
+    world_width * static_cast<float>(ASPECT_RATIO::num) / static_cast<float>(ASPECT_RATIO::den);
 
 constexpr auto friction = 0.0f;
 

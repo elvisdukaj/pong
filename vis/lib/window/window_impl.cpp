@@ -11,17 +11,13 @@ import std;
 
 namespace vis {
 
-std::expected<Window, std::string> Window::create(std::string_view title, int width, int height, WindowsFlags flags) {
+Window::Window(std::string_view title, int width, int height, WindowsFlags flags) {
   using underlying = std::underlying_type<WindowsFlags>::type;
   volkInitialize();
-  auto window = SDL_CreateWindow(title.data(), width, height, static_cast<underlying>(flags));
+  window = SDL_CreateWindow(title.data(), width, height, static_cast<underlying>(flags));
   if (not window)
-    return std::unexpected(std::format("Unable to create window: {}", SDL_GetError()));
-
-  return Window{window};
+    throw std::runtime_error(std::format("Unable to create window: {}", SDL_GetError()));
 }
-
-Window::Window(SDL_Window* window) : window{window} {}
 
 void swap(Window& lhs, Window& rhs) {
   ::std::swap(lhs.window, rhs.window);

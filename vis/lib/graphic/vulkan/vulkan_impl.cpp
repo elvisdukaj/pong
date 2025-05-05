@@ -306,16 +306,6 @@ private:
 };
 #endif
 
-std::expected<Renderer, std::string> Renderer::create(Window* window) {
-  try {
-    return Renderer{window};
-  } catch (const std::exception& exc) {
-    return std::unexpected{exc.what()};
-  } catch (...) {
-    return std::unexpected{"Unable to create a Vulkan instance"};
-  }
-}
-
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}
 Renderer::~Renderer() = default;
 
