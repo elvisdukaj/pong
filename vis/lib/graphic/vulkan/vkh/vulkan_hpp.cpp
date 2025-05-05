@@ -6,6 +6,7 @@ module;
 export module vis.graphic.vulkan.vkh;
 
 export import std;
+import vis.window;
 
 namespace helper {
 
@@ -636,4 +637,64 @@ private:
   ApplicationInfoBuilder app_info_builder;
   InstanceCreateInfoBuilder instance_create_info_builder;
 };
+
+class Surface {
+  friend class SurfaceBuilder;
+
+public:
+  using NativeType = VkSurfaceKHR;
+
+  explicit Surface(std::nullptr_t) : instance{nullptr}, handle{VK_NULL_HANDLE} {}
+
+  Surface(Surface&) = delete;
+  Surface& operator=(Surface&) = delete;
+
+  Surface(Surface&& other) : instance{other.instance}, handle{other.handle} {
+    other.instance = nullptr;
+    other.handle = VK_NULL_HANDLE;
+  }
+
+  Surface& operator=(Surface&& other) {
+    std::swap(instance, other.instance);
+    std::swap(handle, other.handle);
+    return *this;
+  }
+
+  ~Surface() {
+    if (handle != VK_NULL_HANDLE) {
+      vkDestroySurfaceKHR(instance->native_handle(), handle, nullptr);
+    }
+  }
+
+  NativeType native_handle() const noexcept {
+    return handle;
+  }
+
+private:
+  Surface(Instance* instance, VkSurfaceKHR handle) : instance{instance}, handle{handle} {}
+
+private:
+  Instance* instance = nullptr;
+  VkSurfaceKHR handle = VK_NULL_HANDLE;
+};
+
+class SurfaceBuilder {
+public:
+  explicit SurfaceBuilder(Instance* instance, ::vis::Window* window) : instance{instance}, window{window} {}
+
+  [[nodiscard]] Surface build() const noexcept {
+    auto vk_surface = window->create_renderer_surface(instance->native_handle(), nullptr);
+    return {instance, vk_surface};
+  }
+
+private:
+  Instance* instance;
+  vis::Window* window;
+};
+
+class PhysicalDevice {
+public:
+private:
+};
+
 } // namespace vkh

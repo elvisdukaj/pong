@@ -259,6 +259,7 @@ class Renderer::Impl {
 public:
   Impl([[maybe_unused]] Window* window) : window{window} {
     create_instance();
+    create_surface();
   }
 
   std::string show_info() const noexcept {
@@ -299,10 +300,15 @@ private:
     // }
   }
 
+  void create_surface() {
+    surface = vkh::SurfaceBuilder{&vk_instance, window}.build();
+  }
+
 private:
   Window* window = nullptr;
   vkh::Context vk_context;
   vkh::Instance vk_instance{nullptr};
+  vkh::Surface surface{nullptr};
 };
 #endif
 
