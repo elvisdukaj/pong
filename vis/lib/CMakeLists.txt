@@ -4,8 +4,9 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
-find_package(VulkanHeaders CONFIG REQUIRED)
-find_package(VulkanLoader CONFIG REQUIRED)
+#find_package(VulkanHeaders CONFIG REQUIRED)
+#find_package(VulkanLoader CONFIG REQUIRED)
+find_package(volk CONFIG REQUIRED)
 find_package(vulkan-memory-allocator CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
@@ -16,6 +17,8 @@ target_sources(vis_obj
         # module implementation files
         PRIVATE
         graphic/vulkan/vulkan_impl.cpp
+        #        graphic/vulkan/vkh/volk.c
+        #        graphic/vulkan/vkh/volk.h
         window/window_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
@@ -32,9 +35,10 @@ target_sources(vis_obj
         graphic/mesh.cpp
         graphic/opengl.cpp
         graphic/spirv/spirv.cpp
-        graphic/vulkan/vulkan_helper.cpp
-        graphic/vulkan/vulkan.cpp
-        graphic/vulkan/vulkan_hpp.cpp
+        #        graphic/vulkan/vulkan_helper.cpp
+        graphic/vulkan/vulkan_renderer.cpp
+        graphic/vulkan/vkh/vulkan_helper.cpp
+        #        graphic/vulkan/vulkan_hpp.cpp
 
         PRIVATE FILE_SET HEADERS
         FILES
@@ -129,8 +133,9 @@ target_link_libraries(vis_obj PUBLIC
         GLEW::GLEW
         box2d::box2d
         Vulkan::Headers
-        Vulkan::Loader
-        vulkan-memory-allocator::vulkan-memory-allocator
+        #        Vulkan::Loader
+        #        vulkan-memory-allocator::vulkan-memory-allocator
+        volk::volk
         yaml-cpp::yaml-cpp
 )
 

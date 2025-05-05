@@ -1,16 +1,57 @@
 module;
 
-#include <yaml-cpp/yaml.h>
-
 module vis.graphic.vulkan;
 
 import std;
-import vkh;
+import vis.graphic.vulkan.vkh;
 import vis.math;
 import vis.window;
 
+namespace helper {
+constexpr vis::vkh::InstanceCreateFlags get_required_instance_flags() noexcept {
+	vis::vkh::InstanceCreateFlags flags;
+
+#if defined(__APPLE__)
+	// flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	flags |= vis::vkh::InstanceCreateFlagBits::EnumeratePortabilityKHR;
+#endif
+	return flags;
+}
+
+std::vector<const char*> get_required_extensions() noexcept {
+	std::vector<const char*> required_extensions{
+			// vk::KHRGetPhysicalDeviceProperties2ExtensionName,
+			// vk::KHRGetSurfaceCapabilities2ExtensionName,
+	};
+
+#if defined(__APPLE__)
+	// required_extensions.push_back(vk::EXTMetalSurfaceExtensionName);
+	// required_extensions.push_back(vk::KHRPortabilityEnumerationExtensionName);
+#endif
+
+	return required_extensions;
+}
+
+std::vector<const char*> get_required_layers() noexcept {
+	std::vector<const char*> required_layers;
+
+#if not defined(NDEBUG)
+	required_layers.push_back("VK_LAYER_KHRONOS_validation");
+
+#if not defined(__linux)
+	required_layers.push_back("VK_LAYER_LUNARG_api_dump");
+#endif
+
+#endif
+
+	return required_layers;
+}
+
+} // namespace helper
+
 namespace vis::vulkan {
 
+#if 0
 class Renderer::Impl {
 public:
 	Impl(Window* window) : window{window} {
@@ -213,6 +254,54 @@ private:
 	int width = 0;
 	int height = 0;
 };
+#else
+class Renderer::Impl {
+public:
+	Impl([[maybe_unused]] Window* window) {}
+
+	std::string show_info() const noexcept {
+		return {};
+	}
+
+	void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
+										[[maybe_unused]] int height) noexcept {}
+
+	void set_clear_color([[maybe_unused]] vec4 color) noexcept {}
+
+private:
+	void create_instance() {
+		auto required_flags = helper::get_required_instance_flags();
+		auto required_extensions = helper::get_required_extensions();
+		auto required_layers = helper::get_required_layers();
+		// auto required_windows_extensions = window->get_required_renderer_extension();
+
+		vk_instance = vkh::InstanceBuilder{vk_context}
+											.with_app_name("Pong")
+											.with_app_version(0, 1, 1)
+											.with_engine_name("vis")
+											.with_engine_version(0, 1, 1)
+											.with_app_flags(required_flags)
+											.add_required_layers(required_layers)
+											.add_required_extensions(required_extensions)
+											// .add_required_extensions(required_windows_extensions)
+											.with_minimum_required_instance_version(0, 1, 2, 0)
+											.with_maximum_required_instance_version(0, 1, 2, 0)
+											.build();
+
+		// vk_config["context"] = context.serialize();
+		// for (const auto& required_extension : required_extensions) {
+		// vk_config["context"]["required extensions"].push_back(required_extension);
+		// }
+		// for (const auto& required_extension : required_windows_extensions) {
+		// vk_config["context"]["required windows extensions"].push_back(required_extension);
+		// }
+	}
+
+private:
+	vkh::Context vk_context;
+	vkh::Instance vk_instance{nullptr};
+};
+#endif
 
 std::expected<Renderer, std::string> Renderer::create(Window* window) {
 	try {

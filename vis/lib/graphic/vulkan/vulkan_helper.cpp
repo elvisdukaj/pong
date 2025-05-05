@@ -343,50 +343,50 @@ public:
 
 	explicit Instance(std::nullopt_t) : vk::raii::Instance{nullptr}, api_version{} {}
 
-	Instance(vk::raii::Instance&& instance, uint32_t required_version)
-			: vk::raii::Instance{std::move(instance)}, api_version{required_version} {
-		config["version"] = vk_version_to_string(api_version);
+	Instance(VkInstance instance, uint32_t required_version) : instance{instance}, api_version{required_version} {
+		// config["api_version"] = vk_version_to_string(api_version);
 	}
+};
 
-	YAML::Node dump() const {
-		return YAML::Clone(config);
-	}
+YAML::Node dump() const {
+	return YAML::Clone(config);
+}
 
-	void swap(Instance& other) noexcept {
-		std::swap(static_cast<vk::raii::Instance&>(*this), static_cast<vk::raii::Instance&>(other));
-		std::swap(api_version, other.api_version);
-		config = YAML::Clone(other.config);
-	}
+void swap(Instance& other) noexcept {
+	std::swap(static_cast<vk::raii::Instance&>(*this), static_cast<vk::raii::Instance&>(other));
+	std::swap(api_version, other.api_version);
+	config = YAML::Clone(other.config);
+}
 
-	Instance(const Instance& other) = delete;
-	Instance& operator=(const Instance& other) = delete;
+Instance(const Instance& other) = delete;
+Instance& operator=(const Instance& other) = delete;
 
-	Instance(Instance&& other) noexcept : vk::raii::Instance{nullptr}, api_version{0} {
-		swap(other);
-	}
+Instance(Instance&& other) noexcept : vk::raii::Instance{nullptr}, api_version{0} {
+	swap(other);
+}
 
-	Instance& operator=(Instance&& other) noexcept {
-		swap(other);
-		return *this;
-	}
+Instance& operator=(Instance&& other) noexcept {
+	swap(other);
+	return *this;
+}
 
-	[[nodiscard]] uint32_t get_api_version() const noexcept {
-		return api_version;
-	}
+[[nodiscard]] uint32_t get_api_version() const noexcept {
+	return api_version;
+}
 
-	CppType cpp_type() const noexcept {
-		return static_cast<CppType>(*this);
-	}
+CppType cpp_type() const noexcept {
+	return static_cast<CppType>(*this);
+}
 
-	CType native_handle() const noexcept {
-		return static_cast<CType>(cpp_type());
-	}
+CType native_handle() const noexcept {
+	return static_cast<CType>(cpp_type());
+}
 
-	using vk::raii::Instance::enumeratePhysicalDevices;
+using vk::raii::Instance::enumeratePhysicalDevices;
 
 private:
-	uint32_t api_version;
-	YAML::Node config;
+uint32_t api_version;
+YAML::Node config;
 };
 
 class InstanceBuilder {
@@ -905,7 +905,7 @@ public:
 					.queueCount = available_queue_families[i].queueFamilyProperties.queueCount,
 					.pQueuePriorities = priorities.data(),
 			});
-		}git
+		}
 
 		// ACHTUNG: the return type of the lambda has to be const char* since char[] will go out of scope
 		auto layers = available_layers |
