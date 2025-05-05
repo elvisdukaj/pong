@@ -43,6 +43,15 @@ std::string vk_version_to_string(uint32_t version) noexcept {
 
 export namespace vis::vkh {
 
+// Extensions names
+constexpr const char* KHRGetPhysicalDeviceProperties2ExtensionName =
+    VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
+constexpr const char* KHRGetSurfaceCapabilities2ExtensionName = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
+#if defined(VK_USE_PLATFORM_METAL_EXT)
+constexpr const char* EXTMetalSurfaceExtensionName = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
+#endif
+constexpr const char* KHRPortabilityEnumerationExtensionName = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+
 enum class Result {
   Success = VK_SUCCESS,
   NotReady = VK_NOT_READY,
@@ -341,12 +350,6 @@ private:
 class Context {
 public:
   Context() {
-    std::call_once(init_volk_flag, []() {
-      auto res = volkInitialize();
-      if (res != VK_SUCCESS)
-        throw std::runtime_error("volkInitialize failed");
-    });
-
     api_version = volkGetInstanceVersion();
     available_layers = get_available_layers();
     available_extensions = get_available_extensions();
@@ -448,7 +451,6 @@ public:
   }
 
 private:
-  std::once_flag init_volk_flag;
   std::once_flag volk_instance_flag;
   uint32_t api_version = 0;
   std::vector<VkExtensionProperties> available_extensions;

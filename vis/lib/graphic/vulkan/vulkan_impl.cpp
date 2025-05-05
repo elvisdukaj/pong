@@ -20,13 +20,13 @@ constexpr vis::vkh::InstanceCreateFlags get_required_instance_flags() noexcept {
 
 std::vector<const char*> get_required_extensions() noexcept {
   std::vector<const char*> required_extensions{
-      // vk::KHRGetPhysicalDeviceProperties2ExtensionName,
-      // vk::KHRGetSurfaceCapabilities2ExtensionName,
+      vis::vkh::KHRGetPhysicalDeviceProperties2ExtensionName,
+      vis::vkh::KHRGetSurfaceCapabilities2ExtensionName,
   };
 
 #if defined(__APPLE__)
-  // required_extensions.push_back(vk::EXTMetalSurfaceExtensionName);
-  // required_extensions.push_back(vk::KHRPortabilityEnumerationExtensionName);
+  required_extensions.push_back(vis::vkh::EXTMetalSurfaceExtensionName);
+  required_extensions.push_back(vis::vkh::KHRPortabilityEnumerationExtensionName);
 #endif
 
   return required_extensions;
