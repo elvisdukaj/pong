@@ -17,8 +17,6 @@ target_sources(vis_obj
         # module implementation files
         PRIVATE
         graphic/vulkan/vulkan_impl.cpp
-        #        graphic/vulkan/vkh/volk.c
-        #        graphic/vulkan/vkh/volk.h
         window/window_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
