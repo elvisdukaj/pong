@@ -9,39 +9,44 @@ export import std;
 
 namespace helper {
 
-template <std::integral T> constexpr uint32_t apiVersionMajor(T const version) {
+template <std::integral T> constexpr uint32_t api_version_major(T const version) {
   return (static_cast<uint32_t>(version) >> 22U) & 0x7FU;
 }
 
-template <std::integral T> constexpr uint32_t apiVersionMinor(T const version) {
+template <std::integral T> constexpr uint32_t api_version_minor(T const version) {
   return (static_cast<uint32_t>(version) >> 12U) & 0x3FFU;
 }
 
-template <std::integral T> constexpr uint32_t apiVersionPatch(T const version) {
+template <std::integral T> constexpr uint32_t api_version_patch(T const version) {
   return static_cast<uint32_t>(version) & 0xFFFU;
 }
 
-template <std::integral T> constexpr uint32_t apiVersionVariant(T const version) {
+template <std::integral T> constexpr uint32_t api_version_variant(T const version) {
   return static_cast<uint32_t>(version) >> 29U;
 }
 
 template <std::integral T>
-constexpr uint32_t makeApiVersion(T const variant, T const major, T const minor, T const patch) {
+constexpr uint32_t make_api_version(T const variant, T const major, T const minor, T const patch) {
   return ((((uint32_t)(variant)) << 29U) | (((uint32_t)(major)) << 22U) | (((uint32_t)(minor)) << 12U) |
           ((uint32_t)(patch)));
 }
 
-template <std::integral T> constexpr uint32_t makeVersion(T const major, T const minor, T const patch) {
+template <std::integral T> constexpr uint32_t make_version(T const major, T const minor, T const patch) {
   return ((((uint32_t)(major)) << 22U) | (((uint32_t)(minor)) << 12U) | ((uint32_t)(patch)));
 }
 
 std::string vk_version_to_string(uint32_t version) noexcept {
-  return std::format("{}.{}.{}", apiVersionMajor(version), apiVersionMinor(version), apiVersionPatch(version));
+  return std::format("{}.{}.{}", api_version_major(version), api_version_minor(version), api_version_patch(version));
+}
+
+std::string vk_api_version_to_string(uint32_t version) noexcept {
+  return std::format("{}.{}.{}-{}", api_version_major(version), api_version_minor(version), api_version_patch(version),
+                     api_version_variant(version));
 }
 
 } // namespace helper
 
-export namespace vis::vkh {
+export namespace vkh {
 
 // Extensions names
 constexpr const char* KHRGetPhysicalDeviceProperties2ExtensionName =
@@ -217,12 +222,12 @@ public:
 
   ApplicationInfoBuilder& with_application_version(uint32_t variant, uint32_t maj, uint32_t min,
                                                    uint32_t patch) noexcept {
-    application_version = helper::makeApiVersion(variant, maj, min, patch);
+    application_version = helper::make_api_version(variant, maj, min, patch);
     return *this;
   }
 
   ApplicationInfoBuilder& with_application_version(uint32_t maj, uint32_t min, uint32_t patch) noexcept {
-    application_version = helper::makeVersion(maj, min, patch);
+    application_version = helper::make_version(maj, min, patch);
     return *this;
   }
 
@@ -237,12 +242,12 @@ public:
   }
 
   ApplicationInfoBuilder& with_engine_version(uint32_t variant, uint32_t maj, uint32_t min, uint32_t patch) noexcept {
-    application_version = helper::makeApiVersion(variant, maj, min, patch);
+    application_version = helper::make_api_version(variant, maj, min, patch);
     return *this;
   }
 
   ApplicationInfoBuilder& with_engine_version(uint32_t maj, uint32_t min, uint32_t patch) noexcept {
-    application_version = helper::makeVersion(maj, min, patch);
+    application_version = helper::make_version(maj, min, patch);
     return *this;
   }
 
@@ -252,12 +257,12 @@ public:
   }
 
   ApplicationInfoBuilder& with_api_version(uint32_t variant, uint32_t maj, uint32_t min, uint32_t patch) noexcept {
-    application_version = helper::makeApiVersion(variant, maj, min, patch);
+    application_version = helper::make_api_version(variant, maj, min, patch);
     return *this;
   }
 
   ApplicationInfoBuilder& with_api_version(uint32_t maj, uint32_t min, uint32_t patch) noexcept {
-    application_version = helper::makeVersion(maj, min, patch);
+    application_version = helper::make_version(maj, min, patch);
     return *this;
   }
 
@@ -539,12 +544,12 @@ public:
   explicit InstanceBuilder(Context& context) : context{context} {}
 
   InstanceBuilder& with_minimum_required_instance_version(int variant, int major, int minor, int patch) noexcept {
-    minimum_instance_version = helper::makeApiVersion(variant, major, minor, patch);
+    minimum_instance_version = helper::make_api_version(variant, major, minor, patch);
     return *this;
   }
 
   InstanceBuilder& with_maximum_required_instance_version(int variant, int major, int minor, int patch) noexcept {
-    maximum_instance_version = helper::makeApiVersion(variant, major, minor, patch);
+    maximum_instance_version = helper::make_api_version(variant, major, minor, patch);
     return *this;
   }
 
@@ -625,13 +630,10 @@ public:
 private:
   Context& context;
 
-  uint32_t minimum_instance_version = helper::makeApiVersion(0, 1, 0, 0);
-  uint32_t maximum_instance_version = helper::makeApiVersion(0, 1, 0, 0);
+  uint32_t minimum_instance_version = helper::make_api_version(0, 1, 0, 0);
+  uint32_t maximum_instance_version = helper::make_api_version(0, 1, 4, 0);
 
   ApplicationInfoBuilder app_info_builder;
   InstanceCreateInfoBuilder instance_create_info_builder;
-
-  // Custom allocator
-  // std::optional<vk::AllocationCallbacks> allocation_callbacks = std::nullopt;
 };
-} // namespace vis::vkh
+} // namespace vkh

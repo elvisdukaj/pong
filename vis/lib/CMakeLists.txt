@@ -4,10 +4,7 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
-#find_package(VulkanHeaders CONFIG REQUIRED)
-#find_package(VulkanLoader CONFIG REQUIRED)
 find_package(volk CONFIG REQUIRED)
-find_package(vulkan-memory-allocator CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_library(vis_obj OBJECT)
@@ -33,10 +30,8 @@ target_sources(vis_obj
         graphic/mesh.cpp
         graphic/opengl.cpp
         graphic/spirv/spirv.cpp
-        #        graphic/vulkan/vulkan_helper.cpp
         graphic/vulkan/vulkan_renderer.cpp
         graphic/vulkan/vkh/vulkan_hpp.cpp
-        #        graphic/vulkan/vulkan_hpp.cpp
 
         PRIVATE FILE_SET HEADERS
         FILES
@@ -117,11 +112,6 @@ target_compile_definitions(vis_obj PUBLIC
         "SDL_MAIN_USE_CALLBACKS=1"
         ENTT_STANDARD_CPP
         ENTT_IMPORT_STD
-        VULKAN_HPP_ENABLE_STD_MODULE
-        VULKAN_HPP_RAII_NO_EXCEPTIONS VULKAN_HPP_NO_CONSTRUCTORS
-        $<$<STREQUAL:$<PLATFORM_ID>,Linux>:VK_USE_PLATFORM_WAYLAND_KHR>
-        $<$<STREQUAL:$<PLATFORM_ID>,Windows>:VK_USE_PLATFORM_WIN32_KHR>
-        $<$<STREQUAL:$<PLATFORM_ID>,Darwin>:VK_USE_PLATFORM_METAL_EXT VK_ENABLE_BETA_EXTENSIONS>
 )
 
 
@@ -131,8 +121,6 @@ target_link_libraries(vis_obj PUBLIC
         GLEW::GLEW
         box2d::box2d
         Vulkan::Headers
-        #        Vulkan::Loader
-        #        vulkan-memory-allocator::vulkan-memory-allocator
         volk::volk
         yaml-cpp::yaml-cpp
 )

@@ -8,25 +8,25 @@ import vis.math;
 import vis.window;
 
 namespace helper {
-constexpr vis::vkh::InstanceCreateFlags get_required_instance_flags() noexcept {
-  vis::vkh::InstanceCreateFlags flags;
+constexpr vkh::InstanceCreateFlags get_required_instance_flags() noexcept {
+  vkh::InstanceCreateFlags flags;
 
 #if defined(__APPLE__)
   // flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-  flags |= vis::vkh::InstanceCreateFlagBits::EnumeratePortabilityKHR;
+  flags |= vkh::InstanceCreateFlagBits::EnumeratePortabilityKHR;
 #endif
   return flags;
 }
 
 std::vector<const char*> get_required_extensions() noexcept {
   std::vector<const char*> required_extensions{
-      vis::vkh::KHRGetPhysicalDeviceProperties2ExtensionName,
-      vis::vkh::KHRGetSurfaceCapabilities2ExtensionName,
+      vkh::KHRGetPhysicalDeviceProperties2ExtensionName,
+      vkh::KHRGetSurfaceCapabilities2ExtensionName,
   };
 
 #if defined(__APPLE__)
-  required_extensions.push_back(vis::vkh::EXTMetalSurfaceExtensionName);
-  required_extensions.push_back(vis::vkh::KHRPortabilityEnumerationExtensionName);
+  required_extensions.push_back(vkh::EXTMetalSurfaceExtensionName);
+  required_extensions.push_back(vkh::KHRPortabilityEnumerationExtensionName);
 #endif
 
   return required_extensions;
