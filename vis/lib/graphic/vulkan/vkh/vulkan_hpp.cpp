@@ -5,6 +5,9 @@ module;
 
 #include "vk_enum_string_helper.h"
 
+#include <vulkan/vulkan_beta.h>
+#include <vulkan/vulkan_metal.h>
+
 export module vis.graphic.vulkan.vkh;
 
 export import std;
@@ -61,8 +64,9 @@ constexpr const char* EXTMetalSurfaceExtensionName = VK_EXT_METAL_SURFACE_EXTENS
 constexpr const char* KHRSwapchainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 constexpr const char* KHRPortabilityEnumerationExtensionName = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
 constexpr const char* KHRFormatFeatureFlags2ExtensionName = VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME;
+constexpr const char* KHRPortabilitySubsetExtensionName = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
 #if defined(__APPLE__)
-constexpr const char* KHRPortabilitySubsetExtensionName = VK_KHR_PORTYABILITY_SUBSET_EXTENSION_NAME;
+constexpr const char* EXTMetalSurfaceExtensionName = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
 #endif
 
 enum class Result {

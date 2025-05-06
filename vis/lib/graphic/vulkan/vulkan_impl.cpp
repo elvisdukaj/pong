@@ -51,7 +51,7 @@ constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
   std::vector<const char*> required_extensions = {vkh::KHRSwapchainExtensionName};
 
 #if defined(__APPLE__)
-  required_extensions.push_back(vk::KHRPortabilitySubsetExtensionName);
+  required_extensions.push_back(vkh::KHRPortabilitySubsetExtensionName);
 #endif
   return required_extensions;
 }
