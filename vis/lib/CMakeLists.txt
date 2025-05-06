@@ -13,6 +13,7 @@ add_library(vis_obj::vis_obj ALIAS vis_obj)
 target_sources(vis_obj
         # module implementation files
         PRIVATE
+        graphic/vulkan/vkh/vk_enum_string_helper.h
         graphic/vulkan/vulkan_impl.cpp
         window/window_impl.cpp
 

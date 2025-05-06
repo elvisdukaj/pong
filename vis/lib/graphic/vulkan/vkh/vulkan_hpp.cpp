@@ -3,6 +3,8 @@ module;
 #include <cassert>
 #include <volk.h>
 
+#include "vk_enum_string_helper.h"
+
 export module vis.graphic.vulkan.vkh;
 
 export import std;
@@ -373,6 +375,56 @@ private:
   std::vector<const char*> enabled_extension_names;
 };
 
+class PhysicalDeviceFeatures2Builder {
+public:
+  using NativeType = VkPhysicalDeviceFeatures2;
+
+  PhysicalDeviceFeatures2Builder() noexcept {
+    native = NativeType{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = nullptr,
+        .features = {},
+    };
+  }
+
+  PhysicalDeviceFeatures2Builder& with_next(VkBaseInStructure* next = nullptr) noexcept {
+    native.pNext = next;
+    return *this;
+  }
+
+  NativeType build() const noexcept {
+    return native;
+  }
+
+private:
+  NativeType native;
+};
+
+class PhysicalDeviceProperties2Builder {
+public:
+  using NativeType = VkPhysicalDeviceProperties2;
+
+  PhysicalDeviceProperties2Builder() noexcept {
+    native = NativeType{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+        .pNext = nullptr,
+        .properties = {},
+    };
+  }
+
+  PhysicalDeviceProperties2Builder& with_next(VkBaseInStructure* next = nullptr) noexcept {
+    native.pNext = next;
+    return *this;
+  }
+
+  NativeType build() const noexcept {
+    return native;
+  }
+
+private:
+  NativeType native;
+};
+
 class Context {
 public:
   Context() {
@@ -715,42 +767,127 @@ public:
 
   VkPhysicalDeviceFeatures2 get_features2() const noexcept {
     (void)(surface);
-    VkPhysicalDeviceFeatures2 features;
-    vkGetPhysicalDeviceFeatures2(handle, &features);
-    return features;
+    auto vk_features = PhysicalDeviceFeatures2Builder{}.build();
+    vkGetPhysicalDeviceFeatures2(handle, &vk_features);
+    return vk_features;
   }
 
   VkPhysicalDeviceProperties2 get_properties2() const noexcept {
-    VkPhysicalDeviceProperties2 props{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = nullptr, .properties = {}};
-    vkGetPhysicalDeviceProperties2(handle, &props);
-    return props;
-  }
-
-  VkPhysicalDeviceProperties get_properties() const noexcept {
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(handle, &props);
-    return props;
+    auto vk_props = PhysicalDeviceProperties2Builder{}.build();
+    vkGetPhysicalDeviceProperties2(handle, &vk_props);
+    return vk_props;
   }
 
   std::vector<VkLayerProperties> get_device_layer_properties() const noexcept {
     return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, handle);
   }
 
+  std::vector<VkLayerProperties> get_layers() const noexcept {
+    return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, handle);
+  }
+
+  std::vector<VkExtensionProperties> get_extensions(const char* layerName = nullptr) const noexcept {
+    return enumerate<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, handle, layerName);
+  }
+
+  std::string device_name() const noexcept {
+    return std::string{properties.properties.deviceName};
+  }
+
+  uint32_t device_api_version() const noexcept {
+    return properties.properties.apiVersion;
+  }
+
 private:
-  PhysicalDevice(NativeType device, Surface* surface) noexcept : handle{device}, surface{surface} {}
+  PhysicalDevice(NativeType device, Surface* surface) noexcept : handle{device}, surface{surface} {
+    features = get_features2();
+    properties = get_properties2();
+    available_layers = get_layers();
+    available_extensions = get_extensions();
+    for (const auto& layer : available_layers) {
+      auto extension_for_layer = get_extensions(layer.layerName);
+      available_extensions.insert(end(available_extensions), begin(extension_for_layer), end(extension_for_layer));
+    }
+  }
 
   std::string serialize() const noexcept {
-    auto props = get_properties2();
-    return std::format("  - name: {}\n"
-                       "    version: {}",
-                       std::string_view{props.properties.deviceName},
-                       helper::vk_api_version_to_string(props.properties.apiVersion));
+    // TODO: refactoring the serialization
+    std::string result;
+
+    result += std::format("  - name: {}\n"
+                          "    version: {}\n"
+                          "    type: {}\n",
+                          std::string_view{properties.properties.deviceName},
+                          helper::vk_api_version_to_string(properties.properties.apiVersion),
+                          string_VkPhysicalDeviceType(properties.properties.deviceType));
+
+    result += "    layers:\n";
+    for (const auto& layer : available_layers)
+      result += std::format("      - {}\n", std::string_view{layer.layerName});
+
+    result += "    extensions:\n";
+    for (const auto& extension : available_extensions)
+      result += std::format("      - {}\n", std::string_view{extension.extensionName});
+
+    result += std::format("    features:\n");
+
+#define ENUMERATE_FEATURE(feature) result += std::format("      - {}: {}\n", #feature, bool(features.features.feature));
+
+    ENUMERATE_FEATURE(robustBufferAccess);
+    ENUMERATE_FEATURE(fullDrawIndexUint32);
+    ENUMERATE_FEATURE(imageCubeArray);
+    ENUMERATE_FEATURE(independentBlend);
+    ENUMERATE_FEATURE(geometryShader);
+    ENUMERATE_FEATURE(tessellationShader);
+    ENUMERATE_FEATURE(sampleRateShading);
+    ENUMERATE_FEATURE(dualSrcBlend);
+    ENUMERATE_FEATURE(logicOp);
+    ENUMERATE_FEATURE(multiDrawIndirect);
+    ENUMERATE_FEATURE(drawIndirectFirstInstance);
+    ENUMERATE_FEATURE(depthClamp);
+    ENUMERATE_FEATURE(depthBiasClamp);
+    ENUMERATE_FEATURE(fillModeNonSolid);
+    ENUMERATE_FEATURE(depthBounds);
+    ENUMERATE_FEATURE(wideLines);
+    ENUMERATE_FEATURE(largePoints);
+    ENUMERATE_FEATURE(alphaToOne);
+    ENUMERATE_FEATURE(multiViewport);
+    ENUMERATE_FEATURE(samplerAnisotropy);
+    ENUMERATE_FEATURE(textureCompressionETC2);
+    ENUMERATE_FEATURE(textureCompressionASTC_LDR);
+    ENUMERATE_FEATURE(textureCompressionBC);
+    ENUMERATE_FEATURE(occlusionQueryPrecise);
+    ENUMERATE_FEATURE(pipelineStatisticsQuery);
+    ENUMERATE_FEATURE(vertexPipelineStoresAndAtomics);
+    ENUMERATE_FEATURE(fragmentStoresAndAtomics);
+    ENUMERATE_FEATURE(shaderTessellationAndGeometryPointSize);
+    ENUMERATE_FEATURE(shaderImageGatherExtended);
+    ENUMERATE_FEATURE(shaderStorageImageExtendedFormats);
+    ENUMERATE_FEATURE(shaderStorageImageMultisample);
+    ENUMERATE_FEATURE(shaderStorageImageReadWithoutFormat);
+    ENUMERATE_FEATURE(shaderStorageImageWriteWithoutFormat);
+    ENUMERATE_FEATURE(shaderUniformBufferArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderSampledImageArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderStorageBufferArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderStorageImageArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderClipDistance);
+    ENUMERATE_FEATURE(shaderCullDistance);
+    ENUMERATE_FEATURE(shaderFloat64);
+    ENUMERATE_FEATURE(shaderInt64);
+    ENUMERATE_FEATURE(shaderInt16);
+    ENUMERATE_FEATURE(shaderResourceResidency);
+
+    result.pop_back();
+    return result;
   }
 
 private:
   NativeType handle = VK_NULL_HANDLE;
   Surface* surface = nullptr;
+  VkPhysicalDeviceFeatures2 features;
+  VkPhysicalDeviceProperties2 properties;
+  std::vector<VkLayerProperties> available_layers;
+  std::vector<VkExtensionProperties> available_extensions;
 };
 
 class PhysicalDeviceSelector {
