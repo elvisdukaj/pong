@@ -47,6 +47,15 @@ std::vector<const char*> get_required_layers() noexcept {
   return required_layers;
 }
 
+constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
+  std::vector<const char*> required_extensions = {vkh::KHRSwapchainExtensionName};
+
+#if defined(__APPLE__)
+  required_extensions.push_back(vk::KHRPortabilitySubsetExtensionName);
+#endif
+  return required_extensions;
+}
+
 } // namespace helper
 
 namespace vis::vulkan {
@@ -260,6 +269,7 @@ public:
   Impl([[maybe_unused]] Window* window) : window{window} {
     create_instance();
     create_surface();
+    enumerate_physical_devices();
   }
 
   std::string show_info() const noexcept {
@@ -272,10 +282,11 @@ public:
   void set_clear_color([[maybe_unused]] vec4 color) noexcept {}
 
 private:
-  void create_instance() {
+  void create_instance() noexcept {
     auto required_flags = helper::get_required_instance_flags();
     auto required_extensions = helper::get_required_extensions();
     auto required_layers = helper::get_required_layers();
+    auto required_gpu_extensions = helper::get_physical_device_extensions();
     auto required_windows_extensions = window->get_required_renderer_extension();
 
     vk_instance = vkh::InstanceBuilder{vk_context}
@@ -286,6 +297,7 @@ private:
                       .with_app_flags(required_flags)
                       .add_required_layers(required_layers)
                       .add_required_extensions(required_extensions)
+                      //   .add_required_extensions(required_gpu_extensions)
                       .add_required_extensions(required_windows_extensions)
                       .with_minimum_required_instance_version(0, 1, 2, 0)
                       .with_maximum_required_instance_version(0, 1, 2, 0)
@@ -300,8 +312,15 @@ private:
     // }
   }
 
-  void create_surface() {
+  void create_surface() noexcept {
     surface = vkh::SurfaceBuilder{&vk_instance, window}.build();
+  }
+
+  void enumerate_physical_devices() noexcept {
+    auto required_gpu_extensions = helper::get_physical_device_extensions();
+    physical_devices = vkh::PhysicalDeviceSelector{vk_instance, &surface}
+                           .add_required_extensions(required_gpu_extensions)
+                           .enumerate_all();
   }
 
 private:
@@ -309,6 +328,7 @@ private:
   vkh::Context vk_context;
   vkh::Instance vk_instance{nullptr};
   vkh::Surface surface{nullptr};
+  std::vector<vkh::PhysicalDevice> physical_devices;
 };
 #endif
 

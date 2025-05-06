@@ -56,7 +56,12 @@ constexpr const char* KHRGetSurfaceCapabilities2ExtensionName = VK_KHR_GET_SURFA
 #if defined(VK_USE_PLATFORM_METAL_EXT)
 constexpr const char* EXTMetalSurfaceExtensionName = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
 #endif
+constexpr const char* KHRSwapchainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 constexpr const char* KHRPortabilityEnumerationExtensionName = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+constexpr const char* KHRFormatFeatureFlags2ExtensionName = VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME;
+#if defined(__APPLE__)
+constexpr const char* KHRPortabilitySubsetExtensionName = VK_KHR_PORTYABILITY_SUBSET_EXTENSION_NAME;
+#endif
 
 enum class Result {
   Success = VK_SUCCESS,
@@ -120,6 +125,21 @@ enum class Result {
   PipelineBinaryMissingKHR = VK_PIPELINE_BINARY_MISSING_KHR,
   ErrorNotEnoughSpaceKHR = VK_ERROR_NOT_ENOUGH_SPACE_KHR
 };
+
+template <typename T, typename Func, typename... Args> std::vector<T> enumerate(Func func, Args... args) {
+  std::vector<T> container;
+  uint32_t count{};
+  Result result{};
+
+  do {
+    result = static_cast<Result>(func(args..., &count, nullptr));
+    if ((result == Result::Success) && count) {
+      container.resize(count);
+      result = static_cast<Result>(func(args..., &count, container.data()));
+    }
+  } while (result == Result::Incomplete);
+  return container;
+}
 
 template <typename FlagBitsType> struct FlagTraits {
   static constexpr bool is_bit_mask = false;
@@ -357,9 +377,8 @@ class Context {
 public:
   Context() {
     api_version = volkGetInstanceVersion();
-    available_layers = get_available_layers();
-    available_extensions = get_available_extensions();
-
+    available_layers = enumerate<VkLayerProperties>(vkEnumerateInstanceLayerProperties);
+    available_extensions = enumerate<VkExtensionProperties>(vkEnumerateInstanceExtensionProperties, nullptr);
     // TODO: serialize
     std::println("context:");
     std::println("  version: {}", helper::vk_version_to_string(api_version));
@@ -388,51 +407,6 @@ public:
 
   uint32_t get_api_version() const noexcept {
     return api_version;
-  }
-
-  std::vector<VkLayerProperties> get_available_layers() noexcept {
-    std::vector<VkLayerProperties> properties;
-    uint32_t propertyCount;
-    Result result;
-    do {
-      result = static_cast<Result>(vkEnumerateInstanceLayerProperties(&propertyCount, nullptr));
-      if ((result == Result::Success) && propertyCount) {
-        properties.resize(propertyCount);
-        result = static_cast<Result>(vkEnumerateInstanceLayerProperties(
-            &propertyCount, reinterpret_cast<VkLayerProperties*>(properties.data())));
-      }
-    } while (result == Result::Incomplete);
-    // VULKAN_HPP_NAMESPACE::detail::resultCheck(result, VULKAN_HPP_NAMESPACE_STRING
-    // "::Context::enumerateInstanceExtensionProperties");
-    // VULKAN_HPP_ASSERT(propertyCount <= properties.size());
-    if (propertyCount < properties.size()) {
-      properties.resize(propertyCount);
-    }
-    return properties;
-  }
-
-  std::vector<VkExtensionProperties>
-  get_available_extensions(std::optional<std::string_view> layer_name = std::nullopt) {
-    std::vector<VkExtensionProperties> properties;
-    uint32_t propertyCount;
-    Result result;
-    do {
-      result = static_cast<Result>(
-          vkEnumerateInstanceExtensionProperties(layer_name ? layer_name->data() : nullptr, &propertyCount, nullptr));
-      if ((result == Result::Success) && propertyCount) {
-        properties.resize(propertyCount);
-        result = static_cast<Result>(
-            vkEnumerateInstanceExtensionProperties(layer_name ? layer_name->data() : nullptr, &propertyCount,
-                                                   reinterpret_cast<VkExtensionProperties*>(properties.data())));
-      }
-    } while (result == Result::Incomplete);
-    // VULKAN_HPP_NAMESPACE::detail::resultCheck(result, VULKAN_HPP_NAMESPACE_STRING
-    // "::Context::enumerateInstanceExtensionProperties");
-    // VULKAN_HPP_ASSERT(propertyCount <= properties.size());
-    if (propertyCount < properties.size()) {
-      properties.resize(propertyCount);
-    }
-    return properties;
   }
 
   [[nodiscard]] bool has_extension(std::string_view extension_name) const noexcept {
@@ -696,6 +670,7 @@ class Device {
   friend class PhysicalDevice;
 
 public:
+  using NativeType = VkDevice;
   explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE}, /*allocator{VK_NULL_HANDLE},*/ graphic_queue_index{} {}
 
   Device(const Device& other) = delete;
@@ -726,9 +701,464 @@ private:
       : handle{device}, /*allocator{allocator},*/ graphic_queue_index{graphic_queue_index} {}
 
 private:
-  VkDevice handle = VK_NULL_HANDLE;
+  NativeType handle = VK_NULL_HANDLE;
   // VmaAllocator allocator = VK_NULL_HANDLE;
   std::size_t graphic_queue_index = 0;
 };
 
+class PhysicalDevice {
+  friend class PhysicalDeviceSelector;
+
+public:
+  using NativeType = VkPhysicalDevice;
+  PhysicalDevice(std::nullptr_t) noexcept : handle{nullptr}, surface{nullptr} {}
+
+  VkPhysicalDeviceFeatures2 get_features2() const noexcept {
+    (void)(surface);
+    VkPhysicalDeviceFeatures2 features;
+    vkGetPhysicalDeviceFeatures2(handle, &features);
+    return features;
+  }
+
+  VkPhysicalDeviceProperties2 get_properties2() const noexcept {
+    VkPhysicalDeviceProperties2 props{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = nullptr, .properties = {}};
+    vkGetPhysicalDeviceProperties2(handle, &props);
+    return props;
+  }
+
+  VkPhysicalDeviceProperties get_properties() const noexcept {
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(handle, &props);
+    return props;
+  }
+
+  std::vector<VkLayerProperties> get_device_layer_properties() const noexcept {
+    return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, handle);
+  }
+
+private:
+  PhysicalDevice(NativeType device, Surface* surface) noexcept : handle{device}, surface{surface} {}
+
+  std::string serialize() const noexcept {
+    auto props = get_properties2();
+    return std::format("  - name: {}\n"
+                       "    version: {}",
+                       std::string_view{props.properties.deviceName},
+                       helper::vk_api_version_to_string(props.properties.apiVersion));
+  }
+
+private:
+  NativeType handle = VK_NULL_HANDLE;
+  Surface* surface = nullptr;
+};
+
+class PhysicalDeviceSelector {
+public:
+  explicit PhysicalDeviceSelector(Instance& instance, Surface* surface = nullptr)
+      : instance{instance}, surface{surface} {}
+
+  PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
+    required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
+    return *this;
+  }
+
+  PhysicalDeviceSelector& add_required_extensions(const char* extension) {
+    required_gpu_extensions.push_back(extension);
+    return *this;
+  }
+
+  PhysicalDeviceSelector& add_required_layer(const char* layer_name) noexcept {
+    required_gpu_layers.push_back(layer_name);
+    return *this;
+  }
+
+  PhysicalDeviceSelector& add_required_layers(std::span<const char*> layers) noexcept {
+    required_gpu_layers.insert(required_gpu_layers.end(), begin(layers), end(layers));
+    return *this;
+  }
+
+  PhysicalDeviceSelector& with_surface(Surface* desired_surface) {
+    surface = desired_surface;
+    return *this;
+  }
+
+  std::vector<PhysicalDevice> enumerate_all() const noexcept {
+    // clang-format off
+    auto devices = enumerate<VkPhysicalDevice>(vkEnumeratePhysicalDevices, instance.native_handle())
+         | std::views::transform([this](VkPhysicalDevice vk_device) -> PhysicalDevice {
+             return PhysicalDevice{vk_device, surface};
+           })
+        | std::ranges::to<std::vector<PhysicalDevice>>();
+    // clang-format on
+
+    // TODO: serialize
+    std::println("physical devices:");
+    for (const auto& d : devices)
+      std::println("{}", d.serialize());
+
+    return devices;
+  }
+
+private:
+  Instance& instance;
+  Surface* surface = nullptr;
+
+  std::vector<const char*> required_gpu_extensions;
+  std::vector<const char*> required_gpu_layers;
+};
+
+#if 0
+class PhysicalDevice {
+  friend class PhysicalDeviceSelector;
+
+public:
+  using NativeType = VkPhysicalDevice;
+  PhysicalDevice() : physical_device{nullptr}, surface{nullptr} {}
+
+  void swap(PhysicalDevice& other) noexcept {
+    std::swap(physical_device, other.physical_device);
+    std::swap(surface, other.surface);
+    std::swap(available_properties, other.available_properties);
+    std::swap(available_features, other.available_features);
+    std::swap(available_layers, other.available_layers);
+    std::swap(available_extensions, other.available_extensions);
+    std::swap(available_queue_families, other.available_queue_families);
+    std::swap(required_layers, other.required_layers);
+    std::swap(required_extensions, other.required_extensions);
+    std::swap(available_graphic_queue_indexes, other.available_graphic_queue_indexes);
+    std::swap(available_transfer_queue_indexes, other.available_transfer_queue_indexes);
+    std::swap(available_compute_queue_indexes, other.available_compute_queue_indexes);
+    // std::swap(feature_chain, other.feature_chain);
+    this->configuration = YAML::Clone(other.configuration);
+  }
+
+  PhysicalDevice(PhysicalDevice&) = delete;
+  PhysicalDevice& operator=(PhysicalDevice&) = delete;
+
+  PhysicalDevice(PhysicalDevice&& other) noexcept
+      : physical_device{nullptr}, surface{nullptr}, feature_chain(std::move(other.feature_chain)) {
+    swap(other);
+  }
+
+  PhysicalDevice& operator=(PhysicalDevice&& other) noexcept {
+    swap(other);
+    feature_chain = std::move(other.feature_chain);
+    return *this;
+  }
+
+  const std::vector<uint32_t>& get_graphic_queue_indexes() const noexcept {
+    return available_graphic_queue_indexes;
+  }
+
+  std::string_view name() const noexcept {
+    return std::string_view{available_properties.properties.deviceName};
+  }
+
+  bool has_any(std::span<vk::PhysicalDeviceType> types) const noexcept {
+    return std::ranges::any_of(
+        types, [this](vk::PhysicalDeviceType type) { return available_properties.properties.deviceType == type; });
+  }
+
+  bool has_not_any(std::span<vk::PhysicalDeviceType> types) const noexcept {
+    return not std::ranges::any_of(
+        types, [this](vk::PhysicalDeviceType type) { return available_properties.properties.deviceType == type; });
+  }
+
+  bool is_discrete() const noexcept {
+    return available_properties.properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+  }
+
+  bool is_integrated() const noexcept {
+    return available_properties.properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu;
+  }
+
+  bool is_cpu() const noexcept {
+    return available_properties.properties.deviceType == vk::PhysicalDeviceType::eCpu;
+  }
+
+  bool is_virtual() const noexcept {
+    return available_properties.properties.deviceType == vk::PhysicalDeviceType::eVirtualGpu;
+  }
+
+  bool has_preset() const noexcept {
+    assert(surface != nullptr && "To check for preset the surface should be set");
+    for (auto i = 0u; i < available_queue_families.size(); i++) {
+      auto preset_support = physical_device.getSurfaceSupportKHR(i, *surface);
+      if (preset_support != 0)
+        return true;
+    }
+
+    return false;
+  }
+
+  bool has_graphic_queue() const noexcept {
+    return std::ranges::any_of(available_queue_families, [](const vk::QueueFamilyProperties2& queue) {
+      return (queue.queueFamilyProperties.queueCount > 0) &&
+             (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics);
+    });
+  }
+
+  bool has_compute_queue() const noexcept {
+    return std::ranges::any_of(available_queue_families, [](const vk::QueueFamilyProperties2& queue) {
+      return (queue.queueFamilyProperties.queueCount > 0) &&
+             (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute);
+    });
+  }
+
+  bool has_transfer_queue() const noexcept {
+    return std::ranges::any_of(available_queue_families, [](const vk::QueueFamilyProperties2& queue) {
+      return (queue.queueFamilyProperties.queueCount > 0) &&
+             (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer);
+    });
+  }
+
+  bool has_extension(std::string_view extension_name) const noexcept {
+    auto match_extension = [extension_name](const vk::ExtensionProperties& ext) {
+      return std::string_view{ext.extensionName} == extension_name;
+    };
+
+    return std::ranges::find_if(available_extensions, match_extension) != end(available_extensions);
+  }
+
+  bool has_extensions(std::span<std::string_view> requsted_extensions) const noexcept {
+    return std::ranges::all_of(requsted_extensions,
+                               [this](std::string_view extension_name) { return has_extension(extension_name); });
+  }
+
+  YAML::Node dump() const noexcept {
+    return YAML::Clone(configuration);
+  }
+
+  PhysicalDevice& with_feature_10(vk::PhysicalDeviceFeatures2 required_feature) {
+    auto& feat = feature_chain.get<vk::PhysicalDeviceFeatures2>();
+    feat = combine(feat, required_feature);
+    return *this;
+  }
+
+  PhysicalDevice& with_feature_11(vk::PhysicalDeviceVulkan11Features required_feature) {
+    auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan11Features>();
+    feat = combine(feat, required_feature);
+    return *this;
+  }
+
+  PhysicalDevice& with_feature_12(vk::PhysicalDeviceVulkan12Features required_feature) {
+    auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan12Features>();
+    feat = combine(feat, required_feature);
+    return *this;
+  }
+
+  PhysicalDevice& with_feature_13(vk::PhysicalDeviceVulkan13Features required_feature) {
+    auto& feat = feature_chain.get<vk::PhysicalDeviceVulkan13Features>();
+    feat = combine(feat, required_feature);
+    return *this;
+  }
+
+  [[nodiscard]] Device create_device(const Instance& instance) const {
+    auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
+    for (auto i = 0u; i < available_queue_families.size(); i++) {
+      auto priorities = std::vector<float>(available_queue_families[i].queueFamilyProperties.queueCount, 1.0f);
+      queue_info_vec.emplace_back(vk::DeviceQueueCreateInfo{
+          .queueFamilyIndex = i,
+          .queueCount = available_queue_families[i].queueFamilyProperties.queueCount,
+          .pQueuePriorities = priorities.data(),
+      });
+    }
+
+    // ACHTUNG: the return type of the lambda has to be const char* since char[] will go out of scope
+    auto layers = available_layers |
+                  std::views::transform([](const auto& layer) -> const char* { return layer.layerName; }) |
+                  std::ranges::to<std::vector<const char*>>();
+    auto extensions =
+        available_extensions |
+        std::views::transform([](const auto& extension) -> const char* { return extension.extensionName; }) |
+        std::ranges::to<std::vector<const char*>>();
+
+    auto device_create_info = vk::DeviceCreateInfo{};
+    device_create_info.pNext = &feature_chain.get<vk::PhysicalDeviceFeatures2>();
+    device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_info_vec.size());
+    device_create_info.pQueueCreateInfos = queue_info_vec.data();
+    device_create_info.enabledLayerCount = static_cast<uint32_t>(required_layers.size());
+    device_create_info.ppEnabledLayerNames = required_layers.data();
+    device_create_info.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size());
+    device_create_info.ppEnabledExtensionNames = required_extensions.data();
+
+    auto device = physical_device.createDevice(device_create_info);
+    if (not device) {
+      throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
+    }
+
+    VmaVulkanFunctions functions = {};
+    functions.vkGetInstanceProcAddr = physical_device.getDispatcher()->vkGetInstanceProcAddr;
+    functions.vkGetDeviceProcAddr = physical_device.getDispatcher()->vkGetDeviceProcAddr;
+
+    auto allocator_info = VmaAllocatorCreateInfo{
+        .flags = 0,
+        .physicalDevice = static_cast<vk::raii::PhysicalDevice::CType>(
+            static_cast<vk::raii::PhysicalDevice::CppType>(physical_device)),
+        .device = static_cast<vk::raii::Device::CType>(static_cast<vk::raii::Device::CppType>(*device)),
+        .preferredLargeHeapBlockSize = 0, // default
+        .pAllocationCallbacks = nullptr,  //
+        .pDeviceMemoryCallbacks = nullptr,
+        .pHeapSizeLimit = nullptr,
+        .pVulkanFunctions = &functions, //
+        .instance = instance.native_handle(),
+        .vulkanApiVersion = instance.get_api_version(),
+        .pTypeExternalMemoryHandleTypes = nullptr,
+    };
+
+    VmaAllocator allocator;
+    vmaCreateAllocator(&allocator_info, &allocator);
+
+    return Device{allocator, std::move(*device)};
+  }
+
+private:
+  explicit PhysicalDevice(NativeType device, std::vector<const char*> requirested_required_layers,
+                          std::vector<const char*> requirested_required_extensions, Surface* surface = nullptr)
+      : physical_device{device},
+        surface{surface},
+        required_layers(std::move(requirested_required_layers)),
+        required_extensions{std::move(requirested_required_extensions)} {
+
+    available_properties = physical_device.getProperties2();
+
+    available_features = physical_device.getFeatures2();
+    available_layers = physical_device.enumerateDeviceLayerProperties();
+    available_extensions = physical_device.enumerateDeviceExtensionProperties();
+    available_queue_families = physical_device.getQueueFamilyProperties2();
+
+    for (auto i = 0u; i < available_queue_families.size(); i++) {
+      auto queue_props = available_queue_families[i].queueFamilyProperties;
+      if (queue_props.queueFlags & vk::QueueFlagBits::eGraphics) {
+        available_graphic_queue_indexes.push_back(static_cast<uint32_t>(i));
+      }
+      if (queue_props.queueFlags & vk::QueueFlagBits::eTransfer) {
+        available_transfer_queue_indexes.push_back(static_cast<uint32_t>(i));
+      }
+      if (queue_props.queueFlags & vk::QueueFlagBits::eCompute) {
+        available_compute_queue_indexes.push_back(static_cast<uint32_t>(i));
+      }
+    }
+
+    for (const auto& layer : available_layers) {
+      auto layer_extension = physical_device.enumerateDeviceExtensionProperties(std::string{layer.layerName});
+      available_extensions.insert(end(available_extensions), begin(layer_extension), end(layer_extension));
+    }
+
+    configuration["name"] = std::string_view{available_properties.properties.deviceName};
+    configuration["device type"] = vk::to_string(available_properties.properties.deviceType);
+    configuration["api version"] = vk_version_to_string(available_properties.properties.apiVersion);
+
+#define ENUMERATE_FEATURE(feature)                                                                                     \
+  {                                                                                                                    \
+    YAML::Node node;                                                                                                   \
+    node[#feature] = bool(available_features.features.feature);                                                        \
+    configuration["features"].push_back(node);                                                                         \
+  }
+
+    ENUMERATE_FEATURE(robustBufferAccess);
+    ENUMERATE_FEATURE(fullDrawIndexUint32);
+    ENUMERATE_FEATURE(imageCubeArray);
+    ENUMERATE_FEATURE(independentBlend);
+    ENUMERATE_FEATURE(geometryShader);
+    ENUMERATE_FEATURE(tessellationShader);
+    ENUMERATE_FEATURE(sampleRateShading);
+    ENUMERATE_FEATURE(dualSrcBlend);
+    ENUMERATE_FEATURE(logicOp);
+    ENUMERATE_FEATURE(multiDrawIndirect);
+    ENUMERATE_FEATURE(drawIndirectFirstInstance);
+    ENUMERATE_FEATURE(depthClamp);
+    ENUMERATE_FEATURE(depthBiasClamp);
+    ENUMERATE_FEATURE(fillModeNonSolid);
+    ENUMERATE_FEATURE(depthBounds);
+    ENUMERATE_FEATURE(wideLines);
+    ENUMERATE_FEATURE(largePoints);
+    ENUMERATE_FEATURE(alphaToOne);
+    ENUMERATE_FEATURE(multiViewport);
+    ENUMERATE_FEATURE(samplerAnisotropy);
+    ENUMERATE_FEATURE(textureCompressionETC2);
+    ENUMERATE_FEATURE(textureCompressionASTC_LDR);
+    ENUMERATE_FEATURE(textureCompressionBC);
+    ENUMERATE_FEATURE(occlusionQueryPrecise);
+    ENUMERATE_FEATURE(pipelineStatisticsQuery);
+    ENUMERATE_FEATURE(vertexPipelineStoresAndAtomics);
+    ENUMERATE_FEATURE(fragmentStoresAndAtomics);
+    ENUMERATE_FEATURE(shaderTessellationAndGeometryPointSize);
+    ENUMERATE_FEATURE(shaderImageGatherExtended);
+    ENUMERATE_FEATURE(shaderStorageImageExtendedFormats);
+    ENUMERATE_FEATURE(shaderStorageImageMultisample);
+    ENUMERATE_FEATURE(shaderStorageImageReadWithoutFormat);
+    ENUMERATE_FEATURE(shaderStorageImageWriteWithoutFormat);
+    ENUMERATE_FEATURE(shaderUniformBufferArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderSampledImageArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderStorageBufferArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderStorageImageArrayDynamicIndexing);
+    ENUMERATE_FEATURE(shaderClipDistance);
+    ENUMERATE_FEATURE(shaderCullDistance);
+    ENUMERATE_FEATURE(shaderFloat64);
+    ENUMERATE_FEATURE(shaderInt64);
+    ENUMERATE_FEATURE(shaderInt16);
+    ENUMERATE_FEATURE(shaderResourceResidency);
+
+    for (const auto& layer : available_layers) {
+      YAML::Node node;
+      node["name"] = std::string_view{layer.layerName};
+      node["description"] = (std::string_view{layer.description});
+      node["spec version"] = vk_version_to_string(layer.specVersion);
+      node["implementation version"] = layer.implementationVersion;
+      configuration["layers"].push_back(node);
+    }
+
+    for (const auto& extension : available_extensions) {
+      configuration["extension"].push_back(std::string_view{extension.extensionName});
+    }
+
+    configuration["required layers"] = required_layers;
+    configuration["required extensions"] = required_extensions;
+
+    auto queue_family_index = 0u;
+    for (const auto& queue_family : available_queue_families) {
+      YAML::Node node;
+      node["flags"] = vk::to_string(queue_family.queueFamilyProperties.queueFlags);
+      node["count"] = queue_family.queueFamilyProperties.queueCount;
+
+      if (surface != nullptr) {
+        auto preset_support = physical_device.getSurfaceSupportKHR(queue_family_index, *surface);
+        node["preset support"] = static_cast<bool>(preset_support);
+      }
+
+      configuration["queue families"].push_back(node);
+
+      ++queue_family_index;
+    }
+  }
+
+  std::vector<VkPhysicalDeviceProperties2> get_available_properties() const noexcept {
+
+    ;
+    ;
+  }
+
+private:
+  NativeType handle;
+  Surface* surface;
+  vk::PhysicalDeviceProperties2 available_properties;
+  vk::PhysicalDeviceFeatures2 available_features;
+  std::vector<vk::LayerProperties> available_layers;
+  std::vector<vk::ExtensionProperties> available_extensions;
+  std::vector<vk::QueueFamilyProperties2> available_queue_families;
+  std::vector<const char*> required_layers;
+  std::vector<const char*> required_extensions;
+  std::vector<uint32_t> available_graphic_queue_indexes;
+  std::vector<uint32_t> available_transfer_queue_indexes;
+  std::vector<uint32_t> available_compute_queue_indexes;
+
+  using DeviceFeatureChain = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+                                                vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features>;
+  DeviceFeatureChain feature_chain;
+
+  YAML::Node configuration;
+};
+#endif
 } // namespace vkh
