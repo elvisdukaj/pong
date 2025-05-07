@@ -812,57 +812,88 @@ public:
   using NativeType = VkPhysicalDevice;
   PhysicalDevice(std::nullptr_t) noexcept : handle{nullptr}, surface{nullptr} {}
 
-  VkPhysicalDeviceFeatures2 get_features2() const noexcept {
-    (void)(surface);
+  static VkPhysicalDeviceFeatures2 get_features2(VkPhysicalDevice device) noexcept {
     auto vk_features = PhysicalDeviceFeatures2Builder{}.build();
-    vkGetPhysicalDeviceFeatures2(handle, &vk_features);
+    vkGetPhysicalDeviceFeatures2(device, &vk_features);
     return vk_features;
   }
 
-  VkPhysicalDeviceProperties2 get_properties2() const noexcept {
+  static VkPhysicalDeviceProperties2 get_properties2(VkPhysicalDevice device) noexcept {
     auto vk_props = PhysicalDeviceProperties2Builder{}.build();
-    vkGetPhysicalDeviceProperties2(handle, &vk_props);
+    vkGetPhysicalDeviceProperties2(device, &vk_props);
     return vk_props;
   }
 
-  std::vector<VkLayerProperties> get_device_layer_properties() const noexcept {
-    return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, handle);
+  static std::vector<VkLayerProperties> get_device_layer_properties(VkPhysicalDevice device) noexcept {
+    return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, device);
   }
 
-  std::vector<VkLayerProperties> get_layers() const noexcept {
-    return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, handle);
+  static std::vector<VkLayerProperties> get_layers(VkPhysicalDevice device) noexcept {
+    return enumerate<VkLayerProperties>(vkEnumerateDeviceLayerProperties, device);
   }
 
-  std::vector<VkExtensionProperties> get_extensions(const char* layerName = nullptr) const noexcept {
-    return enumerate<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, handle, layerName);
+  static std::vector<VkExtensionProperties> get_extensions(VkPhysicalDevice device,
+                                                           const char* layerName = nullptr) noexcept {
+    return enumerate<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, device, layerName);
   }
 
-  std::vector<VkQueueFamilyProperties2> get_queue_famylies() const noexcept {
-    return enumerate<VkQueueFamilyProperties2>(vkGetPhysicalDeviceQueueFamilyProperties2, handle);
+  static std::vector<VkQueueFamilyProperties2> get_queue_famylies(VkPhysicalDevice device) noexcept {
+    return enumerate<VkQueueFamilyProperties2>(vkGetPhysicalDeviceQueueFamilyProperties2, device);
   }
 
-  bool is_swap_chain_supported(std::size_t queue_family_index) const noexcept {
-    assert(surface != nullptr && "Cannot check swapchain if surface is a nullptr");
+  static bool is_surface_supported(VkPhysicalDevice device, VkSurfaceKHR surface,
+                                   std::size_t queue_family_index) noexcept {
     VkBool32 supported{};
-    vkGetPhysicalDeviceSurfaceSupportKHR(handle, static_cast<uint32_t>(queue_family_index), surface->native_handle(),
-                                         &supported);
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, static_cast<uint32_t>(queue_family_index), surface, &supported);
     return supported == VK_TRUE;
   }
 
-  VkSurfaceCapabilities2KHR get_surface_capabilities() const noexcept {
-    assert(surface != nullptr && "Cannot check swapchain if surface is a nullptr");
-
-    VkPhysicalDeviceSurfaceInfo2KHR physical_device_surface_info =
-        PhysicalDeviceSurfaceInfo2Builder{surface->native_handle()}.build();
+  static VkSurfaceCapabilities2KHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface) noexcept {
+    VkPhysicalDeviceSurfaceInfo2KHR physical_device_surface_info = PhysicalDeviceSurfaceInfo2Builder{surface}.build();
     VkSurfaceCapabilities2KHR result = VkSurfaceCapabilities2KHRBuilder{}.build();
 
-    vkGetPhysicalDeviceSurfaceCapabilities2KHR(handle, &physical_device_surface_info, &result);
+    vkGetPhysicalDeviceSurfaceCapabilities2KHR(device, &physical_device_surface_info, &result);
     return result;
   }
 
-  std::vector<VkPresentModeKHR> get_present_modes() const noexcept {
-    assert(surface != nullptr && "Cannot check swapchain if surface is a nullptr");
-    return enumerate<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, handle, surface->native_handle());
+  static std::vector<VkPresentModeKHR> get_present_modes(VkPhysicalDevice device, VkSurfaceKHR surface) noexcept {
+    return enumerate<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, device, surface);
+  }
+
+  const VkPhysicalDeviceFeatures2& get_features2() const noexcept {
+    return features;
+  }
+
+  const VkPhysicalDeviceProperties2& get_properties2() const noexcept {
+    return properties;
+  }
+
+  const std::vector<VkLayerProperties>& get_layers() const noexcept {
+    return available_layers;
+  }
+
+  const std::vector<VkExtensionProperties>& get_extensions() const noexcept {
+    return available_extensions;
+  }
+
+  const std::vector<VkQueueFamilyProperties2>& get_queue_famylies() const noexcept {
+    return available_queue_families;
+  }
+
+  bool is_surface_supported(std::size_t queue_family_index) const noexcept {
+    auto it = surface_support_map.find(queue_family_index);
+    if (it == end(surface_support_map))
+      return false;
+
+    return it->second;
+  }
+
+  const VkSurfaceCapabilities2KHR& get_surface_capabilities() const noexcept {
+    return surface_capabilities;
+  }
+
+  const std::vector<VkPresentModeKHR>& get_present_modes() const noexcept {
+    return present_modes;
   }
 
   std::string device_name() const noexcept {
@@ -875,19 +906,56 @@ public:
 
 private:
   PhysicalDevice(NativeType device, Surface* surface) noexcept : handle{device}, surface{surface} {
-    features = get_features2();
-    properties = get_properties2();
-    available_layers = get_layers();
-    available_extensions = get_extensions();
+    init_features2();
+    init_properties2();
+    init_layers();
+    init_extensions();
+    init_queue_famylies();
+    init_surface_support_map();
+    init_surface_capabilities();
+    init_present_modes();
+  }
+
+  void init_features2() noexcept {
+    features = PhysicalDevice::get_features2(handle);
+  }
+
+  void init_properties2() noexcept {
+    properties = PhysicalDevice::get_properties2(handle);
+  }
+
+  void init_layers() noexcept {
+    available_layers = PhysicalDevice::get_layers(handle);
+  }
+
+  void init_extensions() noexcept {
+    available_extensions = PhysicalDevice::get_extensions(handle);
 
     for (const auto& layer : available_layers) {
-      auto extension_for_layer = get_extensions(layer.layerName);
+      auto extension_for_layer = PhysicalDevice::get_extensions(handle, layer.layerName);
       available_extensions.insert(end(available_extensions), begin(extension_for_layer), end(extension_for_layer));
     }
+  }
 
-    available_queue_families = get_queue_famylies();
-    surface_capabilities = get_surface_capabilities();
-    present_modes = get_present_modes();
+  void init_queue_famylies() noexcept {
+    available_queue_families = PhysicalDevice::get_queue_famylies(handle);
+  }
+
+  void init_surface_support_map() noexcept {
+    assert(surface != nullptr && "You mush assign the surface before");
+    for (auto i = 0u; i < available_queue_families.size(); ++i) {
+      surface_support_map[i] = PhysicalDevice::is_surface_supported(handle, surface->native_handle(), i);
+    }
+  }
+
+  void init_surface_capabilities() noexcept {
+    assert(surface != nullptr && "You mush assign the surface before");
+    surface_capabilities = PhysicalDevice::get_surface_capabilities(handle, surface->native_handle());
+  }
+
+  void init_present_modes() noexcept {
+    assert(surface != nullptr && "You mush assign the surface before");
+    present_modes = PhysicalDevice::get_present_modes(handle, surface->native_handle());
   }
 
   std::string serialize() const noexcept {
@@ -971,7 +1039,7 @@ private:
         "      current image extent: {}x{}\n"
         "      min image extent: {}x{}\n"
         "      max image extent: {}x{}\n"
-        "      min array layers: {}\n"
+        "      max array layers: {}\n"
         "      supported transforms: {}\n"
         "      current transforms: {}\n"
         "      supported composite alpha: {}\n"
@@ -1006,6 +1074,7 @@ private:
   std::vector<VkLayerProperties> available_layers;
   std::vector<VkExtensionProperties> available_extensions;
   std::vector<VkQueueFamilyProperties2> available_queue_families;
+  std::map<std::size_t, bool> surface_support_map;
   VkSurfaceCapabilities2KHR surface_capabilities;
   std::vector<VkPresentModeKHR> present_modes;
 };
