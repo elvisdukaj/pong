@@ -1040,11 +1040,13 @@ private:
 #undef ENUMERATE_FEATURE
 
     result += "    queue families:\n";
-    for (const VkQueueFamilyProperties2& queue_family : available_queue_families) {
+    for (auto i = 0u; i < available_queue_families.size(); ++i) {
+      const auto& queue_family = available_queue_families[i];
       result += std::format("      - flags: {}\n"
-                            "        count: {}\n",
+                            "        count: {}\n"
+                            "        present support: {}\n",
                             string_VkQueueFlags(queue_family.queueFamilyProperties.queueFlags),
-                            queue_family.queueFamilyProperties.queueCount);
+                            queue_family.queueFamilyProperties.queueCount, is_surface_supported(i));
     }
 
     result += std::format(
