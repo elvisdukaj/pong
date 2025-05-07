@@ -15,6 +15,8 @@ target_sources(vis_obj
         PRIVATE
         graphic/vulkan/vkh/vk_enum_string_helper.h
         graphic/vulkan/vulkan_impl.cpp
+        # graphic/vulkan/vkh/vkh_impl.cpp
+
         window/window_impl.cpp
 
         PUBLIC FILE_SET CXX_MODULES FILES
@@ -31,8 +33,15 @@ target_sources(vis_obj
         graphic/mesh.cpp
         graphic/opengl.cpp
         graphic/spirv/spirv.cpp
-        graphic/vulkan/vulkan_renderer.cpp
-        graphic/vulkan/vkh/vulkan_hpp.cpp
+        graphic/vulkan/vulkan_renderer.cpp        
+        graphic/vulkan/vkh/type_traits.cpp
+        graphic/vulkan/vkh/concepts.cpp
+        graphic/vulkan/vkh/types.cpp
+        graphic/vulkan/vkh/constants.cpp
+        graphic/vulkan/vkh/helper.cpp
+        graphic/vulkan/vkh/builders.cpp
+        graphic/vulkan/vkh/vkh.cpp
+
 
         PRIVATE FILE_SET HEADERS
         FILES
@@ -118,6 +127,9 @@ target_compile_definitions(vis_obj PUBLIC
         $<$<STREQUAL:$<PLATFORM_ID>,Darwin>:VK_USE_PLATFORM_METAL_EXT>
 )
 
+target_compile_options(vis_obj PUBLIC
+        $<$<CXX_COMPILER_ID:Clang>:-Wno-import-implementation-partition-unit-in-interface-unit>
+)
 
 target_link_libraries(vis_obj PUBLIC
         SDL3::SDL3
