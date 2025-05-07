@@ -834,10 +834,9 @@ private:
     for (const auto& extension : available_extensions)
       result += std::format("      - {}\n", std::string_view{extension.extensionName});
 
-    result += std::format("    features:\n");
+    result += "    features:\n";
 
 #define ENUMERATE_FEATURE(feature) result += std::format("      - {}: {}\n", #feature, bool(features.features.feature));
-
     ENUMERATE_FEATURE(robustBufferAccess);
     ENUMERATE_FEATURE(fullDrawIndexUint32);
     ENUMERATE_FEATURE(imageCubeArray);
@@ -881,6 +880,15 @@ private:
     ENUMERATE_FEATURE(shaderInt64);
     ENUMERATE_FEATURE(shaderInt16);
     ENUMERATE_FEATURE(shaderResourceResidency);
+#undef ENUMERATE_FEATURE
+
+    result += "    queue families:\n";
+    for (const VkQueueFamilyProperties2& queue_family : available_queue_families) {
+      result += std::format("      - flags: {}\n"
+                            "        count: {}\n",
+                            string_VkQueueFlags(queue_family.queueFamilyProperties.queueFlags),
+                            queue_family.queueFamilyProperties.queueCount);
+    }
 
     result.pop_back();
     return result;
