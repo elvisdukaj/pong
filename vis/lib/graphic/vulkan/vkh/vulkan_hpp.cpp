@@ -132,27 +132,12 @@ enum class Result {
 template <typename T, typename Func, typename... Args> std::vector<T> enumerate(Func func, Args... args) {
   std::vector<T> container;
   uint32_t count{};
-  Result result{};
 
-  do {
-    result = static_cast<Result>(func(args..., &count, nullptr));
-    if ((result == Result::Success) && count) {
-      container.resize(count);
-      result = static_cast<Result>(func(args..., &count, container.data()));
-    }
-  } while (result == Result::Incomplete);
-  return container;
-}
-
-template <typename T, typename Func, typename... Args,
-          typename std::enable_if_t<std::is_void_v<std::invoke_result_t<Func, Args..., uint32_t*, T*>>, std::vector<T>>>
-std::vector<T> enumerate(Func func, Args... args) {
-  std::vector<T> container;
-  uint32_t count{};
-
+  // TODO: some function could return incomplete and need to be polled in a loop
   func(args..., &count, nullptr);
   container.resize(count);
   func(args..., &count, container.data());
+
   return container;
 }
 
