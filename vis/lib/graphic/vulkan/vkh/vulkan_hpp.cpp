@@ -129,13 +129,53 @@ enum class Result {
   ErrorNotEnoughSpaceKHR = VK_ERROR_NOT_ENOUGH_SPACE_KHR
 };
 
-template <typename T, typename Func, typename... Args> std::vector<T> enumerate(Func func, Args... args) {
-  std::vector<T> container;
+template <typename T> struct VulkanSType;
+
+template <> struct VulkanSType<VkInstanceCreateInfo> {
+  static constexpr VkStructureType value = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+};
+
+template <> struct VulkanSType<VkSurfaceFormat2KHR> {
+  static constexpr VkStructureType value = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
+};
+
+template <> struct VulkanSType<VkQueueFamilyProperties2> {
+  static constexpr VkStructureType value = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
+};
+
+template <typename T> constexpr VkStructureType VulkanSTypeValue = VulkanSType<T>::value;
+
+template <typename T>
+concept HasSType = requires(T t) {
+  { t.sType };
+};
+
+template <typename T>
+concept DoesNotHaveSType = !HasSType<T>;
+
+template <typename T, typename Func, typename... Args>
+  requires DoesNotHaveSType<T>
+std::vector<T> enumerate(Func func, Args... args) {
   uint32_t count{};
 
   // TODO: some function could return incomplete and need to be polled in a loop
   func(args..., &count, nullptr);
-  container.resize(count);
+  std::vector<T> container(count);
+  func(args..., &count, container.data());
+
+  return container;
+}
+
+template <typename T, typename Func, typename... Args>
+  requires HasSType<T>
+std::vector<T> enumerate(Func func, Args... args) {
+  uint32_t count{};
+
+  // TODO: some function could return incomplete and need to be polled in a loop
+  func(args..., &count, nullptr);
+  T t{};
+  t.sType = VulkanSTypeValue<T>;
+  std::vector<T> container(count, t);
   func(args..., &count, container.data());
 
   return container;
