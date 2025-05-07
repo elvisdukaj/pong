@@ -423,6 +423,55 @@ private:
   NativeType native;
 };
 
+class PhysicalDeviceSurfaceInfo2Builder {
+public:
+  using NativeType = VkPhysicalDeviceSurfaceInfo2KHR;
+
+  PhysicalDeviceSurfaceInfo2Builder(VkSurfaceKHR surface) noexcept {
+    native = NativeType{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
+        .pNext = nullptr,
+        .surface = surface,
+    };
+  }
+
+  PhysicalDeviceSurfaceInfo2Builder& with_next(VkBaseInStructure* next = nullptr) noexcept {
+    native.pNext = next;
+    return *this;
+  }
+
+  NativeType build() const noexcept {
+    return native;
+  }
+
+private:
+  NativeType native;
+};
+
+class VkSurfaceCapabilities2KHRBuilder {
+public:
+  using NativeType = VkSurfaceCapabilities2KHR;
+
+  VkSurfaceCapabilities2KHRBuilder() noexcept {
+    native = NativeType{
+        .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
+        .pNext = nullptr,
+        .surfaceCapabilities = {},
+    };
+  }
+
+  VkSurfaceCapabilities2KHRBuilder& with_next(VkBaseInStructure* next = nullptr) noexcept {
+    native.pNext = next;
+    return *this;
+  }
+
+  NativeType build() const noexcept {
+    return native;
+  }
+
+private:
+  NativeType native;
+};
 class Context {
 public:
   Context() {
@@ -792,6 +841,30 @@ public:
     return enumerate<VkQueueFamilyProperties2>(vkGetPhysicalDeviceQueueFamilyProperties2, handle);
   }
 
+  bool is_swap_chain_supported(std::size_t queue_family_index) const noexcept {
+    assert(surface != nullptr && "Cannot check swapchain if surface is a nullptr");
+    VkBool32 supported{};
+    vkGetPhysicalDeviceSurfaceSupportKHR(handle, static_cast<uint32_t>(queue_family_index), surface->native_handle(),
+                                         &supported);
+    return supported == VK_TRUE;
+  }
+
+  VkSurfaceCapabilities2KHR get_surface_capabilities() const noexcept {
+    assert(surface != nullptr && "Cannot check swapchain if surface is a nullptr");
+
+    VkPhysicalDeviceSurfaceInfo2KHR physical_device_surface_info =
+        PhysicalDeviceSurfaceInfo2Builder{surface->native_handle()}.build();
+    VkSurfaceCapabilities2KHR result = VkSurfaceCapabilities2KHRBuilder{}.build();
+
+    vkGetPhysicalDeviceSurfaceCapabilities2KHR(handle, &physical_device_surface_info, &result);
+    return result;
+  }
+
+  std::vector<VkPresentModeKHR> get_present_modes() const noexcept {
+    assert(surface != nullptr && "Cannot check swapchain if surface is a nullptr");
+    return enumerate<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, handle, surface->native_handle());
+  }
+
   std::string device_name() const noexcept {
     return std::string{properties.properties.deviceName};
   }
@@ -813,6 +886,8 @@ private:
     }
 
     available_queue_families = get_queue_famylies();
+    surface_capabilities = get_surface_capabilities();
+    present_modes = get_present_modes();
   }
 
   std::string serialize() const noexcept {
@@ -835,8 +910,7 @@ private:
       result += std::format("      - {}\n", std::string_view{extension.extensionName});
 
     result += "    features:\n";
-
-#define ENUMERATE_FEATURE(feature) result += std::format("      - {}: {}\n", #feature, bool(features.features.feature));
+#define ENUMERATE_FEATURE(feature) result += std::format("      {}: {}\n", #feature, bool(features.features.feature));
     ENUMERATE_FEATURE(robustBufferAccess);
     ENUMERATE_FEATURE(fullDrawIndexUint32);
     ENUMERATE_FEATURE(imageCubeArray);
@@ -890,6 +964,36 @@ private:
                             queue_family.queueFamilyProperties.queueCount);
     }
 
+    result += std::format(
+        "    surface capabilities:\n"
+        "      min image count: {}\n"
+        "      max image count: {}\n"
+        "      current image extent: {}x{}\n"
+        "      min image extent: {}x{}\n"
+        "      max image extent: {}x{}\n"
+        "      min array layers: {}\n"
+        "      supported transforms: {}\n"
+        "      current transforms: {}\n"
+        "      supported composite alpha: {}\n"
+        "      supported usage flags: {}\n",
+        surface_capabilities.surfaceCapabilities.minImageCount, surface_capabilities.surfaceCapabilities.maxImageCount,
+        surface_capabilities.surfaceCapabilities.currentExtent.width,
+        surface_capabilities.surfaceCapabilities.currentExtent.height,
+        surface_capabilities.surfaceCapabilities.minImageExtent.width,
+        surface_capabilities.surfaceCapabilities.minImageExtent.height,
+        surface_capabilities.surfaceCapabilities.maxImageExtent.width,
+        surface_capabilities.surfaceCapabilities.maxImageExtent.height,
+        surface_capabilities.surfaceCapabilities.maxImageArrayLayers,
+        string_VkSurfaceTransformFlagsKHR(surface_capabilities.surfaceCapabilities.supportedTransforms),
+        string_VkSurfaceTransformFlagBitsKHR(surface_capabilities.surfaceCapabilities.currentTransform),
+        string_VkCompositeAlphaFlagsKHR(surface_capabilities.surfaceCapabilities.supportedCompositeAlpha),
+        string_VkImageUsageFlags(surface_capabilities.surfaceCapabilities.supportedUsageFlags));
+
+    result += "    preset modes:\n";
+    for (const VkPresentModeKHR& present_mode : present_modes) {
+      result += std::format("      - {}\n", string_VkPresentModeKHR(present_mode));
+    }
+
     result.pop_back();
     return result;
   }
@@ -902,6 +1006,8 @@ private:
   std::vector<VkLayerProperties> available_layers;
   std::vector<VkExtensionProperties> available_extensions;
   std::vector<VkQueueFamilyProperties2> available_queue_families;
+  VkSurfaceCapabilities2KHR surface_capabilities;
+  std::vector<VkPresentModeKHR> present_modes;
 };
 
 class PhysicalDeviceSelector {
