@@ -849,11 +849,16 @@ public:
   }
 
   static VkSurfaceCapabilities2KHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface) noexcept {
-    VkPhysicalDeviceSurfaceInfo2KHR physical_device_surface_info = PhysicalDeviceSurfaceInfo2Builder{surface}.build();
+    auto physical_device_surface_info = PhysicalDeviceSurfaceInfo2Builder{surface}.build();
     VkSurfaceCapabilities2KHR result = VkSurfaceCapabilities2KHRBuilder{}.build();
 
     vkGetPhysicalDeviceSurfaceCapabilities2KHR(device, &physical_device_surface_info, &result);
     return result;
+  }
+
+  static std::vector<VkSurfaceFormat2KHR> get_surface_formats2(VkPhysicalDevice device, VkSurfaceKHR surface) noexcept {
+    auto physical_device_surface_info = PhysicalDeviceSurfaceInfo2Builder{surface}.build();
+    return enumerate<VkSurfaceFormat2KHR>(vkGetPhysicalDeviceSurfaceFormats2KHR, device, &physical_device_surface_info);
   }
 
   static std::vector<VkPresentModeKHR> get_present_modes(VkPhysicalDevice device, VkSurfaceKHR surface) noexcept {
@@ -892,6 +897,10 @@ public:
     return surface_capabilities;
   }
 
+  const std::vector<VkSurfaceFormat2KHR>& get_surface_formats2() const noexcept {
+    return surface_formats;
+  }
+
   const std::vector<VkPresentModeKHR>& get_present_modes() const noexcept {
     return present_modes;
   }
@@ -913,6 +922,7 @@ private:
     init_queue_famylies();
     init_surface_support_map();
     init_surface_capabilities();
+    init_surface_formats2();
     init_present_modes();
   }
 
@@ -951,6 +961,11 @@ private:
   void init_surface_capabilities() noexcept {
     assert(surface != nullptr && "You mush assign the surface before");
     surface_capabilities = PhysicalDevice::get_surface_capabilities(handle, surface->native_handle());
+  }
+
+  void init_surface_formats2() noexcept {
+    assert(surface != nullptr && "You mush assign the surface before");
+    surface_formats = PhysicalDevice::get_surface_formats2(handle, surface->native_handle());
   }
 
   void init_present_modes() noexcept {
@@ -1057,6 +1072,14 @@ private:
         string_VkCompositeAlphaFlagsKHR(surface_capabilities.surfaceCapabilities.supportedCompositeAlpha),
         string_VkImageUsageFlags(surface_capabilities.surfaceCapabilities.supportedUsageFlags));
 
+    result += "    surface formats:\n";
+    for (const VkSurfaceFormat2KHR& surface_format : surface_formats) {
+      result += std::format("      - format: {}\n"
+                            "        color space: {}\n",
+                            string_VkFormat(surface_format.surfaceFormat.format),
+                            string_VkColorSpaceKHR(surface_format.surfaceFormat.colorSpace));
+    }
+
     result += "    preset modes:\n";
     for (const VkPresentModeKHR& present_mode : present_modes) {
       result += std::format("      - {}\n", string_VkPresentModeKHR(present_mode));
@@ -1076,6 +1099,7 @@ private:
   std::vector<VkQueueFamilyProperties2> available_queue_families;
   std::map<std::size_t, bool> surface_support_map;
   VkSurfaceCapabilities2KHR surface_capabilities;
+  std::vector<VkSurfaceFormat2KHR> surface_formats;
   std::vector<VkPresentModeKHR> present_modes;
 };
 
