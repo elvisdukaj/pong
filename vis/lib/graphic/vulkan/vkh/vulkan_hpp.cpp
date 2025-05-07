@@ -65,9 +65,6 @@ constexpr const char* KHRSwapchainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAM
 constexpr const char* KHRPortabilityEnumerationExtensionName = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
 constexpr const char* KHRFormatFeatureFlags2ExtensionName = VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME;
 constexpr const char* KHRPortabilitySubsetExtensionName = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
-#if defined(__APPLE__)
-constexpr const char* EXTMetalSurfaceExtensionName = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
-#endif
 
 enum class Result {
   Success = VK_SUCCESS,
@@ -144,6 +141,18 @@ template <typename T, typename Func, typename... Args> std::vector<T> enumerate(
       result = static_cast<Result>(func(args..., &count, container.data()));
     }
   } while (result == Result::Incomplete);
+  return container;
+}
+
+template <typename T, typename Func, typename... Args,
+          typename std::enable_if_t<std::is_void_v<std::invoke_result_t<Func, Args..., uint32_t*, T*>>, std::vector<T>>>
+std::vector<T> enumerate(Func func, Args... args) {
+  std::vector<T> container;
+  uint32_t count{};
+
+  func(args..., &count, nullptr);
+  container.resize(count);
+  func(args..., &count, container.data());
   return container;
 }
 
@@ -794,6 +803,10 @@ public:
     return enumerate<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, handle, layerName);
   }
 
+  std::vector<VkQueueFamilyProperties2> get_queue_famylies() const noexcept {
+    return enumerate<VkQueueFamilyProperties2>(vkGetPhysicalDeviceQueueFamilyProperties2, handle);
+  }
+
   std::string device_name() const noexcept {
     return std::string{properties.properties.deviceName};
   }
@@ -808,10 +821,13 @@ private:
     properties = get_properties2();
     available_layers = get_layers();
     available_extensions = get_extensions();
+
     for (const auto& layer : available_layers) {
       auto extension_for_layer = get_extensions(layer.layerName);
       available_extensions.insert(end(available_extensions), begin(extension_for_layer), end(extension_for_layer));
     }
+
+    available_queue_families = get_queue_famylies();
   }
 
   std::string serialize() const noexcept {
@@ -892,6 +908,7 @@ private:
   VkPhysicalDeviceProperties2 properties;
   std::vector<VkLayerProperties> available_layers;
   std::vector<VkExtensionProperties> available_extensions;
+  std::vector<VkQueueFamilyProperties2> available_queue_families;
 };
 
 class PhysicalDeviceSelector {

@@ -113,6 +113,9 @@ target_compile_definitions(vis_obj PUBLIC
         "SDL_MAIN_USE_CALLBACKS=1"
         ENTT_STANDARD_CPP
         ENTT_IMPORT_STD
+        $<$<STREQUAL:$<PLATFORM_ID>,Linux>:VK_USE_PLATFORM_WAYLAND_KHR>
+        $<$<STREQUAL:$<PLATFORM_ID>,Windows>:VK_USE_PLATFORM_WIN32_KHR>
+        $<$<STREQUAL:$<PLATFORM_ID>,Darwin>:VK_USE_PLATFORM_METAL_EXT>
 )
 
 
