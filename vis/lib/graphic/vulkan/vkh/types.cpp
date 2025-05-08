@@ -8,6 +8,13 @@ import std;
 
 export namespace vkh {
 
+template <typename FlagBitsType> struct FlagTraits {
+  static constexpr bool is_bitmask = false;
+};
+
+template <typename T>
+concept BitTypeConcept = FlagTraits<T>::is_bitmask;
+
 enum class Result {
   Success = VK_SUCCESS,
   NotReady = VK_NOT_READY,
@@ -71,16 +78,12 @@ enum class Result {
   ErrorNotEnoughSpaceKHR = VK_ERROR_NOT_ENOUGH_SPACE_KHR
 };
 
-template <typename FlagBitsType> struct FlagTraits {
-  static constexpr bool is_bit_mask = false;
-};
-
-template <typename BitType> class Flags {
+template <BitTypeConcept BitType> class Flags {
 public:
   using MaskType = typename std::underlying_type<BitType>::type;
 
   // constructors
-  constexpr Flags() noexcept : mask(0) {}
+  constexpr Flags() noexcept : mask{} {}
 
   constexpr Flags(BitType bit) noexcept : mask(static_cast<MaskType>(bit)) {}
   constexpr Flags(Flags<BitType> const& rhs) noexcept = default;
@@ -100,7 +103,7 @@ public:
   }
 
   constexpr Flags<BitType> operator~() const noexcept {
-    return Flags<BitType>(mask ^ FlagTraits<BitType>::allFlags.m_mask);
+    return Flags<BitType>(mask ^ FlagTraits<BitType>::all_flags.m_mask);
   }
 
   // assignment operators
@@ -134,10 +137,63 @@ private:
   MaskType mask;
 };
 
+// bitwise operators
+template <BitTypeConcept BitType>
+constexpr Flags<BitType> operator&(BitType bit, Flags<BitType> const& flags) noexcept {
+  return flags.operator&(bit);
+}
+
+template <BitTypeConcept BitType> constexpr Flags<BitType> operator&(BitType lhs, BitType rhs) noexcept {
+  return Flags<BitType>(lhs) & rhs;
+}
+
 enum class InstanceCreateFlagBits : VkInstanceCreateFlags {
   EnumeratePortabilityKHR = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
 };
 
+template <> struct FlagTraits<InstanceCreateFlagBits> {
+  using wrapped_type = VkInstanceCreateFlagBits;
+  static constexpr bool is_bitmask = true;
+};
+
 using InstanceCreateFlags = Flags<InstanceCreateFlagBits>;
+
+enum class PhysicalDeviceType {
+  Other = VK_PHYSICAL_DEVICE_TYPE_OTHER,
+  IntegratedGpu = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
+  DiscreteGpu = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+  VirtualGpu = VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU,
+  Cpu = VK_PHYSICAL_DEVICE_TYPE_CPU
+};
+
+// wrapper class for enum VkQueueFlagBits, see
+// https://registry.khronos.org/vulkan/specs/latest/man/html/VkQueueFlagBits.html
+enum class QueueFlagBits : VkQueueFlags {
+  Graphics = VK_QUEUE_GRAPHICS_BIT,
+  Compute = VK_QUEUE_COMPUTE_BIT,
+  Transfer = VK_QUEUE_TRANSFER_BIT,
+  SparseBinding = VK_QUEUE_SPARSE_BINDING_BIT,
+  Protected = VK_QUEUE_PROTECTED_BIT,
+  VideoDecodeKHR = VK_QUEUE_VIDEO_DECODE_BIT_KHR,
+  VideoEncodeKHR = VK_QUEUE_VIDEO_ENCODE_BIT_KHR,
+  OpticalFlowNV = VK_QUEUE_OPTICAL_FLOW_BIT_NV
+};
+
+template <> struct FlagTraits<QueueFlagBits> {
+  using wrapped_type = VkQueueFlagBits;
+  static constexpr bool is_bitmask = true;
+};
+
+using QueueFlags = Flags<QueueFlagBits>;
+
+constexpr bool operator&(QueueFlagBits lhs, VkQueueFlags rhs) {
+  using wrapped_type = FlagTraits<QueueFlagBits>::wrapped_type;
+  return static_cast<wrapped_type>(lhs) & rhs;
+}
+
+constexpr bool operator&(VkQueueFlags lhs, QueueFlagBits rhs) {
+  using wrapped_type = FlagTraits<QueueFlagBits>::wrapped_type;
+  return static_cast<wrapped_type>(rhs) & lhs;
+}
 
 } // namespace vkh

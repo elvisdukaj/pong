@@ -63,76 +63,8 @@ namespace vis::vulkan {
 #if 0
 class Renderer::Impl {
 public:
-	Impl(Window* window) : window{window} {
-		create_instance();
-		create_surface();
 
-		vkh::PhysicalDeviceSelector device_selector{vk_instance, &surface};
-		select_gpu(device_selector);
-		create_device_and_command_pool();
-	}
 
-	void swap(Renderer::Impl& other) noexcept {
-		std::swap(window, other.window);
-		std::swap(context, other.context);
-		std::swap(vk_instance, other.vk_instance);
-		std::swap(surface, other.surface);
-		std::swap(physical_devices, other.physical_devices);
-		std::swap(selected_physical_device, other.selected_physical_device);
-		std::swap(device, other.device);
-		std::swap(command_pool, other.command_pool);
-		std::swap(buffer_textures, other.buffer_textures);
-		std::swap(render_pass, other.render_pass);
-		std::swap(vk_config, other.vk_config);
-	}
-
-	std::string show_info() const {
-		std::stringstream ss;
-		ss << vk_config;
-		return ss.str();
-	}
-
-	void set_clear_color(vec4 color) noexcept {
-		clear_color = color;
-	}
-
-	void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
-		width = view_width;
-		height = view_height;
-	}
-
-private:
-	void create_instance() {
-		auto required_flags = vkh::get_required_instance_flags();
-		auto required_extensions = vkh::get_required_extensions();
-		auto required_layers = vkh::get_required_layers();
-		auto required_windows_extensions = window->get_required_renderer_extension();
-
-		vk_instance = vkh::InstanceBuilder{context}
-											.with_app_name("Pong")
-											.with_app_version(0, 1, 1)
-											.with_engine_name("vis")
-											.with_engine_version(0, 1, 1)
-											.with_app_flags(required_flags)
-											.add_required_layers(required_layers)
-											.add_required_extensions(required_extensions)
-											.add_required_extensions(required_windows_extensions)
-											.with_minimum_required_instance_version(0, 1, 2, 0)
-											.with_maximum_required_instance_version(0, 1, 2, 0)
-											.build();
-
-		vk_config["context"] = context.serialize();
-		for (const auto& required_extension : required_extensions) {
-			vk_config["context"]["required extensions"].push_back(required_extension);
-		}
-		for (const auto& required_extension : required_windows_extensions) {
-			vk_config["context"]["required windows extensions"].push_back(required_extension);
-		}
-	}
-
-	void create_surface() {
-		surface = vkh::SurfaceBuilder{vk_instance, window}.build();
-	}
 
 	void select_gpu(vkh::PhysicalDeviceSelector& device_selector) {
 		device_selector.with_surface(&surface);
@@ -154,9 +86,6 @@ private:
 				.set_require_transfer()
 				.select();
 		// clang-format on
-
-		selected_physical_device = std::move(expected_device);
-		vk_config["selected physical device"] = selected_physical_device.dump();
 	}
 
 	void create_swapchain() {
@@ -263,7 +192,8 @@ private:
 	int width = 0;
 	int height = 0;
 };
-#else
+#endif
+
 class Renderer::Impl {
 public:
   Impl([[maybe_unused]] Window* window) : window{window} {
@@ -276,17 +206,20 @@ public:
     return {};
   }
 
-  void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, [[maybe_unused]] int width,
-                    [[maybe_unused]] int height) noexcept {}
+  void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
+    width = view_width;
+    height = view_height;
+  }
 
-  void set_clear_color([[maybe_unused]] vec4 color) noexcept {}
+  void set_clear_color([[maybe_unused]] vec4 color) noexcept {
+    clear_color = color;
+  }
 
 private:
   void create_instance() noexcept {
     auto required_flags = helper::get_required_instance_flags();
     auto required_extensions = helper::get_required_extensions();
     auto required_layers = helper::get_required_layers();
-    auto required_gpu_extensions = helper::get_physical_device_extensions();
     auto required_windows_extensions = window->get_required_renderer_extension();
 
     vk_instance = vkh::InstanceBuilder{vk_context}
@@ -297,19 +230,10 @@ private:
                       .with_app_flags(required_flags)
                       .add_required_layers(required_layers)
                       .add_required_extensions(required_extensions)
-                      //   .add_required_extensions(required_gpu_extensions)
                       .add_required_extensions(required_windows_extensions)
                       .with_minimum_required_instance_version(0, 1, 2, 0)
                       .with_maximum_required_instance_version(0, 1, 2, 0)
                       .build();
-
-    // vk_config["context"] = context.serialize();
-    // for (const auto& required_extension : required_extensions) {
-    // vk_config["context"]["required extensions"].push_back(required_extension);
-    // }
-    // for (const auto& required_extension : required_windows_extensions) {
-    // vk_config["context"]["required windows extensions"].push_back(required_extension);
-    // }
   }
 
   void create_surface() noexcept {
@@ -320,6 +244,8 @@ private:
     auto required_gpu_extensions = helper::get_physical_device_extensions();
     physical_devices = vkh::PhysicalDeviceSelector{vk_instance, &surface}
                            .add_required_extensions(required_gpu_extensions)
+                           .allow_gpu_type(vkh::PhysicalDeviceType::DiscreteGpu)
+                           .allow_gpu_type(vkh::PhysicalDeviceType::IntegratedGpu)
                            .enumerate_all();
   }
 
@@ -329,8 +255,11 @@ private:
   vkh::Instance vk_instance{nullptr};
   vkh::Surface surface{nullptr};
   std::vector<vkh::PhysicalDevice> physical_devices;
+
+  vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
+  int width = 0;
+  int height = 0;
 };
-#endif
 
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}
 Renderer::~Renderer() = default;

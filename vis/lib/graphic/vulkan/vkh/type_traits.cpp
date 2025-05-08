@@ -23,4 +23,5 @@ template <> struct VulkanSType<VkQueueFamilyProperties2> {
 };
 
 template <typename T> constexpr VkStructureType VulkanSTypeValue = VulkanSType<T>::value;
+
 } // namespace vkh
