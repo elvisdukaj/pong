@@ -299,8 +299,8 @@ public:
     return *this;
   }
 
-  VkDeviceQueueCreateInfoBuilder& with_familiy_index(std::size_t index) {
-    queue_indexes = index;
+  VkDeviceQueueCreateInfoBuilder& with_family_index(std::size_t index) {
+    family_index = static_cast<uint32_t>(index);
     return *this;
   }
 
@@ -329,7 +329,6 @@ public:
   }
 
 private:
-  std::size_t queue_indexes;
   void* next = nullptr;
   uint32_t family_index{};
   std::vector<float> priorities{1.0f};
