@@ -168,15 +168,16 @@ private:
     auto surface_caps = selected_physical_device_it->get_surface_capabilities();
     width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
     height = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.height);
+    swapchain_image_count = static_cast<int>(surface_caps.surfaceCapabilities.minImageCount);
   }
 
   void create_swapchain() {
     // clang-format off
-
     swapchain = vkh::SwapchainBuilder{*selected_physical_device_it, device, surface}
       .with_extent(width, height)
       .with_required_format(vkh::Format::B8G8R8A8Srgb)
       .with_present_mode(vkh::PresentMode::fifo)
+      .with_image_count(swapchain_image_count)
       .with_old_swapchain(swapchain)
       .build();
     // clang-format on
@@ -195,6 +196,7 @@ private:
   vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
   int width = 800;
   int height = 600;
+  int swapchain_image_count = 0;
 };
 
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}

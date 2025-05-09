@@ -1371,6 +1371,11 @@ public:
     return *this;
   }
 
+  SwapchainBuilder& with_image_count(int image_count) {
+    swapchain_create_info.minImageCount = static_cast<uint32_t>(image_count);
+    return *this;
+  }
+
   SwapchainBuilder& with_extent(int width, int height) {
     swapchain_create_info.imageExtent = VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
     return *this;
