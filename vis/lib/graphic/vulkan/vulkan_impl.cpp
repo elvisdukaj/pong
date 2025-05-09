@@ -39,7 +39,7 @@ std::vector<const char*> get_required_layers() noexcept {
   required_layers.push_back("VK_LAYER_KHRONOS_validation");
 
 #if not defined(__linux__)
-  required_layers.push_back("VK_LAYER_LUNARG_api_dump");
+  // required_layers.push_back("VK_LAYER_LUNARG_api_dump");
 #endif
 
 #endif
@@ -106,6 +106,7 @@ public:
   void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
     width = view_width;
     height = view_height;
+    create_swapchain();
   }
 
   void set_clear_color([[maybe_unused]] vec4 color) noexcept {
@@ -163,13 +164,20 @@ private:
 		.with_queue(queue_builder.build())
 		.create_device(*selected_physical_device_it);
     // clang-format on
+
+    auto surface_caps = selected_physical_device_it->get_surface_capabilities();
+    width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
+    height = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.height);
   }
 
   void create_swapchain() {
     // clang-format off
-    swapchain = vkh::SwapchainBuilder{device, surface}
+
+    swapchain = vkh::SwapchainBuilder{*selected_physical_device_it, device, surface}
       .with_extent(width, height)
       .with_required_format(vkh::Format::B8G8R8A8Srgb)
+      .with_present_mode(vkh::PresentMode::fifo)
+      .with_old_swapchain(swapchain)
       .build();
     // clang-format on
   }

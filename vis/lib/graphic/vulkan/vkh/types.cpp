@@ -536,4 +536,13 @@ template <> struct FlagTraits<ImageUsageFlagBits> {
 
 using ImageUsageFlags = Flags<ImageUsageFlagBits>;
 
+enum class PresentMode {
+  immediate = VK_PRESENT_MODE_IMMEDIATE_KHR,
+  mailbox = VK_PRESENT_MODE_MAILBOX_KHR,
+  fifo = VK_PRESENT_MODE_FIFO_KHR,
+  fifo_relaxed = VK_PRESENT_MODE_FIFO_RELAXED_KHR,
+  shared_demand_refresh = VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR,
+  shared_continuos_refresh = VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR,
+};
+
 } // namespace vkh

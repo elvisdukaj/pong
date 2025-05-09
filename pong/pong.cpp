@@ -40,6 +40,7 @@ public:
 private:
   App(std::string_view title, int width, int height)
       : window{title, width, height, screen_flags}, renderer{&window}, test_scene{renderer} {
+    renderer.set_viewport(0, 0, width, height);
     std::println("{}", renderer.show_info());
   }
 

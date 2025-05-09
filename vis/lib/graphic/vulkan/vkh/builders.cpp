@@ -1121,7 +1121,7 @@ private:
                             string_VkColorSpaceKHR(surface_format.surfaceFormat.colorSpace));
     }
 
-    result += "    preset modes:\n";
+    result += "    present modes:\n";
     for (const VkPresentModeKHR& present_mode : present_modes) {
       result += std::format("      - {}\n", string_VkPresentModeKHR(present_mode));
     }
@@ -1135,11 +1135,13 @@ private:
   Surface* surface = nullptr;
   VkPhysicalDeviceFeatures2 features;
   VkPhysicalDeviceProperties2 properties;
+
   std::vector<VkLayerProperties> available_layers;
   std::vector<VkExtensionProperties> available_extensions;
   std::vector<VkQueueFamilyProperties2> available_queue_families;
   std::map<std::size_t, bool> surface_support_map;
   VkSurfaceCapabilities2KHR surface_capabilities;
+
   std::vector<VkSurfaceFormat2KHR> surface_formats;
   std::vector<VkPresentModeKHR> present_modes;
 };
@@ -1319,6 +1321,10 @@ public:
     }
   }
 
+  NativeHandle native_handle() const noexcept {
+    return handle;
+  }
+
 private:
   Swapchain(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
 
@@ -1329,23 +1335,24 @@ private:
 
 class SwapchainBuilder {
 public:
-  SwapchainBuilder(Device& device, Surface& surface) : device{device} {
+  SwapchainBuilder(PhysicalDevice& physical_device, Device& device, Surface& surface) : device{device} {
+    auto surface_caps = physical_device.get_surface_capabilities();
     // clang-format off
     swapchain_create_info = VkSwapchainCreateInfoKHR{
       .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
       .pNext = nullptr,
       .flags = {},
       .surface = surface.native_handle(),
-      .minImageCount = {},
+      .minImageCount = surface_caps.surfaceCapabilities.minImageCount,
       .imageFormat = {},
       .imageColorSpace = {},
-      .imageExtent = {},
+      .imageExtent = surface_caps.surfaceCapabilities.currentExtent,
       .imageArrayLayers = 1,
-      .imageUsage = {},
+      .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
       .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
       .queueFamilyIndexCount = {},
       .pQueueFamilyIndices = nullptr,
-      .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+      .preTransform = surface_caps.surfaceCapabilities.currentTransform,
       .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
       .presentMode = VK_PRESENT_MODE_MAILBOX_KHR,
       .clipped = VK_TRUE,
@@ -1356,6 +1363,11 @@ public:
 
   SwapchainBuilder& with_required_format(Format format) {
     required_format = format;
+    return *this;
+  }
+
+  SwapchainBuilder& with_present_mode(PresentMode mode) {
+    swapchain_create_info.presentMode = static_cast<VkPresentModeKHR>(mode);
     return *this;
   }
 
@@ -1371,6 +1383,11 @@ public:
 
   SwapchainBuilder& add_queue_family_index(std::size_t index) {
     queue_family_indices.push_back(static_cast<uint32_t>(index));
+    return *this;
+  }
+
+  SwapchainBuilder& with_old_swapchain(Swapchain& old_swapchain) {
+    swapchain_create_info.oldSwapchain = old_swapchain.native_handle();
     return *this;
   }
 
