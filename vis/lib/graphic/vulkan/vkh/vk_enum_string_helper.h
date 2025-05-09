@@ -11,8 +11,9 @@
 // clang-format off
 
 #ifdef __cplusplus
-#include <string>
+import std;
 #endif
+
 #include <vulkan/vulkan.h>
 static inline const char* string_VkResult(VkResult input_value) {
     switch (input_value) {

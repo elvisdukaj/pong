@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <volk.h>
 
+#include "ecs/entity/handle.hpp"
 #include "vk_enum_string_helper.h"
 
 export module vis.graphic.vulkan.vkh:builders;
@@ -683,6 +684,7 @@ class Device {
 
 public:
   using NativeType = VkDevice;
+
   explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE} /*, allocator{VK_NULL_HANDLE}, graphic_queue_index{}*/ {}
 
   Device(const Device& other) = delete;
@@ -708,6 +710,10 @@ public:
     }
   }
 
+  NativeType native_handle() const noexcept {
+    return handle;
+  }
+
 private:
   Device(VkDevice device /*, VmaAllocator allocator, std::size_t graphic_queue_index*/)
       : handle{device} /*, allocator{allocator}, graphic_queue_index{graphic_queue_index*/
@@ -724,6 +730,7 @@ class PhysicalDevice {
 
 public:
   using NativeType = VkPhysicalDevice;
+
   PhysicalDevice(std::nullptr_t) noexcept : handle{nullptr}, surface{nullptr} {}
 
   static VkPhysicalDeviceFeatures2 get_features2(VkPhysicalDevice device) noexcept {
@@ -899,13 +906,13 @@ public:
   std::optional<std::size_t> get_first_graphic_and_present_queue_family_index() const noexcept {
     for (std::size_t i = 0u; i < available_queue_families.size(); ++i) {
       const auto& queue = available_queue_families[i].queueFamilyProperties;
-      if (queue.queueCount > 0 && (queue.queueFlags & static_cast<VkQueueFlags>(QueueFlagBits::Graphics)) && is_surface_supported(i))
+      if (queue.queueCount > 0 && (queue.queueFlags & static_cast<VkQueueFlags>(QueueFlagBits::Graphics)) &&
+          is_surface_supported(i))
         return i;
     }
 
     return std::nullopt;
   }
-
 
   template <std::ranges::range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
@@ -1281,6 +1288,115 @@ private:
   bool require_graphic_queue{true};
 
   VkDeviceCreateInfoBuilder device_create_info_builder;
+};
+
+class Swapchain {
+  friend class SwapchainBuilder;
+
+public:
+  using NativeHandle = VkSwapchainKHR;
+
+  Swapchain(std::nullptr_t) noexcept : handle{VK_NULL_HANDLE}, device{nullptr} {}
+
+  Swapchain(const Swapchain&) = delete;
+  Swapchain& operator=(const Swapchain&) = delete;
+
+  Swapchain(Swapchain&& other) : handle{other.handle}, device{other.device} {
+    other.handle = VK_NULL_HANDLE;
+    other.device = nullptr;
+  }
+
+  Swapchain& operator=(Swapchain&& other) noexcept {
+    std::swap(handle, other.handle);
+    std::swap(device, other.device);
+    return *this;
+  }
+
+  ~Swapchain() {
+    if (handle != VK_NULL_HANDLE) {
+      vkDestroySwapchainKHR(device->native_handle(), handle, nullptr);
+      handle = VK_NULL_HANDLE;
+    }
+  }
+
+private:
+  Swapchain(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+  Device* device = nullptr;
+};
+
+class SwapchainBuilder {
+public:
+  SwapchainBuilder(Device& device, Surface& surface) : device{device} {
+    // clang-format off
+    swapchain_create_info = VkSwapchainCreateInfoKHR{
+      .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+      .pNext = nullptr,
+      .flags = {},
+      .surface = surface.native_handle(),
+      .minImageCount = {},
+      .imageFormat = {},
+      .imageColorSpace = {},
+      .imageExtent = {},
+      .imageArrayLayers = 1,
+      .imageUsage = {},
+      .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+      .queueFamilyIndexCount = {},
+      .pQueueFamilyIndices = nullptr,
+      .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+      .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+      .presentMode = VK_PRESENT_MODE_MAILBOX_KHR,
+      .clipped = VK_TRUE,
+      .oldSwapchain = VK_NULL_HANDLE
+    };
+    // clang-format on
+  }
+
+  SwapchainBuilder& with_required_format(Format format) {
+    required_format = format;
+    return *this;
+  }
+
+  SwapchainBuilder& with_extent(int width, int height) {
+    swapchain_create_info.imageExtent = VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+    return *this;
+  }
+
+  SwapchainBuilder& with_usage(ImageUsageFlags required_image_usage) {
+    image_usage_bit |= required_image_usage;
+    return *this;
+  }
+
+  SwapchainBuilder& add_queue_family_index(std::size_t index) {
+    queue_family_indices.push_back(static_cast<uint32_t>(index));
+    return *this;
+  }
+
+  Swapchain build() {
+    if (required_format) {
+      swapchain_create_info.imageFormat = static_cast<VkFormat>(*required_format);
+    }
+
+    swapchain_create_info.imageUsage = static_cast<VkImageUsageFlags>(image_usage_bit);
+
+    swapchain_create_info.queueFamilyIndexCount = static_cast<uint32_t>(queue_family_indices.size());
+    swapchain_create_info.pQueueFamilyIndices = queue_family_indices.data();
+
+    VkSwapchainKHR swapchain;
+    vkCreateSwapchainKHR(device.native_handle(), &swapchain_create_info, nullptr, &swapchain);
+
+    return Swapchain{swapchain, &device};
+  }
+
+private:
+  Device& device;
+  VkSwapchainCreateInfoKHR swapchain_create_info;
+  std::optional<uint32_t> min_image_count{};
+  ImageUsageFlags image_usage_bit = ImageUsageFlagBits::ColorAttachment;
+  std::vector<uint32_t> queue_family_indices;
+  std::optional<Format> required_format;
 };
 
 } // namespace vkh

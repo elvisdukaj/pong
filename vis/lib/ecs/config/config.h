@@ -45,13 +45,11 @@ import std;
 
 #ifndef ENTT_ID_TYPE
 #if defined(ENTT_IMPORT_STD)
-#include <cstdint>
-#endif
-#define ENTT_ID_TYPE std::uint32_t
+import std;
 #else
-#if defined(ENTT_IMPORT_STD)
 #include <cstdint> // provides coverage for types in the std namespace
 #endif
+#define ENTT_ID_TYPE std::uint32_t
 #endif
 
 #ifndef ENTT_SPARSE_PAGE

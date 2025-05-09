@@ -96,6 +96,7 @@ public:
     auto physical_device_selector = vkh::PhysicalDeviceSelector{vk_instance, &surface};
     enumerate_physical_devices(physical_device_selector);
     create_device(physical_device_selector);
+    create_swapchain();
   }
 
   std::string show_info() const noexcept {
@@ -164,6 +165,15 @@ private:
     // clang-format on
   }
 
+  void create_swapchain() {
+    // clang-format off
+    swapchain = vkh::SwapchainBuilder{device, surface}
+      .with_extent(width, height)
+      .with_required_format(vkh::Format::B8G8R8A8Srgb)
+      .build();
+    // clang-format on
+  }
+
 private:
   Window* window = nullptr;
   vkh::Context vk_context;
@@ -172,10 +182,11 @@ private:
   std::vector<vkh::PhysicalDevice> physical_devices;
   std::vector<vkh::PhysicalDevice>::iterator selected_physical_device_it;
   vkh::Device device{nullptr};
+  vkh::Swapchain swapchain{nullptr};
 
   vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
-  int width = 0;
-  int height = 0;
+  int width = 800;
+  int height = 600;
 };
 
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}
