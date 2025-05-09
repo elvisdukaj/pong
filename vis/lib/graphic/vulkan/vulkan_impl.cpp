@@ -199,7 +199,9 @@ public:
   Impl([[maybe_unused]] Window* window) : window{window} {
     create_instance();
     create_surface();
-    enumerate_physical_devices();
+    auto physical_device_selector = vkh::PhysicalDeviceSelector{vk_instance, &surface};
+    enumerate_physical_devices(physical_device_selector);
+    create_device(physical_device_selector);
   }
 
   std::string show_info() const noexcept {
@@ -240,16 +242,28 @@ private:
     surface = vkh::SurfaceBuilder{&vk_instance, window}.build();
   }
 
-  void enumerate_physical_devices() noexcept {
+  void enumerate_physical_devices(vkh::PhysicalDeviceSelector& physical_device_selector) noexcept {
     auto required_gpu_extensions = helper::get_physical_device_extensions();
-    auto physical_device_selector = vkh::PhysicalDeviceSelector{vk_instance, &surface};
+
     physical_devices = physical_device_selector.add_required_extensions(required_gpu_extensions)
                            .allow_gpu_type(vkh::PhysicalDeviceType::DiscreteGpu)
                            .allow_gpu_type(vkh::PhysicalDeviceType::IntegratedGpu)
                            .enumerate_all();
+  }
 
+  void create_device(vkh::PhysicalDeviceSelector& physical_device_selector) {
     selected_physical_device_it = physical_device_selector.select(begin(physical_devices), end(physical_devices));
+    if (selected_physical_device_it == end(physical_devices))
+      throw std::runtime_error{"No suitable physical device found"};
+
     std::println("selected device: {}", selected_physical_device_it->device_name());
+
+    // clang-format off
+	vkh::VkDeviceQueueCreateInfoBuilder queue_builder;
+    device = physical_device_selector
+		.with_queue(queue_builder.build())
+		.create_device(*selected_physical_device_it);
+    // clang-format on
   }
 
 private:
@@ -259,6 +273,7 @@ private:
   vkh::Surface surface{nullptr};
   std::vector<vkh::PhysicalDevice> physical_devices;
   std::vector<vkh::PhysicalDevice>::iterator selected_physical_device_it;
+  vkh::Device device{nullptr};
 
   vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
   int width = 0;

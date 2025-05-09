@@ -289,6 +289,102 @@ public:
 private:
   NativeType native;
 };
+
+class VkDeviceQueueCreateInfoBuilder {
+public:
+  using NativeType = VkDeviceQueueCreateInfo;
+
+  VkDeviceQueueCreateInfoBuilder& with_next(void* required_next) {
+    next = required_next;
+    return *this;
+  }
+
+  VkDeviceQueueCreateInfoBuilder& with_familiy_index(std::size_t index) {
+    queue_indexes = index;
+    return *this;
+  }
+
+  VkDeviceQueueCreateInfoBuilder& with_queue_counts(std::size_t count) {
+    priorities.clear();
+    std::fill_n(std::back_inserter(priorities), count, 1.0f);
+    return *this;
+  }
+
+  VkDeviceQueueCreateInfoBuilder& with_queue_counts(std::span<float> priorities_hint) {
+    priorities.insert(priorities.end(), begin(priorities_hint), end(priorities_hint));
+    return *this;
+  }
+
+  NativeType build() const noexcept {
+    // clang-format off
+    return VkDeviceQueueCreateInfo {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      .pNext = next,
+      .flags = {},
+      .queueFamilyIndex = family_index,
+      .queueCount = static_cast<uint32_t>(priorities.size()),
+      .pQueuePriorities = priorities.data(),
+    };
+    // clang-format on
+  }
+
+private:
+  std::size_t queue_indexes;
+  void* next = nullptr;
+  uint32_t family_index{};
+  std::vector<float> priorities{1.0f};
+};
+
+class VkDeviceCreateInfoBuilder {
+public:
+  using NativeType = VkDeviceCreateInfo;
+
+  VkDeviceCreateInfoBuilder& with_next(void* required_next) {
+    next = required_next;
+    return *this;
+  }
+
+  VkDeviceCreateInfoBuilder& with_queue(const VkDeviceQueueCreateInfo& queue) noexcept {
+    queues.push_back(queue);
+    return *this;
+  }
+
+  VkDeviceCreateInfoBuilder& add_required_extension(const char* extension_name) noexcept {
+    extensions.push_back(extension_name);
+    return *this;
+  }
+
+  VkDeviceCreateInfoBuilder& add_required_extensions(std::span<const char*> required_extensions) noexcept {
+    extensions.insert(extensions.end(), begin(required_extensions), end(required_extensions));
+    return *this;
+  }
+
+  VkDeviceCreateInfo build() {
+    // clang-format off
+    return VkDeviceCreateInfo {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+      .pNext = next,
+      .flags = {},
+      .queueCreateInfoCount = static_cast<uint32_t>(queues.size()),
+      .pQueueCreateInfos = queues.data(),
+      .enabledLayerCount = 0,
+      .ppEnabledLayerNames = nullptr,
+      .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+      .ppEnabledExtensionNames = extensions.data(),
+      .pEnabledFeatures = &features      
+    };
+    // clang-format on
+  }
+
+private:
+  void* next = nullptr;
+  std::vector<const char*> layers;
+  std::vector<const char*> extensions;
+  std::vector<VkDeviceQueueCreateInfo> queues;
+  std::vector<float> priorities;
+  VkPhysicalDeviceFeatures features{};
+};
+
 class Context {
 public:
   Context() {
@@ -584,16 +680,17 @@ private:
 
 class Device {
   friend class PhysicalDevice;
+  friend class PhysicalDeviceSelector;
 
 public:
   using NativeType = VkDevice;
-  explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE}, /*allocator{VK_NULL_HANDLE},*/ graphic_queue_index{} {}
+  explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE} /*, allocator{VK_NULL_HANDLE}, graphic_queue_index{}*/ {}
 
   Device(const Device& other) = delete;
   Device& operator=(const Device& other) = delete;
 
   Device(Device&& other) noexcept
-      : handle{other.handle}, /*allocator{other.allocator},*/ graphic_queue_index{other.graphic_queue_index} {
+      : handle{other.handle} /*, allocator{other.allocator}, graphic_queue_index{other.graphic_queue_index} */ {
     other.handle = VK_NULL_HANDLE;
     // other.allocator = nullptr;
   }
@@ -601,7 +698,7 @@ public:
   Device& operator=(Device&& other) noexcept {
     std::swap(handle, other.handle);
     // std::swap(allocator, other.allocator);
-    std::swap(graphic_queue_index, other.graphic_queue_index);
+    // std::swap(graphic_queue_index, other.graphic_queue_index);
     return *this;
   }
 
@@ -613,13 +710,14 @@ public:
   }
 
 private:
-  Device(VkDevice device, /*VmaAllocator allocator,*/ std::size_t graphic_queue_index)
-      : handle{device}, /*allocator{allocator},*/ graphic_queue_index{graphic_queue_index} {}
+  Device(VkDevice device /*, VmaAllocator allocator, std::size_t graphic_queue_index*/)
+      : handle{device} /*, allocator{allocator}, graphic_queue_index{graphic_queue_index*/
+  {}
 
 private:
   NativeType handle = VK_NULL_HANDLE;
   // VmaAllocator allocator = VK_NULL_HANDLE;
-  std::size_t graphic_queue_index = 0;
+  // std::size_t graphic_queue_index = 0;
 };
 
 class PhysicalDevice {
@@ -799,9 +897,21 @@ public:
     return std::ranges::find_if(available_extensions, match_extension) != end(available_extensions);
   }
 
-  bool has_extensions(std::span<std::string_view> requsted_extensions) const noexcept {
+  template <std::ranges::range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
+  bool has_extensions(R requsted_extensions) const noexcept {
     return std::ranges::all_of(requsted_extensions,
                                [this](std::string_view extension_name) { return has_extension(extension_name); });
+  }
+
+  // bool has_extensions(const std::span<const char*> requsted_extensions) const noexcept {
+  //   return std::ranges::all_of(requsted_extensions, [this](const char* extension_name) {
+  //     return has_extension(std::string_view{extension_name});
+  //   });
+  // }
+
+  NativeType native_handle() const noexcept {
+    return handle;
   }
 
 #if 0
@@ -1064,11 +1174,13 @@ public:
 
   PhysicalDeviceSelector& add_required_extensions(std::span<const char*> extensions) {
     required_gpu_extensions.insert(std::end(required_gpu_extensions), std::begin(extensions), std::end(extensions));
+    device_create_info_builder.add_required_extensions(extensions);
     return *this;
   }
 
   PhysicalDeviceSelector& add_required_extensions(const char* extension) {
     required_gpu_extensions.push_back(extension);
+    device_create_info_builder.add_required_extension(extension);
     return *this;
   }
 
@@ -1099,6 +1211,11 @@ public:
 
   PhysicalDeviceSelector& set_require_graphic_queue() {
     require_graphic_queue = false;
+    return *this;
+  }
+
+  PhysicalDeviceSelector& with_queue(const VkDeviceQueueCreateInfo& queue) noexcept {
+    device_create_info_builder.with_queue(queue);
     return *this;
   }
 
@@ -1139,14 +1256,30 @@ public:
     return first + selected_device_idx;
   }
 
+  Device create_device(const PhysicalDevice& physical_device) {
+    auto device_create_info = device_create_info_builder.build();
+    VkDevice device;
+    vkCreateDevice(physical_device.native_handle(), &device_create_info, nullptr, &device);
+    return Device{device};
+  }
+
 private:
   bool is_suitable(const PhysicalDevice& device) const noexcept {
-    bool suitable = device.has_any(allowed_gpu_types);
-    if (require_preset_queue)
-      suitable = suitable && device.has_preset();
-    if (require_graphic_queue)
-      suitable = suitable && device.has_graphic_queue();
-    return suitable;
+    if (not device.has_any(allowed_gpu_types))
+      return false;
+
+    if (require_graphic_queue and not device.has_graphic_queue())
+      return false;
+
+    if (require_preset_queue and not device.has_preset())
+      return false;
+
+    if (not device.has_extensions(required_gpu_extensions))
+      return false;
+
+    // TODO: check the queue indexes are correct and match the type
+
+    return true;
   }
 
   int score_device(const PhysicalDevice& device) const noexcept {
@@ -1175,6 +1308,8 @@ private:
   std::vector<PhysicalDeviceType> allowed_gpu_types;
   bool require_preset_queue{true};
   bool require_graphic_queue{true};
+
+  VkDeviceCreateInfoBuilder device_create_info_builder;
 };
 
 } // namespace vkh
