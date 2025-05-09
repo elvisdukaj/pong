@@ -242,11 +242,14 @@ private:
 
   void enumerate_physical_devices() noexcept {
     auto required_gpu_extensions = helper::get_physical_device_extensions();
-    physical_devices = vkh::PhysicalDeviceSelector{vk_instance, &surface}
-                           .add_required_extensions(required_gpu_extensions)
+    auto physical_device_selector = vkh::PhysicalDeviceSelector{vk_instance, &surface};
+    physical_devices = physical_device_selector.add_required_extensions(required_gpu_extensions)
                            .allow_gpu_type(vkh::PhysicalDeviceType::DiscreteGpu)
                            .allow_gpu_type(vkh::PhysicalDeviceType::IntegratedGpu)
                            .enumerate_all();
+
+    selected_physical_device_it = physical_device_selector.select(begin(physical_devices), end(physical_devices));
+    std::println("selected device: {}", selected_physical_device_it->device_name());
   }
 
 private:
@@ -255,6 +258,7 @@ private:
   vkh::Instance vk_instance{nullptr};
   vkh::Surface surface{nullptr};
   std::vector<vkh::PhysicalDevice> physical_devices;
+  std::vector<vkh::PhysicalDevice>::iterator selected_physical_device_it;
 
   vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
   int width = 0;

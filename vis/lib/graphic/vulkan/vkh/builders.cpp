@@ -744,20 +744,24 @@ public:
     return not has_any(types);
   }
 
+  bool is_type(PhysicalDeviceType type) const noexcept {
+    return static_cast<PhysicalDeviceType>(properties.properties.deviceType) == type;
+  }
+
   bool is_discrete() const noexcept {
-    return static_cast<PhysicalDeviceType>(properties.properties.deviceType) == PhysicalDeviceType::DiscreteGpu;
+    return is_type(PhysicalDeviceType::DiscreteGpu);
   }
 
   bool is_integrated() const noexcept {
-    return static_cast<PhysicalDeviceType>(properties.properties.deviceType) == PhysicalDeviceType::IntegratedGpu;
+    return is_type(PhysicalDeviceType::IntegratedGpu);
   }
 
   bool is_cpu() const noexcept {
-    return static_cast<PhysicalDeviceType>(properties.properties.deviceType) == PhysicalDeviceType::Cpu;
+    return is_type(PhysicalDeviceType::Cpu);
   }
 
   bool is_virtual() const noexcept {
-    return static_cast<PhysicalDeviceType>(properties.properties.deviceType) == PhysicalDeviceType::VirtualGpu;
+    return is_type(PhysicalDeviceType::VirtualGpu);
   }
 
   bool has_preset() const noexcept {
@@ -1115,80 +1119,51 @@ public:
     return devices;
   }
 
-  using PhysicalDeviceIterator = std::vector<PhysicalDevice>::iterator;
+  using PhysicalDeviceVec = std::vector<PhysicalDevice>;
+  using PhysicalDeviceConstIterator = PhysicalDeviceVec::const_iterator;
+  using PhysicalDeviceIterator = PhysicalDeviceVec::iterator;
+
   PhysicalDeviceIterator select(PhysicalDeviceIterator first, PhysicalDeviceIterator last) const noexcept {
-    PhysicalDeviceIterator result = last;
+    auto physical_devices = std::ranges::subrange(first, last);
 
-    // [gpu1, gpu2, gpu3]
-    // [y, n, n]
+    // clang-format off
+    auto scores = physical_devices
+      | std::views::transform([this](const auto& device) -> int {
+                        return score_device(device);
+                      })
+      | std::ranges::to<std::vector<int>>();
+    // clang-format on
 
-    if (std::distance(first, last) == 0)
-      return last;
-
-    auto count = static_cast<std::size_t>(std::distance(first, last));
-    std::vector<bool> valid_candidates(count, false);
-
-    auto candidates = std::views::zip(std::ranges::subrange(first, last), valid_candidates);
-
-    std::ranges::for_each(candidates, [this](const PhysicalDevice& device, bool& is_candidate) mutable {
-      is_candidate = device.has_any(allowed_gpu_types) && device.has_preset() && device.has_graphic_queue();
-    });
-
-    return result;
-
-    // erase_if(candidates, [this](auto device_iter) { return device_iter->has_not_any(allowed_gpu_types); });
-
-    // if (require_preset_queue) {
-    //   erase_if(candidates, [](auto device_iter) { return device_iter->has_preset(); });
-    // }
-
-    // if (require_graphic_queue) {
-    //   erase_if(candidates, [](auto device_iter) { return device_iter->has_graphic_queue(); });
-    // }
-
-    // if (empty(candidates))
-    //   throw std::runtime_error{"No suitable GPU found"};
-
-    // first_candidate = begin(candidates);
-    // last_candidate = end(candidates);
-
-    // auto candidate = last_candidate;
-
-    // // more suitable devices
-    // if (is_discrete_gpu_allowed()) {
-    //   auto discrete_gpu_it = find_first_gpu_with_type(PhysicalDeviceType::Discrete, first, last);
-    //   if (discrete_gpu_it != last) {
-    //     candidate = discrete_gpu_it;
-    //   }
-    // }
-
-    // if (candidate != last)
-    //   return candidate;
-
-    // return last;
+    auto selected_device_iter = std::ranges::max_element(scores);
+    auto selected_device_idx = std::distance(begin(scores), selected_device_iter);
+    return first + selected_device_idx;
   }
 
 private:
-  [[nodiscard]] bool is_discrete_gpu_allowed() const noexcept {
-    return std::ranges::find(allowed_gpu_types, PhysicalDeviceType::DiscreteGpu) != end(allowed_gpu_types);
+  bool is_suitable(const PhysicalDevice& device) const noexcept {
+    bool suitable = device.has_any(allowed_gpu_types);
+    if (require_preset_queue)
+      suitable = suitable && device.has_preset();
+    if (require_graphic_queue)
+      suitable = suitable && device.has_graphic_queue();
+    return suitable;
   }
 
-  static PhysicalDeviceIterator find_first_gpu_with_type(PhysicalDeviceType type, PhysicalDeviceIterator first,
-                                                         PhysicalDeviceIterator last) noexcept {
-    return std::find_if(first, last, [type](const PhysicalDevice& device) {
-      switch (type) {
-      case PhysicalDeviceType::IntegratedGpu:
-        return device.is_integrated();
-      case PhysicalDeviceType::DiscreteGpu:
-        return device.is_discrete();
-      case PhysicalDeviceType::VirtualGpu:
-        return device.is_virtual();
-      case PhysicalDeviceType::Cpu:
-        return device.is_cpu();
-      default:
-        return false;
-      };
-    });
+  int score_device(const PhysicalDevice& device) const noexcept {
+    if (not is_suitable(device))
+      return 0;
+
+    int score = 0;
+    if (device.is_discrete()) {
+      score += 10000;
+    }
+    if (device.is_integrated()) {
+      score += 1000;
+    }
+    if (device.is_cpu()) {
+      score += 100;
+    }
+    return score;
   }
 
 private:
