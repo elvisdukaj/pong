@@ -896,58 +896,29 @@ public:
     return std::ranges::find_if(available_extensions, match_extension) != end(available_extensions);
   }
 
-  template <std::ranges::range R>
-    requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
-  bool has_extensions(R requsted_extensions) const noexcept {
-    return std::ranges::all_of(requsted_extensions,
-                               [this](std::string_view extension_name) { return has_extension(extension_name); });
+  std::optional<std::size_t> get_first_graphic_and_present_queue_family_index() const noexcept {
+    for (std::size_t i = 0u; i < available_queue_families.size(); ++i) {
+      const auto& queue = available_queue_families[i].queueFamilyProperties;
+      if (queue.queueCount > 0 && (queue.queueFlags & static_cast<VkQueueFlags>(QueueFlagBits::Graphics)) && is_surface_supported(i))
+        return i;
+    }
+
+    return std::nullopt;
   }
 
-  // bool has_extensions(const std::span<const char*> requsted_extensions) const noexcept {
-  //   return std::ranges::all_of(requsted_extensions, [this](const char* extension_name) {
-  //     return has_extension(std::string_view{extension_name});
-  //   });
-  // }
+
+  template <std::ranges::range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, std::string_view>
+  bool has_extensions(R requested_extensions) const noexcept {
+    return std::ranges::all_of(requested_extensions,
+                               [this](std::string_view extension_name) { return has_extension(extension_name); });
+  }
 
   NativeType native_handle() const noexcept {
     return handle;
   }
 
 #if 0
-  [[nodiscard]] Device create_device(const Instance& instance) const {
-    auto queue_info_vec = std::vector<vk::DeviceQueueCreateInfo>{};
-    for (auto i = 0u; i < available_queue_families.size(); i++) {
-      auto priorities = std::vector<float>(available_queue_families[i].queueFamilyProperties.queueCount, 1.0f);
-      queue_info_vec.emplace_back(vk::DeviceQueueCreateInfo{
-          .queueFamilyIndex = i,
-          .queueCount = available_queue_families[i].queueFamilyProperties.queueCount,
-          .pQueuePriorities = priorities.data(),
-      });
-    }
-
-    // ACHTUNG: the return type of the lambda has to be const char* since char[] will go out of scope
-    auto layers = available_layers |
-                  std::views::transform([](const auto& layer) -> const char* { return layer.layerName; }) |
-                  std::ranges::to<std::vector<const char*>>();
-    auto extensions =
-        available_extensions |
-        std::views::transform([](const auto& extension) -> const char* { return extension.extensionName; }) |
-        std::ranges::to<std::vector<const char*>>();
-
-    auto device_create_info = vk::DeviceCreateInfo{};
-    device_create_info.pNext = &feature_chain.get<vk::PhysicalDeviceFeatures2>();
-    device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_info_vec.size());
-    device_create_info.pQueueCreateInfos = queue_info_vec.data();
-    device_create_info.enabledLayerCount = static_cast<uint32_t>(required_layers.size());
-    device_create_info.ppEnabledLayerNames = required_layers.data();
-    device_create_info.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size());
-    device_create_info.ppEnabledExtensionNames = required_extensions.data();
-
-    auto device = physical_device.createDevice(device_create_info);
-    if (not device) {
-      throw std::runtime_error{std::format("Unable to create a Vulkan Device: {}", vk::to_string(device.error()))};
-    }
-
     VmaVulkanFunctions functions = {};
     functions.vkGetInstanceProcAddr = physical_device.getDispatcher()->vkGetInstanceProcAddr;
     functions.vkGetDeviceProcAddr = physical_device.getDispatcher()->vkGetDeviceProcAddr;
@@ -1248,6 +1219,7 @@ public:
                         return score_device(device);
                       })
       | std::ranges::to<std::vector<int>>();
+    // clang-format on
     // clang-format on
 
     auto selected_device_iter = std::ranges::max_element(scores);

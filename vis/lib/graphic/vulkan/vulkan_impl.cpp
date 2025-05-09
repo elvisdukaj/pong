@@ -38,7 +38,7 @@ std::vector<const char*> get_required_layers() noexcept {
 #if not defined(NDEBUG)
   required_layers.push_back("VK_LAYER_KHRONOS_validation");
 
-#if not defined(__linux)
+#if not defined(__linux__)
   required_layers.push_back("VK_LAYER_LUNARG_api_dump");
 #endif
 
@@ -63,31 +63,6 @@ namespace vis::vulkan {
 #if 0
 class Renderer::Impl {
 public:
-
-
-
-	void select_gpu(vkh::PhysicalDeviceSelector& device_selector) {
-		device_selector.with_surface(&surface);
-
-		auto required_gpu_extensions = vkh::get_physical_device_extensions();
-		// vk_config["physical device"]["required extensions"] = required_gpu_extensions;
-
-		// clang-format off
-		auto expected_device = device_selector
-				.add_required_extensions(required_gpu_extensions)
-#if not defined(NDEBUG)
-				.add_required_layer("VK_LAYER_KHRONOS_validation")
-#endif
-				.with_surface(&surface)
-				.allow_discrete_device()
-				.allow_integrate_device()
-				.set_require_preset()
-				.set_require_compute()
-				.set_require_transfer()
-				.select();
-		// clang-format on
-	}
-
 	void create_swapchain() {
 		auto builder = vkh::SwapChainBuilder{surface, device};
 		// clang-format off
@@ -102,95 +77,14 @@ public:
 	}
 
 	void create_device_and_command_pool() {
-		auto feature10 = vkh::PhysicalDeviceFeatures2{};
-		feature10.features.tessellationShader = vkh::True;
-
-		auto feature12 = vkh::PhysicalDeviceVulkan12Features{};
-		feature12.descriptorIndexing = vkh::True;
-		feature12.bufferDeviceAddress = vkh::True;
-		feature12.drawIndirectCount = vkh::True;
-		feature12.samplerMirrorClampToEdge = vkh::True;
-		feature12.storageBuffer8BitAccess = vkh::True;
-		feature12.uniformBufferStandardLayout = vkh::True;
-		feature12.shaderSubgroupExtendedTypes = vkh::True;
-		feature12.shaderOutputLayer = vkh::True;
-		feature12.vulkanMemoryModelAvailabilityVisibilityChains = vkh::True;
-		feature12.shaderOutputViewportIndex = vkh::True;
-		feature12.subgroupBroadcastDynamicId = vkh::True;
-		feature12.separateDepthStencilLayouts = vkh::True;
-		feature12.runtimeDescriptorArray = vkh::True;
-		feature12.drawIndirectCount = vkh::True;
-		feature12.drawIndirectCount = vkh::True;
-
-		auto feature13 = vkh::PhysicalDeviceVulkan13Features{};
-		feature13.synchronization2 = vkh::True;
-		feature13.dynamicRendering = vkh::True;
-		feature13.computeFullSubgroups = vkh::True;
-		feature13.textureCompressionASTC_HDR = vkh::True;
-		feature13.shaderZeroInitializeWorkgroupMemory = vkh::True;
-		feature13.shaderIntegerDotProduct = vkh::True;
-		feature13.maintenance4 = vkh::True;
-		feature13.dynamicRendering = vkh::True;
-
 		// clang-format off
 		device = selected_physical_device
-			.with_feature_10(feature10)
-			.with_feature_12(feature12)
-		  .with_feature_13(feature13)
 			.create_device(vk_instance);
 
 		command_pool = vkh::CommandPoolBuilder{device}
 				.with_queue_family_index(0)
 				.create();
 		// clang-format on
-
-#if HAS_RENDER_PASS
-		std::shared_ptr<vkh::Texture> front_buffer;
-		std::shared_ptr<vkh::Texture> back_buffer;
-		std::shared_ptr<vkh::Texture> stencil_buffer;
-		std::shared_ptr<vkh::Texture> depth_buffer;
-
-		buffer_textures.emplace_back(std::move(front_buffer));
-		buffer_textures.emplace_back(std::move(back_buffer));
-		buffer_textures.emplace_back(std::move(stencil_buffer));
-		buffer_textures.emplace_back(std::move(depth_buffer));
-
-		// clang-format off
-		// render_pass = vkh::RenderPassBuilder{device}
-				// .add_attachments(buffer_textures)
-				// .build();
-		// clang-format on
-#endif
-	}
-
-private:
-	Window* window = nullptr;
-	vkh::Context context;
-	vkh::Instance vk_instance{nullptr};
-	vkh::Surface surface{nullptr};
-	std::vector<vkh::PhysicalDevice> physical_devices;
-	vkh::PhysicalDevice selected_physical_device;
-	vkh::Device device{nullptr};
-	vkh::SwapChain swapchain{nullptr};
-	vkh::CommandPool command_pool{nullptr};
-	// vkh::CommandPool graphic_command_pool;
-	// vkh::CommandPool preset_command_pool;
-	// vkh::CommandPool compute_command_pool;
-	// vkh::CommandPool transfer_command_pool;
-	std::vector<std::shared_ptr<vkh::Texture>> buffer_textures;
-	vkh::RenderPass render_pass{nullptr};
-	YAML::Node vk_config;
-
-	struct FrameData {
-		vkh::Semaphore swapchain_sem, render_sem;
-		vkh::Fence render_fence;
-	};
-
-	FrameData frame_data[2];
-
-	vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
-	int width = 0;
-	int height = 0;
 };
 #endif
 
@@ -259,7 +153,11 @@ private:
     std::println("selected device: {}", selected_physical_device_it->device_name());
 
     // clang-format off
-	vkh::VkDeviceQueueCreateInfoBuilder queue_builder;
+	auto queue_builder = vkh::VkDeviceQueueCreateInfoBuilder{}
+    .with_family_index(
+      *selected_physical_device_it->get_first_graphic_and_present_queue_family_index()
+      );
+
     device = physical_device_selector
 		.with_queue(queue_builder.build())
 		.create_device(*selected_physical_device_it);
