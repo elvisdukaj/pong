@@ -461,9 +461,10 @@ public:
   }
 
   ~Instance() {
-    if (instance != VK_NULL_HANDLE) {
-      vkDestroyInstance(instance, nullptr);
-    }
+    if (instance == VK_NULL_HANDLE)
+      return;
+
+    vkDestroyInstance(instance, nullptr);
   }
 
   // TODO: serialize
@@ -633,9 +634,10 @@ public:
   }
 
   ~Surface() {
-    if (handle != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(instance->native_handle(), handle, nullptr);
-    }
+    if (handle == VK_NULL_HANDLE)
+      return;
+
+    vkDestroySurfaceKHR(instance->native_handle(), handle, nullptr);
   }
 
   NativeType native_handle() const noexcept {
@@ -690,10 +692,11 @@ public:
   }
 
   ~Device() {
-    if (handle != VK_NULL_HANDLE) {
-      vkDestroyDevice(handle, nullptr);
-      handle = VK_NULL_HANDLE;
-    }
+    if (handle == VK_NULL_HANDLE)
+      return;
+
+    vkDeviceWaitIdle(handle);
+    vkDestroyDevice(handle, nullptr);
   }
 
   NativeType native_handle() const noexcept {
@@ -1304,10 +1307,10 @@ public:
   }
 
   ~Semaphore() {
-    if (handle != VK_NULL_HANDLE) {
-      vkDestroySemaphore(device->native_handle(), handle, nullptr);
-      handle = VK_NULL_HANDLE;
-    }
+    if (handle == VK_NULL_HANDLE)
+      return;
+
+    vkDestroySemaphore(device->native_handle(), handle, nullptr);
   }
 
   NativeHandle native_handle() const noexcept {
@@ -1373,10 +1376,10 @@ public:
   }
 
   ~Swapchain() {
-    if (handle != VK_NULL_HANDLE) {
-      vkDestroySwapchainKHR(device->native_handle(), handle, nullptr);
-      handle = VK_NULL_HANDLE;
-    }
+    if (handle == VK_NULL_HANDLE)
+      return;
+
+    vkDestroySwapchainKHR(device->native_handle(), handle, nullptr);
   }
 
   NativeHandle native_handle() const noexcept {
@@ -1512,8 +1515,6 @@ public:
       return;
 
     vkDestroyCommandPool(device->native_handle(), handle, nullptr);
-    handle = VK_NULL_HANDLE;
-    device = nullptr;
   }
 
   NativeHandle native_handle() const noexcept {
