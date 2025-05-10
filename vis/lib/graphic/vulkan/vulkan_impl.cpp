@@ -168,7 +168,7 @@ private:
     auto surface_caps = selected_physical_device_it->get_surface_capabilities();
     width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
     height = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.height);
-    swapchain_image_count = static_cast<int>(surface_caps.surfaceCapabilities.minImageCount);
+    swapchain_image_count = std::min(static_cast<int>(surface_caps.surfaceCapabilities.maxImageCount), 3);
   }
 
   void create_swapchain() {
@@ -182,6 +182,9 @@ private:
       .build();
     // clang-format on
   }
+
+private:
+  struct FrameData {};
 
 private:
   Window* window = nullptr;

@@ -1240,6 +1240,8 @@ public:
     auto device_create_info = device_create_info_builder.build();
     VkDevice device;
     vkCreateDevice(physical_device.native_handle(), &device_create_info, nullptr, &device);
+
+    std::call_once(device_initialize, [device]() { volkLoadDevice(device); });
     return Device{device};
   }
 
@@ -1290,6 +1292,76 @@ private:
   bool require_graphic_queue{true};
 
   VkDeviceCreateInfoBuilder device_create_info_builder;
+  std::once_flag device_initialize;
+};
+
+class Semaphore {
+  friend class SemaphoreBuilder;
+
+public:
+  using NativeHandle = VkSemaphore;
+
+  Semaphore(std::nullptr_t) noexcept : handle{VK_NULL_HANDLE}, device{nullptr} {}
+
+  Semaphore(const Semaphore&) = delete;
+  Semaphore& operator=(const Semaphore&) = delete;
+
+  Semaphore(Semaphore&& other) : handle{other.handle}, device{other.device} {
+    other.handle = VK_NULL_HANDLE;
+    other.device = nullptr;
+  }
+
+  Semaphore& operator=(Semaphore&& other) noexcept {
+    std::swap(handle, other.handle);
+    std::swap(device, other.device);
+    return *this;
+  }
+
+  ~Semaphore() {
+    if (handle != VK_NULL_HANDLE) {
+      vkDestroySemaphore(device->native_handle(), handle, nullptr);
+      handle = VK_NULL_HANDLE;
+    }
+  }
+
+  NativeHandle native_handle() const noexcept {
+    return handle;
+  }
+
+private:
+  Semaphore(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+  Device* device = nullptr;
+};
+
+class SemaphoreBuilder {
+public:
+  explicit SemaphoreBuilder(Device& device) : device{device} {
+    // clang-format off
+    semaphore_create_info = VkSemaphoreCreateInfo{
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = {},
+    };
+    // clang-format on
+  }
+
+  SemaphoreBuilder& with_next(void* next) {
+    semaphore_create_info.pNext = next;
+    return *this;
+  }
+
+  Semaphore build() const noexcept {
+    VkSemaphore semaphore;
+    vkCreateSemaphore(device.native_handle(), &semaphore_create_info, nullptr, &semaphore);
+    return Semaphore{semaphore, &device};
+  }
+
+private:
+  Device& device;
+  VkSemaphoreCreateInfo semaphore_create_info;
 };
 
 class Swapchain {
@@ -1419,6 +1491,89 @@ private:
   ImageUsageFlags image_usage_bit = ImageUsageFlagBits::ColorAttachment;
   std::vector<uint32_t> queue_family_indices;
   std::optional<Format> required_format;
+};
+
+class CommandPool {
+  friend class CommandPoolBuilder;
+
+public:
+  using NativeHandle = VkCommandPool;
+
+  CommandPool(std::nullptr_t) : handle{VK_NULL_HANDLE}, device{nullptr} {}
+
+  CommandPool(const CommandPool&) = delete;
+  CommandPool& operator=(const CommandPool&) = delete;
+
+  CommandPool(CommandPool&& other) noexcept : handle{other.handle}, device{other.device} {
+    other.handle = VK_NULL_HANDLE;
+    other.device = nullptr;
+  }
+
+  CommandPool& operator=(CommandPool&& other) noexcept {
+    std::swap(handle, other.handle);
+    std::swap(device, other.device);
+    return *this;
+  }
+
+  ~CommandPool() {
+    if (handle != VK_NULL_HANDLE) {
+      vkDestroyCommandPool(device->native_handle(), handle, nullptr);
+      handle = VK_NULL_HANDLE;
+      device = nullptr;
+    }
+  }
+
+  NativeHandle native_handle() const noexcept {
+    return handle;
+  }
+
+private:
+  CommandPool(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+  Device* device = nullptr;
+};
+
+class CommandPoolBuilder {
+public:
+  explicit CommandPoolBuilder(Device& device) : device{device} {
+    // clang-format off
+    command_pool_create_info = VkCommandPoolCreateInfo{
+      .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+      .queueFamilyIndex = {},
+    };
+    // clang-format on
+  }
+
+  CommandPoolBuilder& with_next(void* next) {
+    command_pool_create_info.pNext = next;
+    return *this;
+  }
+
+  CommandPoolBuilder& with_queue_family_index(std::size_t index) {
+    command_pool_create_info.queueFamilyIndex = static_cast<uint32_t>(index);
+    return *this;
+  }
+
+  CommandPoolBuilder& with_flags(CommandPoolCreateFlags required_flags) {
+    command_pool_create_info.flags = static_cast<VkCommandPoolCreateFlags>(required_flags);
+    return *this;
+  }
+
+  CommandPool build() const noexcept {
+    VkCommandPool command_pool;
+    vkCreateCommandPool(device.native_handle(), &command_pool_create_info, nullptr, &command_pool);
+
+    return CommandPool{command_pool, &device};
+  }
+
+private:
+  VkCommandPoolCreateInfo command_pool_create_info;
+  CommandPoolCreateFlags flags;
+  Device& device;
 };
 
 } // namespace vkh

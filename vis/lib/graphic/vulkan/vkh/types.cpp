@@ -410,10 +410,6 @@ public:
     return Flags<BitType>(mask ^ rhs.mask);
   }
 
-  constexpr Flags<BitType> operator~() const noexcept {
-    return Flags<BitType>(mask ^ FlagTraits<BitType>::all_flags.m_mask);
-  }
-
   // assignment operators
   constexpr Flags<BitType>& operator=(Flags<BitType> const& rhs) noexcept = default;
 
@@ -544,5 +540,18 @@ enum class PresentMode {
   shared_demand_refresh = VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR,
   shared_continuos_refresh = VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR,
 };
+
+enum class CommandPoolCreateFlagBits : VkCommandPoolCreateFlags {
+  transfer = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+  reset_command_buffer = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+  protected_ = VK_COMMAND_POOL_CREATE_PROTECTED_BIT,
+};
+
+template <> struct FlagTraits<CommandPoolCreateFlagBits> {
+  using wrapped_type = VkCommandPoolCreateFlagBits;
+  static constexpr bool is_bitmask = true;
+};
+
+using CommandPoolCreateFlags = Flags<CommandPoolCreateFlagBits>;
 
 } // namespace vkh
