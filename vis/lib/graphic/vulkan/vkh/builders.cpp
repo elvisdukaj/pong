@@ -1353,6 +1353,46 @@ private:
   VkSemaphoreCreateInfo semaphore_create_info;
 };
 
+class Image {
+  friend class Swapchain;
+
+public:
+  using NativeHandle = VkImage;
+
+  Image(std::nullptr_t) noexcept : device{nullptr}, handle{VK_NULL_HANDLE}, is_swapchain_image{false} {}
+
+  Image(Image&) = delete;
+  Image& operator=(Image&) = delete;
+
+  Image(Image&& other) : device{other.device}, handle{other.handle}, is_swapchain_image{other.is_swapchain_image} {
+    other.device = nullptr;
+    other.handle = VK_NULL_HANDLE;
+  }
+
+  Image& operator=(Image&& other) noexcept {
+    std::swap(device, other.device);
+    std::swap(handle, other.handle);
+    std::swap(is_swapchain_image, other.is_swapchain_image);
+    return *this;
+  }
+
+  ~Image() {
+    if (handle == VK_NULL_HANDLE or is_swapchain_image)
+      return;
+
+    vkDestroyImage(device->native_handle(), handle, nullptr);
+  }
+
+private:
+  Image(Device* device, NativeHandle handle, bool is_swaphcain)
+      : device{device}, handle{handle}, is_swapchain_image{is_swaphcain} {}
+
+private:
+  Device* device = nullptr;
+  NativeHandle handle = VK_NULL_HANDLE;
+  bool is_swapchain_image = false;
+};
+
 class Swapchain {
   friend class SwapchainBuilder;
 
@@ -1392,12 +1432,24 @@ public:
     return image_count;
   };
 
+  const std::vector<Image>& get_images() const noexcept {
+    return images;
+  }
+
 private:
-  Swapchain(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
+  Swapchain(NativeHandle handle, Device* device) : handle{handle}, device{device} {
+    auto swap_chain_images = enumerate<VkImage>(vkGetSwapchainImagesKHR, device->native_handle(), handle);
+    // clang-format off
+    images = swap_chain_images
+        | std::views::transform([this](VkImage image) { return Image{this->device, image, true}; })
+        | std::ranges::to<std::vector<Image>>();
+    // clang-format on
+  }
 
 private:
   NativeHandle handle = VK_NULL_HANDLE;
   Device* device = nullptr;
+  std::vector<Image> images;
 };
 
 class SwapchainBuilder {

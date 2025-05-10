@@ -190,9 +190,13 @@ private:
       .with_queue_family_index(present_queue_family_index)
       .with_flags(vkh::CommandPoolCreateFlagBits::reset_command_buffer)
       .build();
+
+    const auto& swapchain_images = swapchain.get_images();
+
+    command_buffers = vkh::CommandBuffersBuilder{device, command_pool}
+        .with_buffer_count(swapchain_images.size())
+        .build();
     // clang-format on
-    auto image_in_swapchain = swapchain.get_image_count();
-    command_buffers = vkh::CommandBuffersBuilder{device, command_pool}.with_buffer_count(image_in_swapchain).build();
   }
 
 private:
