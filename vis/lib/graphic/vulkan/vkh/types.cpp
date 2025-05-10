@@ -554,4 +554,9 @@ template <> struct FlagTraits<CommandPoolCreateFlagBits> {
 
 using CommandPoolCreateFlags = Flags<CommandPoolCreateFlagBits>;
 
+enum class CommandBufferLevel {
+  primary = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+  secondary = VK_COMMAND_BUFFER_LEVEL_SECONDARY,
+};
+
 } // namespace vkh

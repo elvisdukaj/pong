@@ -158,7 +158,7 @@ private:
     std::println("selected device: {}", selected_physical_device_it->device_name());
 
     // clang-format off
-    auto present_queue_info_builder = vkh::VkDeviceQueueCreateInfoBuilder{}
+    auto present_queue_info_builder = vkh::DeviceQueueCreateInfoBuilder{}
           .with_family_index(present_queue_family_index);
 
     device = physical_device_selector

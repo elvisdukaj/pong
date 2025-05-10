@@ -19,20 +19,6 @@ import :helper;
 
 export namespace vkh {
 
-// forward and using
-class Context;
-class InstanceBuilder;
-class Instance;
-class Surface;
-class PhysicalDevice;
-class PhysicalDeviceSelector;
-class CommandPool;
-class Device;
-class RenderPass;
-class RenderPassBuilder;
-class Semaphore;
-class Fence;
-
 class ApplicationInfoBuilder {
 public:
   ApplicationInfoBuilder& with_next(const void* required_next) noexcept {
@@ -266,11 +252,11 @@ private:
   NativeType native;
 };
 
-class VkSurfaceCapabilities2KHRBuilder {
+class SurfaceCapabilities2KHRBuilder {
 public:
   using NativeType = VkSurfaceCapabilities2KHR;
 
-  VkSurfaceCapabilities2KHRBuilder() noexcept {
+  SurfaceCapabilities2KHRBuilder() noexcept {
     native = NativeType{
         .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
         .pNext = nullptr,
@@ -278,7 +264,7 @@ public:
     };
   }
 
-  VkSurfaceCapabilities2KHRBuilder& with_next(VkBaseInStructure* next = nullptr) noexcept {
+  SurfaceCapabilities2KHRBuilder& with_next(VkBaseInStructure* next = nullptr) noexcept {
     native.pNext = next;
     return *this;
   }
@@ -291,27 +277,27 @@ private:
   NativeType native;
 };
 
-class VkDeviceQueueCreateInfoBuilder {
+class DeviceQueueCreateInfoBuilder {
 public:
   using NativeType = VkDeviceQueueCreateInfo;
 
-  VkDeviceQueueCreateInfoBuilder& with_next(void* required_next) {
+  DeviceQueueCreateInfoBuilder& with_next(void* required_next) {
     next = required_next;
     return *this;
   }
 
-  VkDeviceQueueCreateInfoBuilder& with_family_index(std::size_t index) {
+  DeviceQueueCreateInfoBuilder& with_family_index(std::size_t index) {
     family_index = static_cast<uint32_t>(index);
     return *this;
   }
 
-  VkDeviceQueueCreateInfoBuilder& with_queue_counts(std::size_t count) {
+  DeviceQueueCreateInfoBuilder& with_queue_counts(std::size_t count) {
     priorities.clear();
     std::fill_n(std::back_inserter(priorities), count, 1.0f);
     return *this;
   }
 
-  VkDeviceQueueCreateInfoBuilder& with_queue_counts(std::span<float> priorities_hint) {
+  DeviceQueueCreateInfoBuilder& with_queue_counts(std::span<float> priorities_hint) {
     priorities.insert(priorities.end(), begin(priorities_hint), end(priorities_hint));
     return *this;
   }
@@ -335,26 +321,26 @@ private:
   std::vector<float> priorities{1.0f};
 };
 
-class VkDeviceCreateInfoBuilder {
+class DeviceCreateInfoBuilder {
 public:
   using NativeType = VkDeviceCreateInfo;
 
-  VkDeviceCreateInfoBuilder& with_next(void* required_next) {
+  DeviceCreateInfoBuilder& with_next(void* required_next) {
     next = required_next;
     return *this;
   }
 
-  VkDeviceCreateInfoBuilder& with_queue(const VkDeviceQueueCreateInfo& queue) noexcept {
+  DeviceCreateInfoBuilder& with_queue(const VkDeviceQueueCreateInfo& queue) noexcept {
     queues.push_back(queue);
     return *this;
   }
 
-  VkDeviceCreateInfoBuilder& add_required_extension(const char* extension_name) noexcept {
+  DeviceCreateInfoBuilder& add_required_extension(const char* extension_name) noexcept {
     extensions.push_back(extension_name);
     return *this;
   }
 
-  VkDeviceCreateInfoBuilder& add_required_extensions(std::span<const char*> required_extensions) noexcept {
+  DeviceCreateInfoBuilder& add_required_extensions(std::span<const char*> required_extensions) noexcept {
     extensions.insert(extensions.end(), begin(required_extensions), end(required_extensions));
     return *this;
   }
@@ -771,7 +757,7 @@ public:
 
   static VkSurfaceCapabilities2KHR get_surface_capabilities(VkPhysicalDevice device, VkSurfaceKHR surface) noexcept {
     auto physical_device_surface_info = PhysicalDeviceSurfaceInfo2Builder{surface}.build();
-    VkSurfaceCapabilities2KHR result = VkSurfaceCapabilities2KHRBuilder{}.build();
+    VkSurfaceCapabilities2KHR result = SurfaceCapabilities2KHRBuilder{}.build();
 
     vkGetPhysicalDeviceSurfaceCapabilities2KHR(device, &physical_device_surface_info, &result);
     return result;
@@ -1291,7 +1277,7 @@ private:
   bool require_preset_queue{true};
   bool require_graphic_queue{true};
 
-  VkDeviceCreateInfoBuilder device_create_info_builder;
+  DeviceCreateInfoBuilder device_create_info_builder;
   std::once_flag device_initialize;
 };
 
@@ -1649,6 +1635,11 @@ public:
     return *this;
   }
 
+  CommandBuffersBuilder& with_level(CommandBufferLevel level) noexcept {
+    command_buffer_allocate_info.level = static_cast<VkCommandBufferLevel>(level);
+    return *this;
+  }
+
   CommandBuffers build() const noexcept {
     std::vector<VkCommandBuffer> command_buffer(command_buffer_allocate_info.commandBufferCount, VK_NULL_HANDLE);
     vkAllocateCommandBuffers(device.native_handle(), &command_buffer_allocate_info, command_buffer.data());
@@ -1656,9 +1647,16 @@ public:
   }
 
 private:
-  VkCommandBufferAllocateInfo command_buffer_allocate_info;
   Device& device;
   CommandPool& command_pool;
+  VkCommandBufferAllocateInfo command_buffer_allocate_info;
 };
 
+class CommandBufferBeginInfo {
+friend class CommandBufferBeginInfoBuilder;
+public:
+
+private:
+
+};
 } // namespace vkh
