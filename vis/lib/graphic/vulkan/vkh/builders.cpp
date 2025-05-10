@@ -1397,6 +1397,12 @@ public:
     return handle;
   }
 
+  std::size_t get_image_count() const noexcept {
+    uint32_t image_count = {};
+    vkGetSwapchainImagesKHR(device->native_handle(), handle, &image_count, nullptr);
+    return image_count;
+  };
+
 private:
   Swapchain(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
 
@@ -1443,7 +1449,7 @@ public:
     return *this;
   }
 
-  SwapchainBuilder& with_image_count(int image_count) {
+  SwapchainBuilder& with_image_count(std::size_t image_count) {
     swapchain_create_info.minImageCount = static_cast<uint32_t>(image_count);
     return *this;
   }
@@ -1516,11 +1522,12 @@ public:
   }
 
   ~CommandPool() {
-    if (handle != VK_NULL_HANDLE) {
-      vkDestroyCommandPool(device->native_handle(), handle, nullptr);
-      handle = VK_NULL_HANDLE;
-      device = nullptr;
-    }
+    if (handle == VK_NULL_HANDLE)
+      return;
+
+    vkDestroyCommandPool(device->native_handle(), handle, nullptr);
+    handle = VK_NULL_HANDLE;
+    device = nullptr;
   }
 
   NativeHandle native_handle() const noexcept {
@@ -1574,6 +1581,84 @@ private:
   VkCommandPoolCreateInfo command_pool_create_info;
   CommandPoolCreateFlags flags;
   Device& device;
+};
+
+class CommandBuffers {
+  friend class CommandBuffersBuilder;
+
+public:
+  CommandBuffers() noexcept = default;
+
+  CommandBuffers(const CommandBuffers&) = delete;
+  CommandBuffers& operator=(const CommandBuffers&) = delete;
+
+  CommandBuffers(CommandBuffers&& other) noexcept
+      : device{other.device}, command_pool{other.command_pool}, command_buffers{std::move(other.command_buffers)} {
+    other.device = nullptr;
+    other.command_pool = nullptr;
+  }
+
+  CommandBuffers& operator=(CommandBuffers&& other) noexcept {
+    std::swap(device, other.device);
+    std::swap(command_pool, other.command_pool);
+    std::swap(command_buffers, other.command_buffers);
+    return *this;
+  }
+
+  ~CommandBuffers() noexcept {
+    if (command_buffers.empty())
+      return;
+
+    vkFreeCommandBuffers(device->native_handle(), command_pool->native_handle(),
+                         static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+  }
+
+private:
+  CommandBuffers(Device* device, CommandPool* command_pool, std::span<VkCommandBuffer> created_command_buffers)
+      : device{device}, command_pool{command_pool} {
+    command_buffers.insert(end(command_buffers), begin(created_command_buffers), end(created_command_buffers));
+  }
+
+private:
+  Device* device = nullptr;
+  CommandPool* command_pool = nullptr;
+  std::vector<VkCommandBuffer> command_buffers;
+};
+
+class CommandBuffersBuilder {
+public:
+  explicit CommandBuffersBuilder(Device& device, CommandPool& command_pool)
+      : device{device}, command_pool{command_pool} {
+    // clang-format off
+    command_buffer_allocate_info = VkCommandBufferAllocateInfo{
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      .pNext = nullptr,
+      .commandPool = command_pool.native_handle(),
+      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      .commandBufferCount = 1,
+    };
+  }
+
+  CommandBuffersBuilder& with_next(void* next) noexcept {
+    command_buffer_allocate_info.pNext = next;
+    return *this;
+  }
+
+  CommandBuffersBuilder& with_buffer_count(std::size_t count) noexcept {
+    command_buffer_allocate_info.commandBufferCount = static_cast<uint32_t>(count);
+    return *this;
+  }
+
+  CommandBuffers build() const noexcept {
+    std::vector<VkCommandBuffer> command_buffer(command_buffer_allocate_info.commandBufferCount, VK_NULL_HANDLE);
+    vkAllocateCommandBuffers(device.native_handle(), &command_buffer_allocate_info, command_buffer.data());
+    return CommandBuffers{&device, &command_pool, command_buffer};
+  }
+
+private:
+  VkCommandBufferAllocateInfo command_buffer_allocate_info;
+  Device& device;
+  CommandPool& command_pool;
 };
 
 } // namespace vkh

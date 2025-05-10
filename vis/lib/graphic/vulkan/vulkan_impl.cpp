@@ -39,7 +39,7 @@ std::vector<const char*> get_required_layers() noexcept {
   required_layers.push_back("VK_LAYER_KHRONOS_validation");
 
 #if not defined(__linux__)
-  // required_layers.push_back("VK_LAYER_LUNARG_api_dump");
+  required_layers.push_back("VK_LAYER_LUNARG_api_dump");
 #endif
 
 #endif
@@ -91,12 +91,13 @@ public:
 class Renderer::Impl {
 public:
   Impl([[maybe_unused]] Window* window) : window{window} {
-    create_instance();
-    create_surface();
+    init_instance();
+    init_surface();
     auto physical_device_selector = vkh::PhysicalDeviceSelector{vk_instance, &surface};
     enumerate_physical_devices(physical_device_selector);
-    create_device(physical_device_selector);
-    create_swapchain();
+    init_device(physical_device_selector);
+    init_swapchain();
+    init_command_pool();
   }
 
   std::string show_info() const noexcept {
@@ -106,7 +107,7 @@ public:
   void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
     width = view_width;
     height = view_height;
-    create_swapchain();
+    init_swapchain();
   }
 
   void set_clear_color([[maybe_unused]] vec4 color) noexcept {
@@ -114,7 +115,7 @@ public:
   }
 
 private:
-  void create_instance() noexcept {
+  void init_instance() noexcept {
     auto required_flags = helper::get_required_instance_flags();
     auto required_extensions = helper::get_required_extensions();
     auto required_layers = helper::get_required_layers();
@@ -134,7 +135,7 @@ private:
                       .build();
   }
 
-  void create_surface() noexcept {
+  void init_surface() noexcept {
     surface = vkh::SurfaceBuilder{&vk_instance, window}.build();
   }
 
@@ -147,31 +148,31 @@ private:
                            .enumerate_all();
   }
 
-  void create_device(vkh::PhysicalDeviceSelector& physical_device_selector) {
+  void init_device(vkh::PhysicalDeviceSelector& physical_device_selector) {
     selected_physical_device_it = physical_device_selector.select(begin(physical_devices), end(physical_devices));
     if (selected_physical_device_it == end(physical_devices))
       throw std::runtime_error{"No suitable physical device found"};
 
+    present_queue_family_index = *selected_physical_device_it->get_first_graphic_and_present_queue_family_index();
+
     std::println("selected device: {}", selected_physical_device_it->device_name());
 
     // clang-format off
-	auto queue_builder = vkh::VkDeviceQueueCreateInfoBuilder{}
-    .with_family_index(
-      *selected_physical_device_it->get_first_graphic_and_present_queue_family_index()
-      );
+    auto present_queue_info_builder = vkh::VkDeviceQueueCreateInfoBuilder{}
+          .with_family_index(present_queue_family_index);
 
     device = physical_device_selector
-		.with_queue(queue_builder.build())
-		.create_device(*selected_physical_device_it);
+		      .with_queue(present_queue_info_builder.build())
+		      .create_device(*selected_physical_device_it);
     // clang-format on
 
     auto surface_caps = selected_physical_device_it->get_surface_capabilities();
     width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
     height = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.height);
-    swapchain_image_count = std::min(static_cast<int>(surface_caps.surfaceCapabilities.maxImageCount), 3);
+    swapchain_image_count = std::min(static_cast<std::size_t>(surface_caps.surfaceCapabilities.maxImageCount), 3uz);
   }
 
-  void create_swapchain() {
+  void init_swapchain() {
     // clang-format off
     swapchain = vkh::SwapchainBuilder{*selected_physical_device_it, device, surface}
       .with_extent(width, height)
@@ -183,8 +184,16 @@ private:
     // clang-format on
   }
 
-private:
-  struct FrameData {};
+  void init_command_pool() {
+    // clang-format off
+    command_pool = vkh::CommandPoolBuilder{device}
+      .with_queue_family_index(present_queue_family_index)
+      .with_flags(vkh::CommandPoolCreateFlagBits::reset_command_buffer)
+      .build();
+    // clang-format on
+    auto image_in_swapchain = swapchain.get_image_count();
+    command_buffers = vkh::CommandBuffersBuilder{device, command_pool}.with_buffer_count(image_in_swapchain).build();
+  }
 
 private:
   Window* window = nullptr;
@@ -195,11 +204,14 @@ private:
   std::vector<vkh::PhysicalDevice>::iterator selected_physical_device_it;
   vkh::Device device{nullptr};
   vkh::Swapchain swapchain{nullptr};
+  vkh::CommandPool command_pool{nullptr};
+  vkh::CommandBuffers command_buffers{};
 
   vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
   int width = 800;
   int height = 600;
-  int swapchain_image_count = 0;
+  std::size_t present_queue_family_index = 0;
+  std::size_t swapchain_image_count = 0;
 };
 
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}
