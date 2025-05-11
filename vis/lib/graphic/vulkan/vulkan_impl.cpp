@@ -114,6 +114,15 @@ public:
     clear_color = color;
   }
 
+  void clear() const noexcept {
+    const auto& swapchain_images = swapchain.get_images();
+    for (auto i = 0uz; i < swapchain_images.size(); ++i) {
+      const auto& image = swapchain_images[i];
+      auto command_buffer = command_buffers[i];
+      command_buffer.clear_color(clear_color, image, vkh::ImageLayout::transfer_dst_optimal, {});
+    }
+  }
+
 private:
   void init_instance() noexcept {
     auto required_flags = helper::get_required_instance_flags();

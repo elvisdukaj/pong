@@ -9,6 +9,7 @@ module;
 export module vis.graphic.vulkan.vkh:builders;
 
 import std;
+import vis.math;
 import vis.window;
 
 import :traits;
@@ -1929,19 +1930,20 @@ private:
 };
 
 class CommandBuffer {
-  friend class CommandBuffer;
+  friend class CommandBuffers;
 
-  void command_clear_color(const float clear_color[4], Image& image, const ImageLayout image_layout,
-                           const std::vector<ImageSubresourceRange>& sub_ranges) {
-    const VkClearColorValue* color = std::bit_cast<VkClearColorValue*>(clear_color);
+public:
+  using NativeHandle = VkCommandBuffer;
+
+  void clear_color(const vis::vec4 clear_color, const Image& image, const ImageLayout image_layout,
+                   const std::vector<ImageSubresourceRange>& sub_ranges) const noexcept {
+    const VkClearColorValue* color = std::bit_cast<VkClearColorValue*>(vis::gtc::value_ptr(clear_color));
     vkCmdClearColorImage(handle, image.native_handle(), static_cast<VkImageLayout>(image_layout), color,
                          static_cast<uint32_t>(sub_ranges.size()),
                          std::bit_cast<const VkImageSubresourceRange*>(sub_ranges.data()));
   }
 
-public:
-  using NativeHandle = VkCommandBuffer;
-
+private:
   explicit CommandBuffer(NativeHandle handle) : handle{handle} {}
 
 private:
