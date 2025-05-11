@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <volk.h>
 
-#include "ecs/entity/handle.hpp"
+#include "ecs/entity/entity.hpp"
 #include "vk_enum_string_helper.h"
 
 export module vis.graphic.vulkan.vkh:builders;
@@ -16,6 +16,8 @@ import :concepts;
 import :types;
 import :constants;
 import :helper;
+
+using namespace std::chrono_literals;
 
 export namespace vkh {
 
@@ -1295,7 +1297,7 @@ public:
   Semaphore(const Semaphore&) = delete;
   Semaphore& operator=(const Semaphore&) = delete;
 
-  Semaphore(Semaphore&& other) : handle{other.handle}, device{other.device} {
+  Semaphore(Semaphore&& other) noexcept : handle{other.handle}, device{other.device} {
     other.handle = VK_NULL_HANDLE;
     other.device = nullptr;
   }
@@ -1306,7 +1308,7 @@ public:
     return *this;
   }
 
-  ~Semaphore() {
+  ~Semaphore() noexcept {
     if (handle == VK_NULL_HANDLE)
       return;
 
@@ -1318,7 +1320,7 @@ public:
   }
 
 private:
-  Semaphore(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
+  Semaphore(NativeHandle handle, Device* device) noexcept : handle{handle}, device{device} {}
 
 private:
   NativeHandle handle = VK_NULL_HANDLE;
@@ -1327,7 +1329,7 @@ private:
 
 class SemaphoreBuilder {
 public:
-  explicit SemaphoreBuilder(Device& device) : device{device} {
+  explicit SemaphoreBuilder(Device& device) noexcept : device{device} {
     // clang-format off
     semaphore_create_info = VkSemaphoreCreateInfo{
       .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -1337,7 +1339,7 @@ public:
     // clang-format on
   }
 
-  SemaphoreBuilder& with_next(void* next) {
+  SemaphoreBuilder& with_next(void* next) noexcept {
     semaphore_create_info.pNext = next;
     return *this;
   }
@@ -1351,6 +1353,82 @@ public:
 private:
   Device& device;
   VkSemaphoreCreateInfo semaphore_create_info;
+};
+
+class Fence {
+  friend class FenceBuilder;
+
+public:
+  using NativeHandle = VkFence;
+
+  Fence(std::nullptr_t) noexcept : handle{VK_NULL_HANDLE}, device{nullptr} {}
+
+  Fence(const Fence&) = delete;
+  Fence& operator=(const Fence&) = delete;
+
+  Fence(Fence&& other) noexcept : handle{other.handle}, device{other.device} {
+    other.handle = VK_NULL_HANDLE;
+    other.device = nullptr;
+  }
+
+  Fence& operator=(Fence&& other) noexcept {
+    std::swap(handle, other.handle);
+    std::swap(device, other.device);
+    return *this;
+  }
+
+  ~Fence() {
+    if (handle == VK_NULL_HANDLE)
+      return;
+
+    vkDestroyFence(device->native_handle(), handle, nullptr);
+  }
+
+  NativeHandle native_handle() const noexcept {
+    return handle;
+  }
+
+private:
+  Fence(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+  Device* device = nullptr;
+};
+
+class FenceBuilder {
+public:
+  explicit FenceBuilder(Device& device) : device{device} {
+    // clang-format off
+    fence_create_info = VkFenceCreateInfo{
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = {},
+    };
+    // clang-format on
+  }
+
+  FenceBuilder& with_next(void* next) noexcept {
+    fence_create_info.pNext = next;
+    return *this;
+  }
+
+  FenceBuilder& with_flags(FenceCreateFlagBits required_flags) noexcept {
+    auto flags = FenceCreateFlags{fence_create_info.flags};
+    flags |= required_flags;
+    fence_create_info.flags = static_cast<VkFenceCreateFlags>(flags);
+    return *this;
+  }
+
+  Fence build() const noexcept {
+    VkFence fence;
+    vkCreateFence(device.native_handle(), &fence_create_info, nullptr, &fence);
+    return Fence{fence, &device};
+  }
+
+private:
+  Device& device;
+  VkFenceCreateInfo fence_create_info;
 };
 
 class Image {
@@ -1438,6 +1516,28 @@ public:
 
   const std::vector<Image>& get_images() const noexcept {
     return images;
+  }
+
+  std::expected<std::size_t, Result> get_next_image(std::optional<Semaphore> semaphore = std::nullopt,
+                                                    std::optional<Fence> fence = std::nullopt,
+                                                    std::chrono::nanoseconds timeout = 2s) const noexcept {
+    VkAcquireNextImageInfoKHR info{
+        .sType = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
+        .pNext = nullptr,
+        .swapchain = handle,
+        .timeout = static_cast<uint32_t>(timeout.count()),
+        .semaphore = semaphore.has_value() ? semaphore->native_handle() : VK_NULL_HANDLE,
+        .fence = fence.has_value() ? fence->native_handle() : VK_NULL_HANDLE,
+        .deviceMask = {},
+    };
+
+    uint32_t image_index = {};
+    auto res = vkAcquireNextImage2KHR(device->native_handle(), &info, &image_index);
+
+    if (res != VK_SUCCESS)
+      return std::unexpected{Result{res}};
+
+    return image_index;
   }
 
 private:

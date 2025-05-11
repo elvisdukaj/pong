@@ -671,4 +671,14 @@ template <> struct FlagTraits<ImageAspectFlagBits> {
 
 using ImageAspectFlags = Flags<ImageAspectFlagBits>;
 
+enum class FenceCreateFlagBits : VkFenceCreateFlags {
+  signaled = VK_FENCE_CREATE_SIGNALED_BIT,
+};
+
+template <> struct FlagTraits<FenceCreateFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using FenceCreateFlags = Flags<FenceCreateFlagBits>;
+
 } // namespace vkh
