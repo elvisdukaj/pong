@@ -579,7 +579,7 @@ enum class ImageLayout {
   stencil_read_only_optimal = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
   read_only_optimal = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
   attachment_optimal = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-  present_src = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  present_src_khr = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
   video_decode_dst_khr = VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR,
   video_decode_src_khr = VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR,
   video_decode_dpd_khr = VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,

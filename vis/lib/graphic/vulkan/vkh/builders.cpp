@@ -1475,6 +1475,157 @@ private:
   bool is_swapchain_image = false;
 };
 
+class ImageMemoryBarrier {
+  friend class ImageMemoryBarrierBuilder;
+
+public:
+  using NativeHandle = VkImageMemoryBarrier;
+
+  ImageMemoryBarrier(VkImageMemoryBarrier image_memory_barrier) : image_memory_barrier{image_memory_barrier} {}
+
+  NativeHandle native_handle() const noexcept {
+    return image_memory_barrier;
+  }
+
+private:
+  VkImageMemoryBarrier image_memory_barrier;
+};
+
+class ImageSubresourceRange : public VkImageSubresourceRange {
+  friend class ImageSubresourceRangeBuilder;
+
+public:
+  using NativeType = VkImageSubresourceRange;
+
+private:
+  explicit ImageSubresourceRange(VkImageSubresourceRange native) : VkImageSubresourceRange{native} {}
+};
+
+class ImageSubresourceRangeBuilder {
+  friend class ImageSubresourceRangeBuilder;
+
+public:
+  using NativeHandle = VkImageSubresourceRange;
+
+  ImageSubresourceRangeBuilder() {
+    // clang-format off
+    sub_range = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    };
+    // clang-format on
+  }
+
+  ImageSubresourceRangeBuilder& with_aspect_mask(ImageAspectFlags aspect_mask) {
+    sub_range.aspectMask = static_cast<VkImageAspectFlags>(aspect_mask);
+    return *this;
+  }
+
+  ImageSubresourceRangeBuilder& with_base_mip_level(int base_mip_level) {
+    sub_range.baseMipLevel = static_cast<uint32_t>(base_mip_level);
+    return *this;
+  }
+
+  ImageSubresourceRangeBuilder& with_level_count(int level_count) {
+    sub_range.levelCount = static_cast<uint32_t>(level_count);
+    return *this;
+  }
+
+  ImageSubresourceRangeBuilder& with_base_array_layer(int base_array_layer) {
+    sub_range.baseArrayLayer = static_cast<uint32_t>(base_array_layer);
+    return *this;
+  }
+
+  ImageSubresourceRangeBuilder& with_layer_count(int layer_count) {
+    sub_range.layerCount = static_cast<uint32_t>(layer_count);
+    return *this;
+  }
+
+  ImageSubresourceRange build() const noexcept {
+    return ImageSubresourceRange{sub_range};
+  }
+
+private:
+  VkImageSubresourceRange sub_range;
+};
+
+class ImageMemoryBarrierBuilder {
+public:
+  ImageMemoryBarrierBuilder() noexcept {
+    image_memory_barrier = VkImageMemoryBarrier{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = {},
+        .dstAccessMask = {},
+        .oldLayout = {},
+        .newLayout = {},
+        .srcQueueFamilyIndex = {},
+        .dstQueueFamilyIndex = {},
+        .image = VK_NULL_HANDLE,
+        .subresourceRange = {},
+    };
+  }
+
+  ImageMemoryBarrierBuilder& with_next(void* next) noexcept {
+    image_memory_barrier.pNext = next;
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_src_access_mask(AccessFlags src_access_mask) noexcept {
+    auto flags = AccessFlags{image_memory_barrier.srcAccessMask};
+    flags |= src_access_mask;
+    image_memory_barrier.srcAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_dst_access_mask(AccessFlags src_access_mask) noexcept {
+    auto flags = AccessFlags{image_memory_barrier.dstAccessMask};
+    flags |= src_access_mask;
+    image_memory_barrier.dstAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_old_layout(ImageLayout old_layout) noexcept {
+    image_memory_barrier.oldLayout = static_cast<VkImageLayout>(old_layout);
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_new_layout(ImageLayout new_layout) noexcept {
+    image_memory_barrier.newLayout = static_cast<VkImageLayout>(new_layout);
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_src_queue_family_index(std::size_t src_queu_family_index) noexcept {
+    image_memory_barrier.srcQueueFamilyIndex = static_cast<uint32_t>(src_queu_family_index);
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_dst_queue_family_index(std::size_t dst_queu_family_index) noexcept {
+    image_memory_barrier.dstQueueFamilyIndex = static_cast<uint32_t>(dst_queu_family_index);
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_image(const Image& image) noexcept {
+    image_memory_barrier.image = image.native_handle();
+    return *this;
+  }
+
+  ImageMemoryBarrierBuilder& with_subresource_range(const ImageSubresourceRange& subresource) noexcept {
+    image_memory_barrier.subresourceRange = static_cast<ImageSubresourceRange::NativeType>(subresource);
+    return *this;
+  }
+
+  ImageMemoryBarrier build() const noexcept {
+    return ImageMemoryBarrier{image_memory_barrier};
+  }
+
+private:
+  VkImageMemoryBarrier image_memory_barrier;
+};
+
 class Swapchain {
   friend class SwapchainBuilder;
 
@@ -1538,6 +1689,49 @@ public:
       return std::unexpected{Result{res}};
 
     return image_index;
+  }
+
+  // ImageMemoryBarrier barrier_from() const noexcept { ImageMemoryBarrierBuilder{}.};
+  ImageMemoryBarrier barrier_from_present_to_clear(const Image& image, std::size_t src_family_index,
+                                                   std::size_t dst_family_index) const noexcept {
+    // clang-format off
+    return ImageMemoryBarrierBuilder{}
+      .with_src_access_mask(AccessFlagBits::memory_read_bit)
+      .with_dst_access_mask(AccessFlagBits::transfer_write_bit)
+      .with_old_layout(ImageLayout::undefined)
+      .with_new_layout(ImageLayout::transfer_dst_optimal)
+      .with_src_queue_family_index(src_family_index)
+      .with_dst_queue_family_index(dst_family_index)
+      .with_image(image)
+      .with_subresource_range(ImageSubresourceRangeBuilder{}
+        .with_aspect_mask(ImageAspectFlagBits::color_bit)
+        .with_level_count(1)
+        .with_layer_count(1)
+        .build()
+        )
+      .build();
+    // clang-format on
+  }
+
+  ImageMemoryBarrier barrier_from_clear_to_present(const Image& image, std::size_t src_family_index,
+                                                   std::size_t dst_family_index) const noexcept {
+    // clang-format off
+    return ImageMemoryBarrierBuilder{}
+    .with_src_access_mask(AccessFlagBits::transfer_write_bit)
+    .with_dst_access_mask(AccessFlagBits::memory_read_bit)
+    .with_old_layout(ImageLayout::transfer_dst_optimal)
+    .with_new_layout(ImageLayout::present_src_khr)
+    .with_src_queue_family_index(src_family_index)
+    .with_dst_queue_family_index(dst_family_index)
+    .with_image(image)
+    .with_subresource_range(ImageSubresourceRangeBuilder{}
+      .with_aspect_mask(ImageAspectFlagBits::color_bit)
+      .with_level_count(1)
+      .with_layer_count(1)
+      .build()
+      )
+    .build();
+    // clang-format on
   }
 
 private:
@@ -1807,139 +2001,6 @@ private:
   Device& device;
   CommandPool& command_pool;
   VkCommandBufferAllocateInfo command_buffer_allocate_info;
-};
-
-class ImageSubresourceRange : private VkImageSubresourceRange {
-  friend class ImageSubresourceRangeBuilder;
-
-public:
-  using NativeType = VkImageSubresourceRange;
-
-  operator const NativeType*() const noexcept {return static_cast<const NativeType*>(this);}
-
-private:
-  explicit ImageSubresourceRange(VkImageSubresourceRange native) : VkImageSubresourceRange{native} {}
-};
-
-class ImageSubresourceRangeBuilder {
-  friend class ImageSubresourceRangeBuilder;
-
-public:
-  using NativeHandle = VkImageSubresourceRange;
-
-  ImageSubresourceRangeBuilder() {
-    // clang-format off
-    sub_range = VkImageSubresourceRange{
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseMipLevel = 0,
-      .levelCount = 1,
-      .baseArrayLayer = 0,
-      .layerCount = 1,
-    };
-    // clang-format on
-  }
-
-  ImageSubresourceRangeBuilder& with_aspect_mask(ImageAspectFlags aspect_mask) {
-    sub_range.aspectMask = static_cast<VkImageAspectFlags>(aspect_mask);
-    return *this;
-  }
-
-  ImageSubresourceRangeBuilder& with_base_mip_level(int base_mip_level) {
-    sub_range.baseMipLevel = static_cast<uint32_t>(base_mip_level);
-    return *this;
-  }
-
-  ImageSubresourceRangeBuilder& with_level_count(int level_count) {
-    sub_range.levelCount = static_cast<uint32_t>(level_count);
-    return *this;
-  }
-
-  ImageSubresourceRangeBuilder& with_base_array_layer(int base_array_layer) {
-    sub_range.baseArrayLayer = static_cast<uint32_t>(base_array_layer);
-    return *this;
-  }
-
-  ImageSubresourceRangeBuilder& with_layer_count(int layer_count) {
-    sub_range.layerCount = static_cast<uint32_t>(layer_count);
-    return *this;
-  }
-
-  ImageSubresourceRange build() const noexcept {
-    return ImageSubresourceRange{sub_range};
-  }
-
-private:
-  VkImageSubresourceRange sub_range;
-};
-
-class ImageMemoryBarrier {
-  friend class ImageMemoryBarrierBuilder;
-
-public:
-  using NativeHandle = VkImageMemoryBarrier;
-
-  ImageMemoryBarrier(VkImageMemoryBarrier image_memory_barrier) : image_memory_barrier{image_memory_barrier} {}
-
-  NativeHandle native_handle() const noexcept {
-    return image_memory_barrier;
-  }
-
-private:
-  VkImageMemoryBarrier image_memory_barrier;
-};
-
-class ImageMemoryBarrierBuilder {
-public:
-  ImageMemoryBarrierBuilder& with_next(void* next) noexcept {
-    image_memory_barrier.pNext = next;
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_src_access_mask(AccessFlags src_access_mask) noexcept {
-    auto flags = AccessFlags{image_memory_barrier.srcAccessMask};
-    flags |= src_access_mask;
-    image_memory_barrier.srcAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_dstc_access_mask(AccessFlags src_access_mask) noexcept {
-    auto flags = AccessFlags{image_memory_barrier.dstAccessMask};
-    flags |= src_access_mask;
-    image_memory_barrier.dstAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_old_layout(ImageLayout old_layout) noexcept {
-    image_memory_barrier.oldLayout = static_cast<VkImageLayout>(old_layout);
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_new_layout(ImageLayout new_layout) noexcept {
-    image_memory_barrier.newLayout = static_cast<VkImageLayout>(new_layout);
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_src_queue_family_index(std::size_t src_queu_family_index) noexcept {
-    image_memory_barrier.srcQueueFamilyIndex = static_cast<uint32_t>(src_queu_family_index);
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_dst_queue_family_index(std::size_t dst_queu_family_index) noexcept {
-    image_memory_barrier.dstQueueFamilyIndex = static_cast<uint32_t>(dst_queu_family_index);
-    return *this;
-  }
-
-  ImageMemoryBarrierBuilder& with_image(const Image& image) noexcept {
-    image_memory_barrier.image = image.native_handle();
-    return *this;
-  }
-
-  ImageMemoryBarrier build() const noexcept {
-    return ImageMemoryBarrier{image_memory_barrier};
-  }
-
-private:
-  VkImageMemoryBarrier image_memory_barrier;
 };
 
 } // namespace vkh
