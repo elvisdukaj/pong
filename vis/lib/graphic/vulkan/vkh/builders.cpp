@@ -1497,6 +1497,14 @@ class ImageSubresourceRange : public VkImageSubresourceRange {
 public:
   using NativeType = VkImageSubresourceRange;
 
+  const NativeType& native_handle() const noexcept {
+    return *this;
+  }
+
+  const NativeType* native_handle_ptr() const noexcept {
+    return this;
+  }
+
 private:
   explicit ImageSubresourceRange(VkImageSubresourceRange native) : VkImageSubresourceRange{native} {}
 };
@@ -1920,6 +1928,26 @@ private:
   Device& device;
 };
 
+class CommandBuffer {
+  friend class CommandBuffer;
+
+  void command_clear_color(const float clear_color[4], Image& image, const ImageLayout image_layout,
+                           const std::vector<ImageSubresourceRange>& sub_ranges) {
+    const VkClearColorValue* color = std::bit_cast<VkClearColorValue*>(clear_color);
+    vkCmdClearColorImage(handle, image.native_handle(), static_cast<VkImageLayout>(image_layout), color,
+                         static_cast<uint32_t>(sub_ranges.size()),
+                         std::bit_cast<const VkImageSubresourceRange*>(sub_ranges.data()));
+  }
+
+public:
+  using NativeHandle = VkCommandBuffer;
+
+  explicit CommandBuffer(NativeHandle handle) : handle{handle} {}
+
+private:
+  NativeHandle handle;
+};
+
 class CommandBuffers {
   friend class CommandBuffersBuilder;
 
@@ -1948,6 +1976,18 @@ public:
 
     vkFreeCommandBuffers(device->native_handle(), command_pool->native_handle(),
                          static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+  }
+
+  void command_clear_color(std::size_t index, const float clear_color[4], Image& image, const ImageLayout image_layout,
+                           std::vector<ImageSubresourceRange>& sub_ranges) const noexcept {
+    const VkClearColorValue* color = std::bit_cast<VkClearColorValue*>(clear_color);
+    vkCmdClearColorImage(command_buffers[index], image.native_handle(), static_cast<VkImageLayout>(image_layout), color,
+                         static_cast<uint32_t>(sub_ranges.size()),
+                         std::bit_cast<const VkImageSubresourceRange*>(sub_ranges.data()));
+  }
+
+  CommandBuffer operator[](std::size_t index) const noexcept {
+    return CommandBuffer{command_buffers[index]};
   }
 
 private:
