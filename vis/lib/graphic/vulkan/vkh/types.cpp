@@ -9,6 +9,7 @@ import std;
 export namespace vkh {
 
 template <typename FlagBitsType> struct FlagTraits {
+  // using wrapped_type = std::underlying_type_t<FlagBitsType>;
   static constexpr bool is_bitmask = false;
 };
 
@@ -388,7 +389,7 @@ enum class Format {
 
 template <BitTypeConcept BitType> class Flags {
 public:
-  using MaskType = typename std::underlying_type<BitType>::type;
+  using MaskType = typename std::underlying_type_t<BitType>;
 
   // constructors
   constexpr Flags() noexcept : mask{} {}
@@ -456,7 +457,6 @@ enum class InstanceCreateFlagBits : VkInstanceCreateFlags {
 };
 
 template <> struct FlagTraits<InstanceCreateFlagBits> {
-  using wrapped_type = VkInstanceCreateFlagBits;
   static constexpr bool is_bitmask = true;
 };
 
@@ -484,20 +484,22 @@ enum class QueueFlagBits : VkQueueFlags {
 };
 
 template <> struct FlagTraits<QueueFlagBits> {
-  using wrapped_type = VkQueueFlagBits;
   static constexpr bool is_bitmask = true;
 };
 
 using QueueFlags = Flags<QueueFlagBits>;
 
 constexpr bool operator&(QueueFlagBits lhs, VkQueueFlags rhs) {
-  using wrapped_type = FlagTraits<QueueFlagBits>::wrapped_type;
-  return static_cast<wrapped_type>(lhs) & rhs;
+  QueueFlags lhs_flags(lhs);
+  QueueFlags rhs_flags(rhs);
+
+  return static_cast<bool>(lhs_flags & rhs_flags);
 }
 
 constexpr bool operator&(VkQueueFlags lhs, QueueFlagBits rhs) {
-  using wrapped_type = FlagTraits<QueueFlagBits>::wrapped_type;
-  return static_cast<wrapped_type>(rhs) & lhs;
+  QueueFlags lhs_flags(lhs);
+  QueueFlags rhs_flags(rhs);
+  return static_cast<bool>(lhs_flags & rhs_flags);
 }
 
 enum class ImageUsageFlagBits : VkImageUsageFlags {
@@ -558,5 +560,115 @@ enum class CommandBufferLevel {
   primary = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
   secondary = VK_COMMAND_BUFFER_LEVEL_SECONDARY,
 };
+
+enum class ImageLayout {
+  undefined = VK_IMAGE_LAYOUT_UNDEFINED,
+  general = VK_IMAGE_LAYOUT_GENERAL,
+  color_attachment_optimal = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+  depth_stencil_attachment_optimal = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+  dept_stencil_read_only_optimal = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+  shader_read_only_optimal = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+  transfer_src_optimal = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+  transfer_dst_optimal = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+  preinitialized = VK_IMAGE_LAYOUT_PREINITIALIZED,
+  depth_read_only_stencil_attachment_optimal = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL,
+  depth_attachment_stencil_read_only_optimal = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+  depth_attachment_optimal = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+  depth_read_only_optimal = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+  stencil_attachment_optimal = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+  stencil_read_only_optimal = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
+  read_only_optimal = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+  attachment_optimal = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+  present_src = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  video_decode_dst_khr = VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR,
+  video_decode_src_khr = VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR,
+  video_decode_dpd_khr = VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
+  shared_present_khr = VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR,
+  fragment_density_map_optimal_ext = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT,
+  shading_rate_attachment_optimal_khr = VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR,
+  rendering_local_read_khr = VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
+  video_encode_dst_khr = VK_IMAGE_LAYOUT_VIDEO_ENCODE_DST_KHR,
+  video_endode_src_khr = VK_IMAGE_LAYOUT_VIDEO_ENCODE_SRC_KHR,
+  video_encode_dpd_khr = VK_IMAGE_LAYOUT_VIDEO_ENCODE_DPB_KHR,
+  feedback_loop_optimal_ext = VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT,
+  depth_read_only_stencil_attachment_optimal_khr = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR,
+  depth_attachment_stencil_read_only_optimal_khr = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR,
+  shading_rate_optimal_nv = VK_IMAGE_LAYOUT_SHADING_RATE_OPTIMAL_NV,
+  depth_attachment_optimal_khr = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR,
+  depth_read_only_optimal_khr = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL_KHR,
+  stencil_attachment_optimal_khr = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL_KHR,
+  stencil_read_only_optimal_khr = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL_KHR,
+  read_only_optimal_khr = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR,
+  optimal = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
+};
+
+enum class AccessFlagBits : VkAccessFlags {
+  indirect_command_read_bit = VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+  index_read = VK_ACCESS_INDEX_READ_BIT,
+  vertex_attribute_read_bit = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+  uniform_read_bit = VK_ACCESS_UNIFORM_READ_BIT,
+  input_attachment_bit = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
+  shader_read_bit = VK_ACCESS_SHADER_READ_BIT,
+  shader_write_bit = VK_ACCESS_SHADER_WRITE_BIT,
+  color_attachment_read_bit = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+  attachment_write_bit = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+  depth_stencil_attachment_read_bit = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+  depth_stencil_attachment_write_bit = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+  transfer_read_bit = VK_ACCESS_TRANSFER_READ_BIT,
+  transfer_write_bit = VK_ACCESS_TRANSFER_WRITE_BIT,
+  host_read_bit = VK_ACCESS_HOST_READ_BIT,
+  host_write_bit = VK_ACCESS_HOST_WRITE_BIT,
+  memory_read_bit = VK_ACCESS_MEMORY_READ_BIT,
+  memory_write_bit = VK_ACCESS_MEMORY_WRITE_BIT,
+  none_bit = VK_ACCESS_NONE,
+  transform_feedback_write_bit = VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT,
+  transform_feedback_counter_read_bit_ext = VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT,
+  transform_deedback_counter_write_bit_ext = VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT,
+  conditional_rendering_read_bit_ext = VK_ACCESS_CONDITIONAL_RENDERING_READ_BIT_EXT,
+  color_attachment_read_noncoherent_bit_ext = VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT,
+  acceleration_structure_read_bit_bit_khr = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+  acceleration_structure_write_bit_khr = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+  fragment_density_map_read_bit_bit_ext = VK_ACCESS_FRAGMENT_DENSITY_MAP_READ_BIT_EXT,
+  fragment_shading_rate_attachment_read_bit_khr = VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR,
+  command_preprocess_read_bit_bit_nv = VK_ACCESS_COMMAND_PREPROCESS_READ_BIT_NV,
+  command_preprocess_write_bit_nv = VK_ACCESS_COMMAND_PREPROCESS_WRITE_BIT_NV,
+  shading_rate_image_read_bit_nv = VK_ACCESS_SHADING_RATE_IMAGE_READ_BIT_NV,
+  acceleration_structure_read_bit_nv = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV,
+  acceleration_structure_write_bit_nv = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV,
+  access_none_bit_khr = VK_ACCESS_NONE_KHR,
+  access_command_preprocess_read_bit_ext = VK_ACCESS_COMMAND_PREPROCESS_READ_BIT_EXT,
+  command_preprocess_write_bit_ext = VK_ACCESS_COMMAND_PREPROCESS_WRITE_BIT_EXT,
+};
+
+template <> struct FlagTraits<AccessFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using AccessFlags = Flags<AccessFlagBits>;
+
+enum class ImageAspectFlagBits : VkImageAspectFlags {
+  color_bit = VK_IMAGE_ASPECT_COLOR_BIT,
+  depth_bit = VK_IMAGE_ASPECT_DEPTH_BIT,
+  stencil_bit = VK_IMAGE_ASPECT_STENCIL_BIT,
+  metadata_bit = VK_IMAGE_ASPECT_METADATA_BIT,
+  plane_0_bit = VK_IMAGE_ASPECT_PLANE_0_BIT,
+  plane_1_bit = VK_IMAGE_ASPECT_PLANE_1_BIT,
+  plane_2_bit = VK_IMAGE_ASPECT_PLANE_2_BIT,
+  none = VK_IMAGE_ASPECT_NONE,
+  memory_plane_0_bit_ext = VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT,
+  memory_plane_1_bit_ext = VK_IMAGE_ASPECT_MEMORY_PLANE_1_BIT_EXT,
+  memory_plane_2_bit_ext = VK_IMAGE_ASPECT_MEMORY_PLANE_2_BIT_EXT,
+  memory_plane_3_bit_ext = VK_IMAGE_ASPECT_MEMORY_PLANE_3_BIT_EXT,
+  plane_0_bit_khr = VK_IMAGE_ASPECT_PLANE_0_BIT_KHR,
+  plane_1_bit_khr = VK_IMAGE_ASPECT_PLANE_1_BIT_KHR,
+  plane_2_bit_khr = VK_IMAGE_ASPECT_PLANE_2_BIT_KHR,
+  none_khr = VK_IMAGE_ASPECT_NONE_KHR,
+};
+
+template <> struct FlagTraits<ImageAspectFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using ImageAspectFlags = Flags<ImageAspectFlagBits>;
 
 } // namespace vkh
