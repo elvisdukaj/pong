@@ -739,4 +739,16 @@ template <> struct FlagTraits<DependencyFlagBits> {
 
 using DependencyFlags = Flags<DependencyFlagBits>;
 
+enum class CommandBufferUsageFlagBits : VkCommandBufferUsageFlags {
+  one_time_submit_bit = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+  render_pass_continue_bit = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT,
+  simultaneous_use_bit = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+};
+
+template <> struct FlagTraits<CommandBufferUsageFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using CommandBufferUsageFlags = Flags<CommandBufferUsageFlagBits>;
+
 } // namespace vkh

@@ -180,12 +180,45 @@ private:
   std::vector<const char*> enabled_extension_names;
 };
 
-class PhysicalDeviceFeatures2Builder {
+class PhysicalDeviceFeatures2 {
+  friend class PhysicalDeviceFeatures2Builder;
+  friend class PhysicalDevice;
+
 public:
   using NativeType = VkPhysicalDeviceFeatures2;
 
+  operator const NativeType&() const noexcept {
+    return native_type;
+  }
+
+  operator const NativeType*() const noexcept {
+    return &native_type;
+  }
+
+private:
+  explicit PhysicalDeviceFeatures2(const NativeType& native) : native_type{native} {}
+
+  PhysicalDeviceFeatures2& operator=(const NativeType& native) noexcept {
+    native_type = native;
+    return *this;
+  }
+
+  operator NativeType&() noexcept {
+    return native_type;
+  }
+
+  operator NativeType*() noexcept {
+    return &native_type;
+  }
+
+private:
+  NativeType native_type;
+};
+
+class PhysicalDeviceFeatures2Builder {
+public:
   PhysicalDeviceFeatures2Builder() noexcept {
-    native = NativeType{
+    native = VkPhysicalDeviceFeatures2{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
         .pNext = nullptr,
         .features = {},
@@ -197,12 +230,12 @@ public:
     return *this;
   }
 
-  NativeType build() const noexcept {
-    return native;
+  PhysicalDeviceFeatures2 build() const noexcept {
+    return PhysicalDeviceFeatures2{native};
   }
 
 private:
-  NativeType native;
+  VkPhysicalDeviceFeatures2 native;
 };
 
 class PhysicalDeviceProperties2Builder {
@@ -725,10 +758,10 @@ public:
 
   PhysicalDevice(std::nullptr_t) noexcept : handle{nullptr}, surface{nullptr} {}
 
-  static VkPhysicalDeviceFeatures2 get_features2(VkPhysicalDevice device) noexcept {
-    auto vk_features = PhysicalDeviceFeatures2Builder{}.build();
-    vkGetPhysicalDeviceFeatures2(device, &vk_features);
-    return vk_features;
+  static PhysicalDeviceFeatures2 get_features2(PhysicalDevice device) noexcept {
+    auto features = PhysicalDeviceFeatures2Builder{}.build();
+    vkGetPhysicalDeviceFeatures2(device.native_handle(), static_cast<VkPhysicalDeviceFeatures2*>(features));
+    return features;
   }
 
   static VkPhysicalDeviceProperties2 get_properties2(VkPhysicalDevice device) noexcept {
@@ -778,9 +811,9 @@ public:
     return enumerate<VkPresentModeKHR>(vkGetPhysicalDeviceSurfacePresentModesKHR, device, surface);
   }
 
-  const VkPhysicalDeviceFeatures2& get_features2() const noexcept {
-    return features;
-  }
+  // const VkPhysicalDeviceFeatures2& get_features2() const noexcept {
+  // return features;
+  // }
 
   const VkPhysicalDeviceProperties2& get_properties2() const noexcept {
     return properties;
@@ -958,7 +991,7 @@ private:
   }
 
   void init_features2() noexcept {
-    features = PhysicalDevice::get_features2(handle);
+    features = PhysicalDevice::get_features2(*this);
   }
 
   void init_properties2() noexcept {
@@ -1559,7 +1592,7 @@ public:
     return native_type;
   }
 
-  const NativeType* native_handle_ptr() const noexcept {
+  operator const NativeType*() const noexcept {
     return &native_type;
   }
 
@@ -1989,6 +2022,60 @@ private:
   Device& device;
 };
 
+class CommandBufferBeginInfo {
+  friend class CommandBufferBeginInfoBuilder;
+
+public:
+  using NativeType = VkCommandBufferBeginInfo;
+
+  operator const NativeType&() const noexcept {
+    return native_type;
+  }
+
+  operator const NativeType*() const noexcept {
+    return &native_type;
+  }
+
+private:
+  explicit CommandBufferBeginInfo(const VkCommandBufferBeginInfo& native) : native_type{native} {}
+
+private:
+  NativeType native_type;
+};
+
+class CommandBufferBeginInfoBuilder {
+  friend class CommandBufferBeginInfoBuilder;
+
+public:
+  CommandBufferBeginInfoBuilder() noexcept {
+    native_type = VkCommandBufferBeginInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = {},
+        .pInheritanceInfo = nullptr,
+    };
+  }
+
+  CommandBufferBeginInfoBuilder& with_next(void* next) noexcept {
+    native_type.pNext = next;
+    return *this;
+  }
+
+  CommandBufferBeginInfoBuilder& with_flags(CommandBufferUsageFlags required_flags) noexcept {
+    auto flags = CommandBufferUsageFlags{native_type.flags};
+    flags |= required_flags;
+    native_type.flags = static_cast<VkCommandBufferUsageFlags>(flags);
+    return *this;
+  }
+
+  CommandBufferBeginInfo build() const noexcept {
+    return CommandBufferBeginInfo{native_type};
+  }
+
+private:
+  VkCommandBufferBeginInfo native_type;
+};
+
 class CommandBuffer {
   friend class CommandBuffers;
 
@@ -1997,11 +2084,27 @@ public:
 
   void pipeline_barrier(PipelineStageFlags src_stage_mask, PipelineStageFlags dst_stage_mask, DependencyFlags dep_flags,
                         const std::vector<MemoryBarrier>& memory_barriers,
-                        const std::vector<ImageMemoryBarrier> image_memory_barriers) const noexcept {
+                        const std::vector<ImageMemoryBarrier>& image_memory_barriers) const noexcept {
     vkCmdPipelineBarrier(handle, static_cast<VkPipelineStageFlags>(src_stage_mask),
                          static_cast<VkPipelineStageFlags>(dst_stage_mask), static_cast<VkDependencyFlags>(dep_flags),
                          static_cast<uint32_t>(memory_barriers.size()),
                          reinterpret_cast<const VkMemoryBarrier*>(memory_barriers.data()), 0, nullptr,
+                         static_cast<uint32_t>(image_memory_barriers.size()),
+                         reinterpret_cast<const VkImageMemoryBarrier*>(image_memory_barriers.data()));
+  }
+
+  void pipeline_barrier(PipelineStageFlags src_stage_mask, PipelineStageFlags dst_stage_mask, DependencyFlags dep_flags,
+                        const std::vector<ImageMemoryBarrier>& image_memory_barriers) const noexcept {
+    vkCmdPipelineBarrier(handle, static_cast<VkPipelineStageFlags>(src_stage_mask),
+                         static_cast<VkPipelineStageFlags>(dst_stage_mask), static_cast<VkDependencyFlags>(dep_flags),
+                         0, nullptr, 0, nullptr, static_cast<uint32_t>(image_memory_barriers.size()),
+                         reinterpret_cast<const VkImageMemoryBarrier*>(image_memory_barriers.data()));
+  }
+
+  void pipeline_barrier(PipelineStageFlags src_stage_mask, PipelineStageFlags dst_stage_mask,
+                        const std::vector<ImageMemoryBarrier>& image_memory_barriers) const noexcept {
+    vkCmdPipelineBarrier(handle, static_cast<VkPipelineStageFlags>(src_stage_mask),
+                         static_cast<VkPipelineStageFlags>(dst_stage_mask), {}, {}, {}, {}, {},
                          static_cast<uint32_t>(image_memory_barriers.size()),
                          reinterpret_cast<const VkImageMemoryBarrier*>(image_memory_barriers.data()));
   }
@@ -2012,6 +2115,14 @@ public:
     vkCmdClearColorImage(handle, image.native_handle(), static_cast<VkImageLayout>(image_layout), color,
                          static_cast<uint32_t>(sub_ranges.size()),
                          std::bit_cast<const VkImageSubresourceRange*>(sub_ranges.data()));
+  }
+
+  void start_recording(const CommandBufferBeginInfo& info) const noexcept {
+    vkBeginCommandBuffer(handle, info);
+  }
+
+  void end_recording() const noexcept {
+    vkEndCommandBuffer(handle);
   }
 
 private:
