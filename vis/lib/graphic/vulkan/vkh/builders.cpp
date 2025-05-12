@@ -1476,6 +1476,61 @@ private:
   bool is_swapchain_image = false;
 };
 
+class MemoryBarrier {
+  friend class MemoryBarrierBuilder;
+
+public:
+  using NativeType = VkMemoryBarrier;
+
+private:
+  explicit MemoryBarrier(NativeType native_type) : native_type{native_type} {}
+
+  operator const NativeType&() const noexcept {
+    return native_type;
+  }
+
+  operator const NativeType*() const noexcept {
+    return &native_type;
+  }
+
+private:
+  VkMemoryBarrier native_type;
+};
+
+class MemoryBarrierBuilder {
+public:
+  explicit MemoryBarrierBuilder() noexcept {
+    mem_barr = VkMemoryBarrier{
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = {},
+        .dstAccessMask = {},
+    };
+  }
+
+  MemoryBarrierBuilder& with_next(void* next) noexcept {
+    mem_barr.pNext = next;
+    return *this;
+  }
+
+  MemoryBarrierBuilder& with_src_access_mask(AccessFlags src_access_mask) noexcept {
+    auto flags = AccessFlags{mem_barr.srcAccessMask};
+    flags |= src_access_mask;
+    mem_barr.srcAccessMask = static_cast<VkAccessFlags>(flags);
+    return *this;
+  }
+
+  MemoryBarrierBuilder& with_dst_access_mask(AccessFlags dst_access_mask) noexcept {
+    auto flags = AccessFlags{mem_barr.dstAccessMask};
+    flags |= dst_access_mask;
+    mem_barr.dstAccessMask = static_cast<VkAccessFlags>(flags);
+    return *this;
+  }
+
+private:
+  VkMemoryBarrier mem_barr;
+};
+
 class ImageMemoryBarrier {
   friend class ImageMemoryBarrierBuilder;
 
@@ -1492,22 +1547,27 @@ private:
   VkImageMemoryBarrier image_memory_barrier;
 };
 
-class ImageSubresourceRange : public VkImageSubresourceRange {
+using DeviceSize = VkDeviceSize;
+
+class ImageSubresourceRange {
   friend class ImageSubresourceRangeBuilder;
 
 public:
   using NativeType = VkImageSubresourceRange;
 
-  const NativeType& native_handle() const noexcept {
-    return *this;
+  operator const NativeType&() const noexcept {
+    return native_type;
   }
 
   const NativeType* native_handle_ptr() const noexcept {
-    return this;
+    return &native_type;
   }
 
 private:
-  explicit ImageSubresourceRange(VkImageSubresourceRange native) : VkImageSubresourceRange{native} {}
+  explicit ImageSubresourceRange(VkImageSubresourceRange native) : native_type{native} {}
+
+private:
+  NativeType native_type;
 };
 
 class ImageSubresourceRangeBuilder {
@@ -1934,6 +1994,17 @@ class CommandBuffer {
 
 public:
   using NativeHandle = VkCommandBuffer;
+
+  void pipeline_barrier(PipelineStageFlags src_stage_mask, PipelineStageFlags dst_stage_mask, DependencyFlags dep_flags,
+                        const std::vector<MemoryBarrier>& memory_barriers,
+                        const std::vector<ImageMemoryBarrier> image_memory_barriers) const noexcept {
+    vkCmdPipelineBarrier(handle, static_cast<VkPipelineStageFlags>(src_stage_mask),
+                         static_cast<VkPipelineStageFlags>(dst_stage_mask), static_cast<VkDependencyFlags>(dep_flags),
+                         static_cast<uint32_t>(memory_barriers.size()),
+                         reinterpret_cast<const VkMemoryBarrier*>(memory_barriers.data()), 0, nullptr,
+                         static_cast<uint32_t>(image_memory_barriers.size()),
+                         reinterpret_cast<const VkImageMemoryBarrier*>(image_memory_barriers.data()));
+  }
 
   void clear_color(const vis::vec4 clear_color, const Image& image, const ImageLayout image_layout,
                    const std::vector<ImageSubresourceRange>& sub_ranges) const noexcept {
