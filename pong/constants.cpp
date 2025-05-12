@@ -47,6 +47,7 @@ constexpr auto half_pad_extent = vis::vec2{half_pad_thickness, half_pad_length};
 namespace colors {
 constexpr auto black = vis::vec4{0.0f, 0.0f, 0.0f, 1.0f};
 constexpr auto red = vis::vec4{1.0f, 0.0f, 0.0f, 1.0f};
+constexpr auto orange = vis::vec4{1.0f, 1.0f, 0.0f, 1.0f};
 constexpr auto white = vis::vec4{1.0f, 1.0f, 1.0f, 1.0f};
 } // namespace colors
 

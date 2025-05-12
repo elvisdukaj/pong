@@ -292,6 +292,7 @@ std::string Renderer::show_info() const noexcept {
 }
 
 void Renderer::render() noexcept {
+  impl->draw();
   // SDL_Vulkan
   // SDL_GL_SwapWindow(*context.window);
 }

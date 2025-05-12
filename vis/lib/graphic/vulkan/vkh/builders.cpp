@@ -1739,7 +1739,7 @@ public:
   Swapchain(const Swapchain&) = delete;
   Swapchain& operator=(const Swapchain&) = delete;
 
-  Swapchain(Swapchain&& other) : handle{other.handle}, device{other.device} {
+  Swapchain(Swapchain&& other) : handle{other.handle}, device{other.device}, images{std::move(other.images)} {
     other.handle = VK_NULL_HANDLE;
     other.device = nullptr;
   }
@@ -1747,6 +1747,7 @@ public:
   Swapchain& operator=(Swapchain&& other) noexcept {
     std::swap(handle, other.handle);
     std::swap(device, other.device);
+    std::swap(images, other.images);
     return *this;
   }
 
