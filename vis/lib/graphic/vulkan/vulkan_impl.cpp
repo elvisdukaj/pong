@@ -60,34 +60,6 @@ constexpr std::vector<const char*> get_physical_device_extensions() noexcept {
 
 namespace vis::vulkan {
 
-#if 0
-class Renderer::Impl {
-public:
-	void create_swapchain() {
-		auto builder = vkh::SwapChainBuilder{surface, device};
-		// clang-format off
-		swapchain =
-			builder.set_extent(width, height)
-			.set_image_usage(vkh::ImageUsageFlagBits::eTransferDst)
-			.set_present_mode(vkh::PresentModeKHR::eFifo)
-			.set_required_format(vkh::Format::eB8G8R8A8Unorm)
-			.set_required_color_space(vkh::ColorSpaceKHR::eSrgbNonlinear)
-			.build();
-		// clang-format on
-	}
-
-	void create_device_and_command_pool() {
-		// clang-format off
-		device = selected_physical_device
-			.create_device(vk_instance);
-
-		command_pool = vkh::CommandPoolBuilder{device}
-				.with_queue_family_index(0)
-				.create();
-		// clang-format on
-};
-#endif
-
 class Renderer::Impl {
 public:
   Impl([[maybe_unused]] Window* window) : window{window} {
@@ -98,6 +70,8 @@ public:
     init_device(physical_device_selector);
     init_swapchain();
     init_command_pool();
+    init_semaphores();
+    record_command_buffer();
   }
 
   std::string show_info() const noexcept {
@@ -124,57 +98,18 @@ public:
   }
 
   void draw() const noexcept {
+    auto swap_chain_image_index = swapchain.get_next_image();
     const auto& swapchain_images = swapchain.get_images();
+    // static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {vkh::PipelineStageFlagBits::transfer_bit};
 
-    static const std::vector<vkh::ImageSubresourceRange> subresource_ranges = {
-        vkh::ImageSubresourceRangeBuilder{}.with_aspect_mask(vkh::ImageAspectFlagBits::color_bit).build(),
-    };
-
-    for (auto i = 0uz; i < swapchain_images.size(); ++i) {
-      const auto& image = swapchain_images[i];
-      auto command_buffer = command_buffers[i];
-
-      std::vector<vkh::ImageMemoryBarrier> barrier_from_present_to_clear = {
-          vkh::ImageMemoryBarrierBuilder{}
-              .with_src_access_mask(vkh::AccessFlagBits::memory_read_bit)
-              .with_dst_access_mask(vkh::AccessFlagBits::transfer_write_bit)
-              .with_old_layout(vkh::ImageLayout::undefined)
-              .with_new_layout(vkh::ImageLayout::transfer_dst_optimal)
-              .with_src_queue_family_index(present_queue_family_index)
-              .with_dst_queue_family_index(present_queue_family_index)
-              .with_image(image)
-              .with_subresource_range(subresource_ranges.front())
-              .build(),
-      };
-
-      std::vector<vkh::ImageMemoryBarrier> barrier_from_clear_to_present = {
-          vkh::ImageMemoryBarrierBuilder{}
-              .with_src_access_mask(vkh::AccessFlagBits::memory_read_bit)
-              .with_dst_access_mask(vkh::AccessFlagBits::transfer_write_bit)
-              .with_old_layout(vkh::ImageLayout::undefined)
-              .with_new_layout(vkh::ImageLayout::transfer_dst_optimal)
-              .with_src_queue_family_index(present_queue_family_index)
-              .with_dst_queue_family_index(present_queue_family_index)
-              .with_image(image)
-              .with_subresource_range(subresource_ranges.front())
-              .build(),
-      };
-
-      static const auto begin_record_info =
-          vkh::CommandBufferBeginInfoBuilder{}.with_flags(vkh::CommandBufferUsageFlagBits::one_time_submit_bit).build();
-
-      command_buffer.start_recording(begin_record_info);
-
-      command_buffer.pipeline_barrier(vkh::PipelineStageFlagBits::transfer_bit,
-                                      vkh::PipelineStageFlagBits::transfer_bit, barrier_from_present_to_clear);
-
-      command_buffer.clear_color(clear_color, image, vkh::ImageLayout::transfer_dst_optimal, subresource_ranges);
-
-      command_buffer.pipeline_barrier(vkh::PipelineStageFlagBits::transfer_bit,
-                                      vkh::PipelineStageFlagBits::bottomo_of_pipe_bit, barrier_from_clear_to_present);
-
-      command_buffer.end_recording();
-    }
+    // clang-format off
+    auto submit_info = vkh::SubmitInfoBuilder{}
+      .add_wait_semaphore(image_availables_sem)
+      .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
+      .add_command_buffer(command_buffers[*swap_chain_image_index])
+      .add_signal_semaphore(rendering_finished_sem)
+      .build();
+    // clang-format on
   }
 
 private:
@@ -262,6 +197,65 @@ private:
     // clang-format on
   }
 
+  void init_semaphores() {
+    image_availables_sem = vkh::SemaphoreBuilder{device}.build();
+    rendering_finished_sem = vkh::SemaphoreBuilder{device}.build();
+  }
+
+  void record_command_buffer() {
+    const auto& swapchain_images = swapchain.get_images();
+
+    static const std::vector<vkh::ImageSubresourceRange> subresource_ranges = {
+        vkh::ImageSubresourceRangeBuilder{}.with_aspect_mask(vkh::ImageAspectFlagBits::color_bit).build(),
+    };
+
+    for (auto i = 0uz; i < swapchain_images.size(); ++i) {
+      const auto& image = swapchain_images[i];
+      auto command_buffer = command_buffers[i];
+
+      std::vector<vkh::ImageMemoryBarrier> barrier_from_present_to_clear = {
+          vkh::ImageMemoryBarrierBuilder{}
+              .with_src_access_mask(vkh::AccessFlagBits::memory_read_bit)
+              .with_dst_access_mask(vkh::AccessFlagBits::transfer_write_bit)
+              .with_old_layout(vkh::ImageLayout::undefined)
+              .with_new_layout(vkh::ImageLayout::transfer_dst_optimal)
+              .with_src_queue_family_index(present_queue_family_index)
+              .with_dst_queue_family_index(present_queue_family_index)
+              .with_image(image)
+              .with_subresource_range(subresource_ranges.front())
+              .build(),
+      };
+
+      std::vector<vkh::ImageMemoryBarrier> barrier_from_clear_to_present = {
+          vkh::ImageMemoryBarrierBuilder{}
+              .with_src_access_mask(vkh::AccessFlagBits::memory_read_bit)
+              .with_dst_access_mask(vkh::AccessFlagBits::transfer_write_bit)
+              .with_old_layout(vkh::ImageLayout::undefined)
+              .with_new_layout(vkh::ImageLayout::transfer_dst_optimal)
+              .with_src_queue_family_index(present_queue_family_index)
+              .with_dst_queue_family_index(present_queue_family_index)
+              .with_image(image)
+              .with_subresource_range(subresource_ranges.front())
+              .build(),
+      };
+
+      static const auto begin_record_info =
+          vkh::CommandBufferBeginInfoBuilder{}.with_flags(vkh::CommandBufferUsageFlagBits::one_time_submit_bit).build();
+
+      command_buffer.start_recording(begin_record_info);
+
+      command_buffer.pipeline_barrier(vkh::PipelineStageFlagBits::transfer_bit,
+                                      vkh::PipelineStageFlagBits::transfer_bit, barrier_from_present_to_clear);
+
+      command_buffer.clear_color(clear_color, image, vkh::ImageLayout::transfer_dst_optimal, subresource_ranges);
+
+      command_buffer.pipeline_barrier(vkh::PipelineStageFlagBits::transfer_bit,
+                                      vkh::PipelineStageFlagBits::bottomo_of_pipe_bit, barrier_from_clear_to_present);
+
+      command_buffer.end_recording();
+    }
+  }
+
 private:
   Window* window = nullptr;
   vkh::Context vk_context;
@@ -273,6 +267,8 @@ private:
   vkh::Swapchain swapchain{nullptr};
   vkh::CommandPool command_pool{nullptr};
   vkh::CommandBuffers command_buffers{};
+  vkh::Semaphore image_availables_sem{nullptr};
+  vkh::Semaphore rendering_finished_sem{nullptr};
 
   vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
   int width = 800;
