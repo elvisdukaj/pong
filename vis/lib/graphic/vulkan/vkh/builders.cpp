@@ -755,18 +755,41 @@ public:
     return handle;
   }
 
-  void submit(const std::vector<SubmitInfo>& submits_info /*, TODO: std::optional<Fence> fence = {}*/) const noexcept {
+  bool submit(const std::vector<SubmitInfo>& submits_info /*, TODO: std::optional<Fence> fence = {}*/) const noexcept {
     // clang-format off
-    auto native_infos = submits_info
-                          | std::views::transform([](const SubmitInfo& si) -> SubmitInfo::NativeType { return static_cast<SubmitInfo::NativeType>(si); })
-                          | std::ranges::to<std::vector<SubmitInfo::NativeType>>();
+    // auto native_infos = submits_info
+    //                       | std::views::transform([](const SubmitInfo& si) -> SubmitInfo::NativeType { return static_cast<SubmitInfo::NativeType>(si); })
+    //                       | std::ranges::to<std::vector<SubmitInfo::NativeType>>();
     // clang-format on
 
-    vkQueueSubmit(handle, static_cast<uint32_t>(native_infos.size()), native_infos.data(), VK_NULL_HANDLE);
+    // clang-format off
+    const SubmitInfo::NativeType& native = static_cast<const SubmitInfo::NativeType&>(submits_info[0]);
+    std::println(R"(
+      submits_info count: {},
+      submits_info[0].semmaphore count = {}
+      submits_info[0].semmaphore[0] = {}
+      submits_info[0].pipeline_flags[0]: {}
+      submits_info[0].commands: {}      
+      submits_info[0].signal semaphore counts: {},
+      submits_info[0].signal semaphore[0] = {}
+      )",
+      submits_info.size(),
+      native.waitSemaphoreCount, (void*)native.pWaitSemaphores[0],
+      native.pWaitDstStageMask[0],
+      native.commandBufferCount,
+      native.signalSemaphoreCount, (void*)native.pSignalSemaphores[0]
+    );
+
+    auto res = vkQueueSubmit(handle, static_cast<uint32_t>(submits_info.size()),
+                             reinterpret_cast<const SubmitInfo::NativeType*>(submits_info.data()), VK_NULL_HANDLE);
+    std::println("submit result: {}", static_cast<int>(res));
+    return true;
   }
 
-  void present(const PresentInfo& present_info) const noexcept {
-    vkQueuePresentKHR(handle, static_cast<const PresentInfo::NativeType*>(present_info));
+  bool present(const PresentInfo& present_info) const noexcept {
+    auto res = vkQueuePresentKHR(handle, static_cast<const PresentInfo::NativeType*>(present_info));
+    std::println("present result: {}", static_cast<int>(res));
+    return true;
   }
 
 private:
@@ -1422,7 +1445,7 @@ public:
     semaphore_create_info = VkSemaphoreCreateInfo{
       .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
       .pNext = nullptr,
-      .flags = {},
+      .flags = 0,
     };
     // clang-format on
   }
@@ -1867,6 +1890,9 @@ public:
     //        vkAcquireNextImage2KHR(static_cast<Device::NativeHandle>(*device),
     //                               static_cast<const AcquireNextImageInfoKHR::NativeType*>(acquire_info),
     //                               &image_index);
+
+    std::println("acquire_image result: {}", static_cast<int>(res));
+    return true;
 
     if (res != VK_SUCCESS)
       return std::unexpected{Result{res}};
@@ -2342,23 +2368,6 @@ public:
   }
 
   SubmitInfo build() noexcept {
-    // clang-format off
-    std::println(R"(
-      semaphore counts: {},
-      semaphore[0] = {}
-      pipeline_flags_count: {}
-      pipeline_flags[0]: {}
-      commands: {}      
-      signal semaphore counts: {},
-      signal semaphore[0] = {}
-      )",
-      wait_semaphores.size(), (void*)wait_semaphores[0],
-      pipeline_flags.size(), pipeline_flags[0],
-      command_buffers.size(),
-      signal_semaphores.size(), (void*)signal_semaphores[0]
-    );
-    // clang-format on
-
     auto native_type = VkSubmitInfo{
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = next,

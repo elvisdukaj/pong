@@ -109,23 +109,23 @@ public:
     [[maybe_unused]] static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {
         vkh::PipelineStageFlagBits::transfer_bit};
 
-    [[maybe_unused]] auto submits_info = std::vector<vkh::SubmitInfo>{
-        vkh::SubmitInfoBuilder{}
-            .add_wait_semaphore(image_availables_sem)
-            .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
-            .add_command_buffer(command_buffers[*swap_chain_image_index])
-            .add_signal_semaphore(rendering_finished_sem)
-            .build(),
-    };
+    auto submit_info_builder = vkh::SubmitInfoBuilder{}
+                                   .add_wait_semaphore(image_availables_sem)
+                                   .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
+                                   .add_command_buffer(command_buffers[*swap_chain_image_index])
+                                   .add_signal_semaphore(rendering_finished_sem);
 
-    // graphic_queue.submit(submits_info);
+    [[maybe_unused]] std::vector<vkh::SubmitInfo> submits_info =
+        std::vector<vkh::SubmitInfo>{submit_info_builder.build()};
 
-    // auto presents_info = vkh::PresentInfoBuilder{}
-    //                          .add_wait_semaphore(rendering_finished_sem)
-    //                          .add_image_index(*swap_chain_image_index)
-    //                          .add_swapchain(swapchain)
-    //                          .build();
-    // present_queue.present(presents_info);
+    graphic_queue.submit(submits_info);
+
+    auto presents_info = vkh::PresentInfoBuilder{}
+                             .add_wait_semaphore(rendering_finished_sem)
+                             .add_image_index(*swap_chain_image_index)
+                             .add_swapchain(swapchain)
+                             .build();
+    present_queue.present(presents_info);
   }
 
 private:
@@ -298,7 +298,7 @@ private:
   vkh::Semaphore image_availables_sem{nullptr};
   vkh::Semaphore rendering_finished_sem{nullptr};
 
-  vis::vec4 clear_color{0.0f, 0.0f, 0.0f, 1.0f};
+  vis::vec4 clear_color{1.0f, 0.0f, 0.0f, 1.0f};
   int width = 800;
   int height = 600;
   std::size_t present_queue_family_index = 0;
