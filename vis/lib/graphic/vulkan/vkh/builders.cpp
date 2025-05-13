@@ -820,6 +820,37 @@ public:
     return true;
   }
 
+  bool submit(const SubmitInfo& submit_info /*, TODO: std::optional<Fence> fence = {}*/) const noexcept {
+    // clang-format off
+    // auto native_infos = submits_info
+    //                       | std::views::transform([](const SubmitInfo& si) -> SubmitInfo::NativeType { return static_cast<SubmitInfo::NativeType>(si); })
+    //                       | std::ranges::to<std::vector<SubmitInfo::NativeType>>();
+    // clang-format on
+
+    // clang-format off
+    // const SubmitInfo::NativeType& native = static_cast<const SubmitInfo::NativeType&>(submit_info);
+    // std::println(R"(
+    //   submits_info count: {},
+    //   submits_info[0].semmaphore count = {}
+    //   submits_info[0].semmaphore[0] = {}
+    //   submits_info[0].pipeline_flags[0]: {}
+    //   submits_info[0].commands: {}
+    //   submits_info[0].signal semaphore counts: {},
+    //   submits_info[0].signal semaphore[0] = {}
+    //   )",
+    //   1,
+    //   native.waitSemaphoreCount, (void*)native.pWaitSemaphores[0],
+    //   native.pWaitDstStageMask[0],
+    //   native.commandBufferCount,
+    //   native.signalSemaphoreCount, (void*)native.pSignalSemaphores[0]
+    // );
+
+    auto res = vkQueueSubmit(handle, static_cast<uint32_t>(1),
+                             static_cast<const SubmitInfo::NativeType*>(submit_info), VK_NULL_HANDLE);
+    std::println("submit result: {}", static_cast<int>(res));
+    return true;
+  }
+
   bool present(const PresentInfo& present_info) const noexcept {
     auto res = vkQueuePresentKHR(handle, static_cast<const PresentInfo::NativeType*>(present_info));
     std::println("present result: {}", static_cast<int>(res));
@@ -2407,7 +2438,6 @@ public:
   }
 
   SubmitInfo build() noexcept {
-
     std::println(R"(building SubmitInfo
       wait_semaphores.count: {}
       wait_semaphores[0]: {}
