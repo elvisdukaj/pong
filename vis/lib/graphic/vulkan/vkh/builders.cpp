@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <volk.h>
 
-#include "ecs/entity/entity.hpp"
 #include "vk_enum_string_helper.h"
 
 export module vis.graphic.vulkan.vkh:builders;
@@ -702,6 +701,74 @@ private:
   vis::Window* window;
 };
 
+class SubmitInfo {
+  friend class SubmitInfoBuilder;
+
+public:
+  using NativeType = VkSubmitInfo;
+
+  operator const NativeType*() const noexcept {
+    return &native_type;
+  }
+
+  operator const NativeType&() const noexcept {
+    return native_type;
+  }
+
+private:
+  explicit SubmitInfo(const NativeType& native) : native_type{native} {}
+
+private:
+  NativeType native_type;
+};
+
+class PresentInfo {
+  friend class PresentInfofoBuilder;
+
+public:
+  using NativeType = VkPresentInfoKHR;
+
+  operator const NativeType*() const noexcept {
+    return &native_type;
+  }
+
+  operator const NativeType&() const noexcept {
+    return native_type;
+  }
+
+private:
+  explicit PresentInfo(const NativeType& native) : native_type{native} {}
+
+private:
+  NativeType native_type;
+};
+
+class Queue {
+  friend class Device;
+
+public:
+  using NativeHandle = VkQueue;
+
+  Queue() = default;
+
+  operator NativeHandle() const noexcept {
+    return handle;
+  }
+
+  void submit(const std::vector<SubmitInfo>& submits_info /*, TODO: std::optional<Fence> fence = {}*/) const noexcept {
+    vkQueueSubmit(handle, static_cast<uint32_t>(submits_info.size()),
+                  reinterpret_cast<const VkSubmitInfo*>(submits_info.data()), VK_NULL_HANDLE);
+  }
+
+  void present() const noexcept {}
+
+private:
+  explicit Queue(NativeHandle handle) : handle{handle} {}
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+};
+
 class Device {
   friend class PhysicalDevice;
   friend class PhysicalDeviceSelector;
@@ -737,6 +804,13 @@ public:
 
   NativeType native_handle() const noexcept {
     return handle;
+  }
+
+  // TODO: queue_index should be retrived from the device somehow
+  Queue get_queue(std::size_t family_index, std::size_t queue_index = 0) const noexcept {
+    VkQueue queue{};
+    vkGetDeviceQueue(handle, static_cast<uint32_t>(family_index), static_cast<uint32_t>(queue_index), &queue);
+    return Queue{queue};
   }
 
 private:
@@ -1738,27 +1812,6 @@ private:
   VkImageMemoryBarrier image_memory_barrier;
 };
 
-class SubmitInfo {
-  friend class SubmitInfoBuilder;
-
-public:
-  using NativeType = VkSubmitInfo;
-
-  operator const NativeType*() const noexcept {
-    return &native_type;
-  }
-
-  operator const NativeType&() const noexcept {
-    return native_type;
-  }
-
-private:
-  explicit SubmitInfo(const NativeType& native) : native_type{native} {}
-
-private:
-  NativeType native_type;
-};
-
 class Swapchain {
   friend class SwapchainBuilder;
 
@@ -1803,9 +1856,9 @@ public:
     return images;
   }
 
-  std::expected<std::size_t, Result> submitInfo(std::optional<Semaphore> semaphore = std::nullopt,
-                                                std::optional<Fence> fence = std::nullopt,
-                                                std::chrono::nanoseconds timeout = 2s) const noexcept {
+  std::expected<std::size_t, Result> acquire_image(std::optional<Semaphore> semaphore = std::nullopt,
+                                                   std::optional<Fence> fence = std::nullopt,
+                                                   std::chrono::nanoseconds timeout = 2s) const noexcept {
     VkAcquireNextImageInfoKHR info{
         .sType = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
         .pNext = nullptr,

@@ -98,18 +98,21 @@ public:
   }
 
   void draw() const noexcept {
-    auto swap_chain_image_index = swapchain.get_next_image();
-    const auto& swapchain_images = swapchain.get_images();
-    // static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {vkh::PipelineStageFlagBits::transfer_bit};
+    auto swap_chain_image_index = swapchain.acquire_image();
+    [[maybe_unused]] const auto& swapchain_images = swapchain.get_images();
+    [[maybe_unused]] static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {
+        vkh::PipelineStageFlagBits::transfer_bit};
 
-    // clang-format off
-    auto submit_info = vkh::SubmitInfoBuilder{}
-      .add_wait_semaphore(image_availables_sem)
-      .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
-      .add_command_buffer(command_buffers[*swap_chain_image_index])
-      .add_signal_semaphore(rendering_finished_sem)
-      .build();
-    // clang-format on
+    auto submits_info = std::vector<vkh::SubmitInfo>{
+        vkh::SubmitInfoBuilder{}
+            .add_wait_semaphore(image_availables_sem)
+            .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
+            .add_command_buffer(command_buffers[*swap_chain_image_index])
+            .add_signal_semaphore(rendering_finished_sem)
+            .build(),
+    };
+
+    graphic_queue.submit(submits_info);
   }
 
 private:
@@ -129,7 +132,7 @@ private:
                       .add_required_extensions(required_extensions)
                       .add_required_extensions(required_windows_extensions)
                       .with_minimum_required_instance_version(0, 1, 2, 0)
-                      .with_maximum_required_instance_version(0, 1, 2, 0)
+                      // .with_maximum_required_instance_version(0, 1, 2, 0)
                       .build();
   }
 
@@ -140,10 +143,13 @@ private:
   void enumerate_physical_devices(vkh::PhysicalDeviceSelector& physical_device_selector) noexcept {
     auto required_gpu_extensions = helper::get_physical_device_extensions();
 
-    physical_devices = physical_device_selector.add_required_extensions(required_gpu_extensions)
+    // clang-format off
+    physical_devices = physical_device_selector
+                           .add_required_extensions(required_gpu_extensions)
                            .allow_gpu_type(vkh::PhysicalDeviceType::DiscreteGpu)
                            .allow_gpu_type(vkh::PhysicalDeviceType::IntegratedGpu)
                            .enumerate_all();
+    // clang-format on
   }
 
   void init_device(vkh::PhysicalDeviceSelector& physical_device_selector) {
@@ -163,6 +169,9 @@ private:
 		      .with_queue(present_queue_info_builder.build())
 		      .create_device(*selected_physical_device_it);
     // clang-format on
+
+    graphic_queue = device.get_queue(present_queue_family_index);
+    present_queue = device.get_queue(present_queue_family_index);
 
     auto surface_caps = selected_physical_device_it->get_surface_capabilities();
     width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
@@ -202,7 +211,7 @@ private:
     rendering_finished_sem = vkh::SemaphoreBuilder{device}.build();
   }
 
-  void record_command_buffer() {
+  void record_command_buffer() const {
     const auto& swapchain_images = swapchain.get_images();
 
     static const std::vector<vkh::ImageSubresourceRange> subresource_ranges = {
@@ -239,8 +248,9 @@ private:
               .build(),
       };
 
-      static const auto begin_record_info =
-          vkh::CommandBufferBeginInfoBuilder{}.with_flags(vkh::CommandBufferUsageFlagBits::one_time_submit_bit).build();
+      static const auto begin_record_info = vkh::CommandBufferBeginInfoBuilder{}
+                                                .with_flags(vkh::CommandBufferUsageFlagBits::simultaneous_use_bit)
+                                                .build();
 
       command_buffer.start_recording(begin_record_info);
 
@@ -264,6 +274,8 @@ private:
   std::vector<vkh::PhysicalDevice> physical_devices;
   std::vector<vkh::PhysicalDevice>::iterator selected_physical_device_it;
   vkh::Device device{nullptr};
+  vkh::Queue graphic_queue{};
+  vkh::Queue present_queue{};
   vkh::Swapchain swapchain{nullptr};
   vkh::CommandPool command_pool{nullptr};
   vkh::CommandBuffers command_buffers{};
