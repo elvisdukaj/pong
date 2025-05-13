@@ -716,14 +716,15 @@ public:
   }
 
 private:
-  explicit SubmitInfo(const NativeType& native, std::vector<VkSemaphore>&& wait_semaphores,
-                      std::vector<VkPipelineStageFlags>&& pipeline_flags,
-                      std::vector<VkCommandBuffer>&& command_buffers, std::vector<VkSemaphore>&& signal_semaphores)
+  explicit SubmitInfo(const NativeType& native, std::vector<VkSemaphore>&& required_wait_semaphores,
+                      std::vector<VkPipelineStageFlags>&& required_pipeline_flags,
+                      std::vector<VkCommandBuffer>&& required_command_buffers,
+                      std::vector<VkSemaphore>&& required_signal_semaphores)
       : native_type{native},
-        wait_semaphores{std::move(wait_semaphores)},
-        pipeline_flags{std::move(pipeline_flags)},
-        command_buffers{std::move(command_buffers)},
-        signal_semaphores{std::move(signal_semaphores)} {
+        wait_semaphores{std::move(required_wait_semaphores)},
+        pipeline_flags{std::move(required_pipeline_flags)},
+        command_buffers{std::move(required_command_buffers)},
+        signal_semaphores{std::move(required_signal_semaphores)} {
     std::println("Creating SubmitInfo: \n"
                  "wait_semaphores : {}\n"
                  "wait_semaphores[0] : {}\n"
@@ -2375,8 +2376,13 @@ private:
 
 class SubmitInfoBuilder {
 public:
+  SubmitInfoBuilder() {
+    native = VkSubmitInfo{};
+    native.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  }
+
   SubmitInfoBuilder& with_next() noexcept {
-    next = nullptr;
+    native.pNext = nullptr;
     return *this;
   }
 
@@ -2401,24 +2407,33 @@ public:
   }
 
   SubmitInfo build() noexcept {
-    auto native_type = VkSubmitInfo{
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = next,
-        .waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
-        .pWaitSemaphores = wait_semaphores.data(),
-        .pWaitDstStageMask = pipeline_flags.data(),
-        .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
-        .pCommandBuffers = command_buffers.data(),
-        .signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size()),
-        .pSignalSemaphores = signal_semaphores.data(),
-    };
 
-    return SubmitInfo(native_type, std::move(wait_semaphores), std::move(pipeline_flags), std::move(command_buffers),
+    std::println(R"(building SubmitInfo
+      wait_semaphores.count: {}
+      wait_semaphores[0]: {}
+      pipeline_flags[0]: {}
+      command_buffers.count: {}
+      command_buffers[0]: {}
+      signal_semaphores.count: {}
+      signal_semaphores[0]: {}      
+      )",
+                 wait_semaphores.size(), (void*)wait_semaphores[0], pipeline_flags[0], command_buffers.size(),
+                 (void*)command_buffers[0], signal_semaphores.size(), (void*)signal_semaphores[0]);
+
+    native.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
+    native.pWaitSemaphores = wait_semaphores.data();
+    native.pWaitDstStageMask = pipeline_flags.data();
+    native.commandBufferCount = static_cast<uint32_t>(command_buffers.size());
+    native.pCommandBuffers = command_buffers.data();
+    native.signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size());
+    native.pSignalSemaphores = signal_semaphores.data();
+
+    return SubmitInfo(native, std::move(wait_semaphores), std::move(pipeline_flags), std::move(command_buffers),
                       std::move(signal_semaphores));
   }
 
 private:
-  void* next = nullptr;
+  VkSubmitInfo native;
   std::vector<Semaphore::NativeHandle> wait_semaphores;
   std::vector<PipelineStageFlags::MaskType> pipeline_flags;
   std::vector<CommandBuffer::NativeHandle> command_buffers;

@@ -129,6 +129,9 @@ target_compile_definitions(vis_obj PUBLIC
 
 target_compile_options(vis_obj PUBLIC
         $<$<CXX_COMPILER_ID:Clang>:-Wno-import-implementation-partition-unit-in-interface-unit>
+
+         # sanitizers:
+         $<$<BOOL:${WITH_ADDRESS_SANITIZER}>:-fsanitize=address>
 )
 
 target_link_libraries(vis_obj PUBLIC
@@ -143,3 +146,7 @@ target_link_libraries(vis_obj PUBLIC
 
 target_add_extra_warnings(vis_obj PUBLIC)
 target_set_warnings_as_error(vis_obj)
+
+target_link_options(vis_obj PUBLIC
+        $<$<BOOL:${WITH_ADDRESS_SANITIZER}>:-fsanitize=address>
+)

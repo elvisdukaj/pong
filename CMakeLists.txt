@@ -6,6 +6,7 @@ set(CMAKE_CXX_MODULE_STD 1)
 
 option(BUILD_PRE_EXAMPLES "Build the pre examples" ON)
 option(WITH_TIDY "Enable clang-tidy" OFF)
+option(WITH_ADDRESS_SANITIZER "Enable address sanitizer" ON)
 
 set(RESOURCE_DIR ${CMAKE_SOURCE_DIR}/resources)
 set(RESOURCE_SHADER_DIR ${CMAKE_SOURCE_DIR}/resources/shaders)

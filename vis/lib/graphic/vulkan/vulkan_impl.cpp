@@ -117,13 +117,16 @@ public:
 
     std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
 
-    [[maybe_unused]] std::vector<vkh::SubmitInfo> submits_info =
-        std::vector<vkh::SubmitInfo>{vkh::SubmitInfoBuilder{}
-                                         .add_wait_semaphore(image_availables_sem)
-                                         .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
-                                         .add_command_buffer(command_buffers[*swap_chain_image_index])
-                                         .add_signal_semaphore(rendering_finished_sem)
-                                         .build()};
+    std::vector<vkh::SubmitInfo> submits_info = std::vector<vkh::SubmitInfo>{
+        vkh::SubmitInfoBuilder{}
+            .add_wait_semaphore(image_availables_sem)
+            .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
+            .add_command_buffer(command_buffers[*swap_chain_image_index])
+            .add_signal_semaphore(rendering_finished_sem)
+            .build(),
+    };
+
+    std::print("I have {} submits_info", submits_info.size());
 
     graphic_queue.submit(submits_info);
 
