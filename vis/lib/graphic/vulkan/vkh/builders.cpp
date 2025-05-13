@@ -2343,21 +2343,20 @@ public:
 
   SubmitInfo build() noexcept {
     // clang-format off
-    // auto native_wait_semaphores = wait_semaphores
-    //   | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
-    //   | std::ranges::to<std::vector<VkSemaphore>>();
-
-    // auto native_wait_dst_stage_mask = pipeline_flags
-    //   | std::views::transform([](const PipelineStageFlags& flags) -> VkPipelineStageFlags { return static_cast<VkPipelineStageFlags>(flags); })
-    //   | std::ranges::to<std::vector<VkPipelineStageFlags>>();
-
-    // auto native_command_buffers = command_buffers
-    //   | std::views::transform([](const CommandBuffer& command_buffer) -> VkCommandBuffer { return static_cast<VkCommandBuffer>(command_buffer); })
-    //   | std::ranges::to<std::vector<VkCommandBuffer>>();
-      
-    // auto native_signal_semaphores = signal_semaphores
-    //   | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
-    //   | std::ranges::to<std::vector<VkSemaphore>>();
+    std::println(R"(
+      semaphore counts: {},
+      semaphore[0] = {}
+      pipeline_flags_count: {}
+      pipeline_flags[0]: {}
+      commands: {}      
+      signal semaphore counts: {},
+      signal semaphore[0] = {}
+      )",
+      wait_semaphores.size(), (void*)wait_semaphores[0],
+      pipeline_flags.size(), pipeline_flags[0],
+      command_buffers.size(),
+      signal_semaphores.size(), (void*)signal_semaphores[0]
+    );
     // clang-format on
 
     auto native_type = VkSubmitInfo{
@@ -2378,7 +2377,7 @@ public:
 private:
   void* next = nullptr;
   std::vector<Semaphore::NativeHandle> wait_semaphores;
-  std::vector<VkPipelineStageFlags> pipeline_flags;
+  std::vector<PipelineStageFlags::MaskType> pipeline_flags;
   std::vector<CommandBuffer::NativeHandle> command_buffers;
   std::vector<Semaphore::NativeHandle> signal_semaphores;
 };
@@ -2406,23 +2405,13 @@ public:
   }
 
   PresentInfo build() noexcept {
-    // clang-format off
-    auto native_wait_semaphores = wait_semaphores
-      | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
-      | std::ranges::to<std::vector<VkSemaphore>>();
-
-    auto native_swapchains = swapchains
-      | std::views::transform([](const Swapchain& swapchain) -> VkSwapchainKHR { return static_cast<VkSwapchainKHR>(swapchain); })
-      | std::ranges::to<std::vector<VkSwapchainKHR>>();
-    // clang-format on
-
     auto native_type = VkPresentInfoKHR{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pNext = next,
-        .waitSemaphoreCount = static_cast<uint32_t>(native_wait_semaphores.size()),
-        .pWaitSemaphores = native_wait_semaphores.data(),
-        .swapchainCount = static_cast<uint32_t>(native_swapchains.size()),
-        .pSwapchains = native_swapchains.data(),
+        .waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
+        .pWaitSemaphores = wait_semaphores.data(),
+        .swapchainCount = static_cast<uint32_t>(swapchains.size()),
+        .pSwapchains = swapchains.data(),
         .pImageIndices = image_indexes.data(), // TODO: static_cast<uint32_t>(native_signal_semaphores.size()),
         .pResults = results.data(),            // TODO: native_signal_semaphores.data(),
     };
@@ -2432,8 +2421,8 @@ public:
 
 private:
   void* next = nullptr;
-  std::vector<std::reference_wrapper<const Semaphore>> wait_semaphores;
-  std::vector<std::reference_wrapper<const Swapchain>> swapchains;
+  std::vector<Semaphore::NativeHandle> wait_semaphores;
+  std::vector<Swapchain::NativeHandle> swapchains;
   std::vector<std::uint32_t> image_indexes;
   std::vector<VkResult> results;
 };

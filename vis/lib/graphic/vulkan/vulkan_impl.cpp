@@ -109,7 +109,7 @@ public:
     [[maybe_unused]] static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {
         vkh::PipelineStageFlagBits::transfer_bit};
 
-    auto submits_info = std::vector<vkh::SubmitInfo>{
+    [[maybe_unused]] auto submits_info = std::vector<vkh::SubmitInfo>{
         vkh::SubmitInfoBuilder{}
             .add_wait_semaphore(image_availables_sem)
             .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
@@ -118,14 +118,14 @@ public:
             .build(),
     };
 
-    graphic_queue.submit(submits_info);
+    // graphic_queue.submit(submits_info);
 
-    auto presents_info = vkh::PresentInfoBuilder{}
-                             .add_wait_semaphore(rendering_finished_sem)
-                             .add_image_index(*swap_chain_image_index)
-                             .add_swapchain(swapchain)
-                             .build();
-    present_queue.present(presents_info);
+    // auto presents_info = vkh::PresentInfoBuilder{}
+    //                          .add_wait_semaphore(rendering_finished_sem)
+    //                          .add_image_index(*swap_chain_image_index)
+    //                          .add_swapchain(swapchain)
+    //                          .build();
+    // present_queue.present(presents_info);
   }
 
 private:
