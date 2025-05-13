@@ -472,7 +472,7 @@ private:
 
 class Instance {
 public:
-  using NativeType = VkInstance;
+  using NativeHandle = VkInstance;
 
   explicit Instance(std::nullptr_t)
       : context{nullptr}, instance{VK_NULL_HANDLE}, api_version{}, layers{}, extensions{} {}
@@ -534,13 +534,13 @@ public:
     return api_version;
   }
 
-  NativeType native_handle() const noexcept {
+  operator NativeHandle() const noexcept {
     return instance;
   }
 
 private:
   Context* context = nullptr;
-  NativeType instance = VK_NULL_HANDLE;
+  NativeHandle instance = VK_NULL_HANDLE;
   uint32_t api_version = 0;
   std::vector<const char*> layers;
   std::vector<const char*> extensions;
@@ -650,7 +650,7 @@ class Surface {
   friend class SurfaceBuilder;
 
 public:
-  using NativeType = VkSurfaceKHR;
+  using NativeHandle = VkSurfaceKHR;
 
   explicit Surface(std::nullptr_t) : instance{nullptr}, handle{VK_NULL_HANDLE} {}
 
@@ -672,19 +672,19 @@ public:
     if (handle == VK_NULL_HANDLE)
       return;
 
-    vkDestroySurfaceKHR(instance->native_handle(), handle, nullptr);
+    vkDestroySurfaceKHR(*instance, handle, nullptr);
   }
 
-  NativeType native_handle() const noexcept {
+  operator NativeHandle() const noexcept {
     return handle;
   }
 
 private:
-  Surface(Instance* instance, VkSurfaceKHR handle) : instance{instance}, handle{handle} {}
+  Surface(Instance* instance, NativeHandle handle) : instance{instance}, handle{handle} {}
 
 private:
   Instance* instance = nullptr;
-  VkSurfaceKHR handle = VK_NULL_HANDLE;
+  NativeHandle handle = VK_NULL_HANDLE;
 };
 
 class SurfaceBuilder {
@@ -692,7 +692,7 @@ public:
   explicit SurfaceBuilder(Instance* instance, ::vis::Window* window) : instance{instance}, window{window} {}
 
   [[nodiscard]] Surface build() const noexcept {
-    auto vk_surface = window->create_renderer_surface(instance->native_handle(), nullptr);
+    auto vk_surface = window->create_renderer_surface(*instance, nullptr);
     return {instance, vk_surface};
   }
 
@@ -809,10 +809,6 @@ public:
     vkDestroyDevice(handle, nullptr);
   }
 
-  NativeHandle native_handle() const noexcept {
-    return handle;
-  }
-
   operator NativeHandle() const noexcept {
     return handle;
   }
@@ -839,13 +835,13 @@ class PhysicalDevice {
   friend class PhysicalDeviceSelector;
 
 public:
-  using NativeType = VkPhysicalDevice;
+  using NativeHandle = VkPhysicalDevice;
 
   PhysicalDevice(std::nullptr_t) noexcept : handle{nullptr}, surface{nullptr} {}
 
   static PhysicalDeviceFeatures2 get_features2(PhysicalDevice device) noexcept {
     auto features = PhysicalDeviceFeatures2Builder{}.build();
-    vkGetPhysicalDeviceFeatures2(device.native_handle(), static_cast<VkPhysicalDeviceFeatures2*>(features));
+    vkGetPhysicalDeviceFeatures2(device, static_cast<VkPhysicalDeviceFeatures2*>(features));
     return features;
   }
 
@@ -1031,39 +1027,12 @@ public:
                                [this](std::string_view extension_name) { return has_extension(extension_name); });
   }
 
-  NativeType native_handle() const noexcept {
+  operator NativeHandle() const noexcept {
     return handle;
   }
 
-#if 0
-    VmaVulkanFunctions functions = {};
-    functions.vkGetInstanceProcAddr = physical_device.getDispatcher()->vkGetInstanceProcAddr;
-    functions.vkGetDeviceProcAddr = physical_device.getDispatcher()->vkGetDeviceProcAddr;
-
-    auto allocator_info = VmaAllocatorCreateInfo{
-        .flags = 0,
-        .physicalDevice = static_cast<vk::raii::PhysicalDevice::CType>(
-            static_cast<vk::raii::PhysicalDevice::CppType>(physical_device)),
-        .device = static_cast<vk::raii::Device::CType>(static_cast<vk::raii::Device::CppType>(*device)),
-        .preferredLargeHeapBlockSize = 0, // default
-        .pAllocationCallbacks = nullptr,  //
-        .pDeviceMemoryCallbacks = nullptr,
-        .pHeapSizeLimit = nullptr,
-        .pVulkanFunctions = &functions, //
-        .instance = instance.native_handle(),
-        .vulkanApiVersion = instance.get_api_version(),
-        .pTypeExternalMemoryHandleTypes = nullptr,
-    };
-
-    VmaAllocator allocator;
-    vmaCreateAllocator(&allocator_info, &allocator);
-
-    return Device{allocator, std::move(*device)};
-  }
-#endif
-
 private:
-  PhysicalDevice(NativeType device, Surface* surface) noexcept : handle{device}, surface{surface} {
+  PhysicalDevice(NativeHandle device, Surface* surface) noexcept : handle{device}, surface{surface} {
     init_features2();
     init_properties2();
     init_layers();
@@ -1103,23 +1072,23 @@ private:
   void init_surface_support_map() noexcept {
     assert(surface != nullptr && "You mush assign the surface before");
     for (auto i = 0u; i < available_queue_families.size(); ++i) {
-      surface_support_map[i] = PhysicalDevice::is_surface_supported(handle, surface->native_handle(), i);
+      surface_support_map[i] = PhysicalDevice::is_surface_supported(handle, *surface, i);
     }
   }
 
   void init_surface_capabilities() noexcept {
     assert(surface != nullptr && "You mush assign the surface before");
-    surface_capabilities = PhysicalDevice::get_surface_capabilities(handle, surface->native_handle());
+    surface_capabilities = PhysicalDevice::get_surface_capabilities(handle, *surface);
   }
 
   void init_surface_formats2() noexcept {
     assert(surface != nullptr && "You mush assign the surface before");
-    surface_formats = PhysicalDevice::get_surface_formats2(handle, surface->native_handle());
+    surface_formats = PhysicalDevice::get_surface_formats2(handle, *surface);
   }
 
   void init_present_modes() noexcept {
     assert(surface != nullptr && "You mush assign the surface before");
-    present_modes = PhysicalDevice::get_present_modes(handle, surface->native_handle());
+    present_modes = PhysicalDevice::get_present_modes(handle, *surface);
   }
 
   std::string serialize() const noexcept {
@@ -1241,7 +1210,7 @@ private:
   }
 
 private:
-  NativeType handle = VK_NULL_HANDLE;
+  NativeHandle handle = VK_NULL_HANDLE;
   Surface* surface = nullptr;
   VkPhysicalDeviceFeatures2 features;
   VkPhysicalDeviceProperties2 properties;
@@ -1310,7 +1279,7 @@ public:
 
   std::vector<PhysicalDevice> enumerate_all() const noexcept {
     // clang-format off
-    auto devices = enumerate<VkPhysicalDevice>(vkEnumeratePhysicalDevices, instance.native_handle())
+    auto devices = enumerate<VkPhysicalDevice>(vkEnumeratePhysicalDevices, static_cast<Instance::NativeHandle>(instance))
          | std::views::transform([this](VkPhysicalDevice vk_device) -> PhysicalDevice {
              return PhysicalDevice{vk_device, surface};
            })
@@ -1349,7 +1318,7 @@ public:
   Device create_device(const PhysicalDevice& physical_device) {
     auto device_create_info = device_create_info_builder.build();
     VkDevice device;
-    vkCreateDevice(physical_device.native_handle(), &device_create_info, nullptr, &device);
+    vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
 
     std::call_once(device_initialize, [device]() { volkLoadDevice(device); });
     return Device{device};
@@ -1431,7 +1400,7 @@ public:
     if (handle == VK_NULL_HANDLE)
       return;
 
-    vkDestroySemaphore(device->native_handle(), handle, nullptr);
+    vkDestroySemaphore(*device, handle, nullptr);
   }
 
   operator const NativeHandle() const noexcept {
@@ -1465,7 +1434,7 @@ public:
 
   Semaphore build() const noexcept {
     VkSemaphore semaphore;
-    vkCreateSemaphore(device.native_handle(), &semaphore_create_info, nullptr, &semaphore);
+    vkCreateSemaphore(device, &semaphore_create_info, nullptr, &semaphore);
     return Semaphore{semaphore, &device};
   }
 
@@ -1500,11 +1469,7 @@ public:
     if (handle == VK_NULL_HANDLE)
       return;
 
-    vkDestroyFence(device->native_handle(), handle, nullptr);
-  }
-
-  NativeHandle native_handle() const noexcept {
-    return handle;
+    vkDestroyFence(*device, handle, nullptr);
   }
 
   operator NativeHandle() const noexcept {
@@ -1545,7 +1510,7 @@ public:
 
   Fence build() const noexcept {
     VkFence fence;
-    vkCreateFence(device.native_handle(), &fence_create_info, nullptr, &fence);
+    vkCreateFence(device, &fence_create_info, nullptr, &fence);
     return Fence{fence, &device};
   }
 
@@ -1581,10 +1546,10 @@ public:
     if (handle == VK_NULL_HANDLE or is_swapchain_image)
       return;
 
-    vkDestroyImage(device->native_handle(), handle, nullptr);
+    vkDestroyImage(*device, handle, nullptr);
   }
 
-  NativeHandle native_handle() const noexcept {
+  operator NativeHandle() const noexcept {
     return handle;
   }
 
@@ -1657,16 +1622,17 @@ class ImageMemoryBarrier {
   friend class ImageMemoryBarrierBuilder;
 
 public:
-  using NativeHandle = VkImageMemoryBarrier;
+  using NativeType = VkImageMemoryBarrier;
 
-  ImageMemoryBarrier(VkImageMemoryBarrier image_memory_barrier) : image_memory_barrier{image_memory_barrier} {}
-
-  NativeHandle native_handle() const noexcept {
-    return image_memory_barrier;
+  operator const NativeType*() const noexcept {
+    return &image_memory_barrier;
   }
 
 private:
-  VkImageMemoryBarrier image_memory_barrier;
+  explicit ImageMemoryBarrier(NativeType image_memory_barrier) : image_memory_barrier{image_memory_barrier} {}
+
+private:
+  NativeType image_memory_barrier;
 };
 
 using DeviceSize = VkDeviceSize;
@@ -1810,7 +1776,7 @@ public:
   }
 
   ImageMemoryBarrierBuilder& with_image(const Image& image) noexcept {
-    image_memory_barrier.image = image.native_handle();
+    image_memory_barrier.image = image;
     return *this;
   }
 
@@ -1875,7 +1841,7 @@ public:
     if (handle == VK_NULL_HANDLE)
       return;
 
-    vkDestroySwapchainKHR(device->native_handle(), handle, nullptr);
+    vkDestroySwapchainKHR(*device, handle, nullptr);
   }
 
   operator NativeHandle() const noexcept {
@@ -1884,7 +1850,7 @@ public:
 
   std::size_t get_image_count() const noexcept {
     uint32_t image_count = {};
-    vkGetSwapchainImagesKHR(device->native_handle(), handle, &image_count, nullptr);
+    vkGetSwapchainImagesKHR(*device, handle, &image_count, nullptr);
     return image_count;
   };
 
@@ -1953,7 +1919,9 @@ public:
 
 private:
   Swapchain(NativeHandle handle, Device* device) : handle{handle}, device{device} {
-    auto swap_chain_images = enumerate<VkImage>(vkGetSwapchainImagesKHR, device->native_handle(), handle);
+    auto swap_chain_images =
+        enumerate<VkImage>(vkGetSwapchainImagesKHR, static_cast<Device::NativeHandle>(*device), handle);
+
     // clang-format off
     images = swap_chain_images
         | std::views::transform([this](VkImage image) { return Image{this->device, image, true}; })
@@ -1976,7 +1944,7 @@ public:
       .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
       .pNext = nullptr,
       .flags = {},
-      .surface = surface.native_handle(),
+      .surface = surface,
       .minImageCount = surface_caps.surfaceCapabilities.minImageCount,
       .imageFormat = {},
       .imageColorSpace = {},
@@ -2046,7 +2014,7 @@ public:
     swapchain_create_info.pQueueFamilyIndices = queue_family_indices.data();
 
     VkSwapchainKHR swapchain;
-    vkCreateSwapchainKHR(device.native_handle(), &swapchain_create_info, nullptr, &swapchain);
+    vkCreateSwapchainKHR(device, &swapchain_create_info, nullptr, &swapchain);
 
     return Swapchain{swapchain, &device};
   }
@@ -2122,7 +2090,7 @@ public:
     if (handle == VK_NULL_HANDLE)
       return;
 
-    vkDestroyCommandPool(device->native_handle(), handle, nullptr);
+    vkDestroyCommandPool(*device, handle, nullptr);
   }
 
   operator NativeHandle() const noexcept {
@@ -2167,7 +2135,7 @@ public:
 
   CommandPool build() const noexcept {
     VkCommandPool command_pool;
-    vkCreateCommandPool(device.native_handle(), &command_pool_create_info, nullptr, &command_pool);
+    vkCreateCommandPool(device, &command_pool_create_info, nullptr, &command_pool);
 
     return CommandPool{command_pool, &device};
   }
@@ -2268,7 +2236,7 @@ public:
   void clear_color(const vis::vec4 clear_color, const Image& image, const ImageLayout image_layout,
                    const std::vector<ImageSubresourceRange>& sub_ranges) const noexcept {
     const VkClearColorValue* color = std::bit_cast<VkClearColorValue*>(vis::gtc::value_ptr(clear_color));
-    vkCmdClearColorImage(handle, image.native_handle(), static_cast<VkImageLayout>(image_layout), color,
+    vkCmdClearColorImage(handle, image, static_cast<VkImageLayout>(image_layout), color,
                          static_cast<uint32_t>(sub_ranges.size()),
                          std::bit_cast<const VkImageSubresourceRange*>(sub_ranges.data()));
   }
@@ -2318,14 +2286,14 @@ public:
     if (command_buffers.empty())
       return;
 
-    vkFreeCommandBuffers(device->native_handle(), static_cast<CommandPool::NativeHandle>(*command_pool),
+    vkFreeCommandBuffers(*device, static_cast<CommandPool::NativeHandle>(*command_pool),
                          static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
   }
 
   void command_clear_color(std::size_t index, const float clear_color[4], Image& image, const ImageLayout image_layout,
                            std::vector<ImageSubresourceRange>& sub_ranges) const noexcept {
     const VkClearColorValue* color = std::bit_cast<VkClearColorValue*>(clear_color);
-    vkCmdClearColorImage(command_buffers[index], image.native_handle(), static_cast<VkImageLayout>(image_layout), color,
+    vkCmdClearColorImage(command_buffers[index], image, static_cast<VkImageLayout>(image_layout), color,
                          static_cast<uint32_t>(sub_ranges.size()),
                          std::bit_cast<const VkImageSubresourceRange*>(sub_ranges.data()));
   }
@@ -2501,7 +2469,7 @@ public:
 
   CommandBuffers build() const noexcept {
     std::vector<VkCommandBuffer> command_buffer(command_buffer_allocate_info.commandBufferCount, VK_NULL_HANDLE);
-    vkAllocateCommandBuffers(device.native_handle(), &command_buffer_allocate_info, command_buffer.data());
+    vkAllocateCommandBuffers(device, &command_buffer_allocate_info, command_buffer.data());
     return CommandBuffers{&device, &command_pool, command_buffer};
   }
 
