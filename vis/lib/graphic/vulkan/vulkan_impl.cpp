@@ -98,34 +98,42 @@ public:
   }
 
   void draw() const noexcept {
+
+    std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sem,
+                 (void*)rendering_finished_sem);
+
     // clang-format off
     auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
-                            .with_semaphore(image_availables_sem)
-                            .build();
+                                    .with_semaphore(image_availables_sem)
+                                    .build();
     // clang-format on
 
     auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
-    [[maybe_unused]] const auto& swapchain_images = swapchain.get_images();
-    [[maybe_unused]] static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {
-        vkh::PipelineStageFlagBits::transfer_bit};
 
-    auto submit_info_builder = vkh::SubmitInfoBuilder{}
-                                   .add_wait_semaphore(image_availables_sem)
-                                   .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
-                                   .add_command_buffer(command_buffers[*swap_chain_image_index])
-                                   .add_signal_semaphore(rendering_finished_sem);
+    if (not swap_chain_image_index) {
+      std::println("acquire image didn't succed: {}", static_cast<int>(swap_chain_image_index.error()));
+      return;
+    }
+
+    std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
 
     [[maybe_unused]] std::vector<vkh::SubmitInfo> submits_info =
-        std::vector<vkh::SubmitInfo>{submit_info_builder.build()};
+        std::vector<vkh::SubmitInfo>{vkh::SubmitInfoBuilder{}
+                                         .add_wait_semaphore(image_availables_sem)
+                                         .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
+                                         .add_command_buffer(command_buffers[*swap_chain_image_index])
+                                         .add_signal_semaphore(rendering_finished_sem)
+                                         .build()};
 
     graphic_queue.submit(submits_info);
 
-    auto presents_info = vkh::PresentInfoBuilder{}
-                             .add_wait_semaphore(rendering_finished_sem)
-                             .add_image_index(*swap_chain_image_index)
-                             .add_swapchain(swapchain)
-                             .build();
-    present_queue.present(presents_info);
+    auto present_info = vkh::PresentInfoBuilder{}
+                            .add_wait_semaphore(rendering_finished_sem)
+                            .add_image_index(*swap_chain_image_index)
+                            .add_swapchain(swapchain)
+                            .build();
+
+    present_queue.present(present_info);
   }
 
 private:

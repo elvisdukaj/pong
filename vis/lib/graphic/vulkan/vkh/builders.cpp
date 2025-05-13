@@ -716,10 +716,32 @@ public:
   }
 
 private:
-  explicit SubmitInfo(const NativeType& native) : native_type{native} {}
+  explicit SubmitInfo(const NativeType& native, std::vector<VkSemaphore>&& wait_semaphores,
+                      std::vector<VkPipelineStageFlags>&& pipeline_flags,
+                      std::vector<VkCommandBuffer>&& command_buffers, std::vector<VkSemaphore>&& signal_semaphores)
+      : native_type{native},
+        wait_semaphores{std::move(wait_semaphores)},
+        pipeline_flags{std::move(pipeline_flags)},
+        command_buffers{std::move(command_buffers)},
+        signal_semaphores{std::move(signal_semaphores)} {
+    std::println("Creating SubmitInfo: \n"
+                 "wait_semaphores : {}\n"
+                 "wait_semaphores[0] : {}\n"
+                 "pipeline_flags[0] : {}\n"
+                 "command_buffers : {}\n"
+                 "command_buffers[0] : {}\n"
+                 "signal_semaphores : {}\n"
+                 "signal_semaphores[0] : {} ",
+                 wait_semaphores.size(), (void*)wait_semaphores[0], pipeline_flags[0], command_buffers.size(),
+                 (void*)command_buffers[0], signal_semaphores.size(), (void*)signal_semaphores[0]);
+  }
 
 private:
   NativeType native_type;
+  std::vector<VkSemaphore> wait_semaphores;
+  std::vector<VkPipelineStageFlags> pipeline_flags;
+  std::vector<VkCommandBuffer> command_buffers;
+  std::vector<VkSemaphore> signal_semaphores;
 };
 
 class PresentInfo {
@@ -737,10 +759,21 @@ public:
   }
 
 private:
-  explicit PresentInfo(const NativeType& native) : native_type{native} {}
+  explicit PresentInfo(const NativeType& native, std::vector<VkSemaphore>&& wait_semaphores,
+                       std::vector<VkSwapchainKHR>&& swapchains, std::vector<std::uint32_t>&& image_indexes,
+                       std::vector<VkResult>&& results)
+      : native_type{native},
+        wait_semaphores{std::move(wait_semaphores)},
+        swapchains{std::move(swapchains)},
+        image_indexes{std::move(image_indexes)},
+        results{std::move(results)} {}
 
 private:
   NativeType native_type;
+  std::vector<VkSemaphore> wait_semaphores;
+  std::vector<VkSwapchainKHR> swapchains;
+  std::vector<std::uint32_t> image_indexes;
+  std::vector<VkResult> results;
 };
 
 class Queue {
@@ -2073,7 +2106,7 @@ public:
   }
 
   AcquireNextImageInfoKHRBuilder& with_timeout(std::chrono::nanoseconds timeout) noexcept {
-    native.timeout = static_cast<uint32_t>(timeout.count());
+    native.timeout = static_cast<uint64_t>(timeout.count());
     return *this;
   }
 
@@ -2380,7 +2413,8 @@ public:
         .pSignalSemaphores = signal_semaphores.data(),
     };
 
-    return SubmitInfo(native_type);
+    return SubmitInfo(native_type, std::move(wait_semaphores), std::move(pipeline_flags), std::move(command_buffers),
+                      std::move(signal_semaphores));
   }
 
 private:
@@ -2425,7 +2459,8 @@ public:
         .pResults = results.data(),            // TODO: native_signal_semaphores.data(),
     };
 
-    return PresentInfo(native_type);
+    return PresentInfo(native_type, std::move(wait_semaphores), std::move(swapchains), std::move(image_indexes),
+                       std::move(results));
   }
 
 private:
