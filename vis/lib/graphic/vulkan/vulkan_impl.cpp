@@ -98,7 +98,13 @@ public:
   }
 
   void draw() const noexcept {
-    auto swap_chain_image_index = swapchain.acquire_image();
+    // clang-format off
+    auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
+                            .with_semaphore(image_availables_sem)
+                            .build();
+    // clang-format on
+
+    auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
     [[maybe_unused]] const auto& swapchain_images = swapchain.get_images();
     [[maybe_unused]] static const std::array<vkh::PipelineStageFlags, 1> wait_dst_flags = {
         vkh::PipelineStageFlagBits::transfer_bit};
@@ -113,6 +119,13 @@ public:
     };
 
     graphic_queue.submit(submits_info);
+
+    auto presents_info = vkh::PresentInfoBuilder{}
+                             .add_wait_semaphore(rendering_finished_sem)
+                             .add_image_index(*swap_chain_image_index)
+                             .add_swapchain(swapchain)
+                             .build();
+    present_queue.present(presents_info);
   }
 
 private:
@@ -176,7 +189,8 @@ private:
     auto surface_caps = selected_physical_device_it->get_surface_capabilities();
     width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
     height = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.height);
-    swapchain_image_count = std::min(static_cast<std::size_t>(surface_caps.surfaceCapabilities.maxImageCount), 3uz);
+    swapchain_image_count =
+        3; // std::min(static_cast<std::size_t>(surface_caps.surfaceCapabilities.maxImageCount), 3uz);
   }
 
   void init_swapchain() {
@@ -186,6 +200,8 @@ private:
       .with_required_format(vkh::Format::B8G8R8A8Srgb)
       .with_present_mode(vkh::PresentMode::fifo)
       .with_image_count(swapchain_image_count)
+      .add_usage(vkh::ImageUsageFlagBits::color_attachment_bit)
+      .add_usage(vkh::ImageUsageFlagBits::transfer_dst_bit)
       .with_old_swapchain(swapchain)
       .build();
     // clang-format on
@@ -237,10 +253,10 @@ private:
 
       std::vector<vkh::ImageMemoryBarrier> barrier_from_clear_to_present = {
           vkh::ImageMemoryBarrierBuilder{}
-              .with_src_access_mask(vkh::AccessFlagBits::memory_read_bit)
-              .with_dst_access_mask(vkh::AccessFlagBits::transfer_write_bit)
-              .with_old_layout(vkh::ImageLayout::undefined)
-              .with_new_layout(vkh::ImageLayout::transfer_dst_optimal)
+              .with_src_access_mask(vkh::AccessFlagBits::transfer_write_bit)
+              .with_dst_access_mask(vkh::AccessFlagBits::memory_read_bit)
+              .with_old_layout(vkh::ImageLayout::transfer_dst_optimal)
+              .with_new_layout(vkh::ImageLayout::present_src_khr)
               .with_src_queue_family_index(present_queue_family_index)
               .with_dst_queue_family_index(present_queue_family_index)
               .with_image(image)

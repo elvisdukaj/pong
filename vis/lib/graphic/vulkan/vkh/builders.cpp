@@ -723,7 +723,7 @@ private:
 };
 
 class PresentInfo {
-  friend class PresentInfofoBuilder;
+  friend class PresentInfoBuilder;
 
 public:
   using NativeType = VkPresentInfoKHR;
@@ -756,11 +756,18 @@ public:
   }
 
   void submit(const std::vector<SubmitInfo>& submits_info /*, TODO: std::optional<Fence> fence = {}*/) const noexcept {
-    vkQueueSubmit(handle, static_cast<uint32_t>(submits_info.size()),
-                  reinterpret_cast<const VkSubmitInfo*>(submits_info.data()), VK_NULL_HANDLE);
+    // clang-format off
+    auto native_infos = submits_info
+                          | std::views::transform([](const SubmitInfo& si) -> SubmitInfo::NativeType { return static_cast<SubmitInfo::NativeType>(si); })
+                          | std::ranges::to<std::vector<SubmitInfo::NativeType>>();
+    // clang-format on
+
+    vkQueueSubmit(handle, static_cast<uint32_t>(native_infos.size()), native_infos.data(), VK_NULL_HANDLE);
   }
 
-  void present() const noexcept {}
+  void present(const PresentInfo& present_info) const noexcept {
+    vkQueuePresentKHR(handle, static_cast<const PresentInfo::NativeType*>(present_info));
+  }
 
 private:
   explicit Queue(NativeHandle handle) : handle{handle} {}
@@ -774,7 +781,7 @@ class Device {
   friend class PhysicalDeviceSelector;
 
 public:
-  using NativeType = VkDevice;
+  using NativeHandle = VkDevice;
 
   explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE} /*, allocator{VK_NULL_HANDLE}, graphic_queue_index{}*/ {}
 
@@ -802,7 +809,11 @@ public:
     vkDestroyDevice(handle, nullptr);
   }
 
-  NativeType native_handle() const noexcept {
+  NativeHandle native_handle() const noexcept {
+    return handle;
+  }
+
+  operator NativeHandle() const noexcept {
     return handle;
   }
 
@@ -819,7 +830,7 @@ private:
   {}
 
 private:
-  NativeType handle = VK_NULL_HANDLE;
+  NativeHandle handle = VK_NULL_HANDLE;
   // VmaAllocator allocator = VK_NULL_HANDLE;
   // std::size_t graphic_queue_index = 0;
 };
@@ -1496,6 +1507,10 @@ public:
     return handle;
   }
 
+  operator NativeHandle() const noexcept {
+    return handle;
+  }
+
 private:
   Fence(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
 
@@ -1812,6 +1827,27 @@ private:
   VkImageMemoryBarrier image_memory_barrier;
 };
 
+class AcquireNextImageInfoKHR {
+  friend class AcquireNextImageInfoKHRBuilder;
+
+public:
+  using NativeType = VkAcquireNextImageInfoKHR;
+
+  operator const NativeType*() const noexcept {
+    return &native_type;
+  }
+
+  operator const NativeType&() const noexcept {
+    return native_type;
+  }
+
+private:
+  explicit AcquireNextImageInfoKHR(const NativeType& native) : native_type{native} {}
+
+private:
+  NativeType native_type;
+};
+
 class Swapchain {
   friend class SwapchainBuilder;
 
@@ -1842,7 +1878,7 @@ public:
     vkDestroySwapchainKHR(device->native_handle(), handle, nullptr);
   }
 
-  NativeHandle native_handle() const noexcept {
+  operator NativeHandle() const noexcept {
     return handle;
   }
 
@@ -1856,21 +1892,15 @@ public:
     return images;
   }
 
-  std::expected<std::size_t, Result> acquire_image(std::optional<Semaphore> semaphore = std::nullopt,
-                                                   std::optional<Fence> fence = std::nullopt,
-                                                   std::chrono::nanoseconds timeout = 2s) const noexcept {
-    VkAcquireNextImageInfoKHR info{
-        .sType = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
-        .pNext = nullptr,
-        .swapchain = handle,
-        .timeout = static_cast<uint32_t>(timeout.count()),
-        .semaphore = semaphore.has_value() ? static_cast<VkSemaphore>(*semaphore) : VK_NULL_HANDLE,
-        .fence = fence.has_value() ? fence->native_handle() : VK_NULL_HANDLE,
-        .deviceMask = {},
-    };
-
+  std::expected<std::size_t, Result> acquire_image(const AcquireNextImageInfoKHR& acquire_info) const noexcept {
     uint32_t image_index = {};
-    auto res = vkAcquireNextImage2KHR(device->native_handle(), &info, &image_index);
+    const VkAcquireNextImageInfoKHR& native_info = static_cast<const VkAcquireNextImageInfoKHR&>(acquire_info);
+
+    auto res = vkAcquireNextImageKHR(*device, native_info.swapchain, native_info.timeout, native_info.semaphore,
+                                     native_info.fence, &image_index);
+    //        vkAcquireNextImage2KHR(static_cast<Device::NativeHandle>(*device),
+    //                               static_cast<const AcquireNextImageInfoKHR::NativeType*>(acquire_info),
+    //                               &image_index);
 
     if (res != VK_SUCCESS)
       return std::unexpected{Result{res}};
@@ -1986,6 +2016,11 @@ public:
   }
 
   SwapchainBuilder& with_usage(ImageUsageFlags required_image_usage) {
+    image_usage_bit = required_image_usage;
+    return *this;
+  }
+
+  SwapchainBuilder& add_usage(ImageUsageFlagBits required_image_usage) {
     image_usage_bit |= required_image_usage;
     return *this;
   }
@@ -1996,7 +2031,7 @@ public:
   }
 
   SwapchainBuilder& with_old_swapchain(Swapchain& old_swapchain) {
-    swapchain_create_info.oldSwapchain = old_swapchain.native_handle();
+    swapchain_create_info.oldSwapchain = static_cast<Swapchain::NativeHandle>(old_swapchain);
     return *this;
   }
 
@@ -2020,9 +2055,45 @@ private:
   Device& device;
   VkSwapchainCreateInfoKHR swapchain_create_info;
   std::optional<uint32_t> min_image_count{};
-  ImageUsageFlags image_usage_bit = ImageUsageFlagBits::ColorAttachment;
+  ImageUsageFlags image_usage_bit = ImageUsageFlagBits::color_attachment_bit;
   std::vector<uint32_t> queue_family_indices;
   std::optional<Format> required_format;
+};
+
+class AcquireNextImageInfoKHRBuilder {
+public:
+  AcquireNextImageInfoKHRBuilder(const Swapchain& swapchain) {
+    native = VkAcquireNextImageInfoKHR{};
+    native.sType = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR;
+    native.swapchain = static_cast<Swapchain::NativeHandle>(swapchain);
+  }
+
+  AcquireNextImageInfoKHRBuilder& with_next(void* next) noexcept {
+    native.pNext = next;
+    return *this;
+  }
+
+  AcquireNextImageInfoKHRBuilder& with_semaphore(const Semaphore& semaphore) noexcept {
+    native.semaphore = static_cast<Semaphore::NativeHandle>(semaphore);
+    return *this;
+  }
+
+  AcquireNextImageInfoKHRBuilder& with_timeout(std::chrono::nanoseconds timeout) noexcept {
+    native.timeout = static_cast<uint32_t>(timeout.count());
+    return *this;
+  }
+
+  AcquireNextImageInfoKHRBuilder& with_fence(const Fence& fence) noexcept {
+    native.fence = fence;
+    return *this;
+  }
+
+  AcquireNextImageInfoKHR build() {
+    return AcquireNextImageInfoKHR{native};
+  }
+
+private:
+  VkAcquireNextImageInfoKHR native;
 };
 
 class CommandPool {
@@ -2054,7 +2125,7 @@ public:
     vkDestroyCommandPool(device->native_handle(), handle, nullptr);
   }
 
-  NativeHandle native_handle() const noexcept {
+  operator NativeHandle() const noexcept {
     return handle;
   }
 
@@ -2247,7 +2318,7 @@ public:
     if (command_buffers.empty())
       return;
 
-    vkFreeCommandBuffers(device->native_handle(), command_pool->native_handle(),
+    vkFreeCommandBuffers(device->native_handle(), static_cast<CommandPool::NativeHandle>(*command_pool),
                          static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
   }
 
@@ -2288,7 +2359,7 @@ public:
   }
 
   SubmitInfoBuilder& add_pipeline_flags(PipelineStageFlags flags) noexcept {
-    pipeline_flags.push_back(flags);
+    pipeline_flags.push_back(static_cast<PipelineStageFlags::MaskType>(flags));
     return *this;
   }
 
@@ -2304,33 +2375,33 @@ public:
 
   SubmitInfo build() noexcept {
     // clang-format off
-    auto native_wait_semaphores = wait_semaphores
-      | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
-      | std::ranges::to<std::vector<VkSemaphore>>();
+    // auto native_wait_semaphores = wait_semaphores
+    //   | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
+    //   | std::ranges::to<std::vector<VkSemaphore>>();
 
-    auto native_wait_dst_stage_mask = pipeline_flags
-      | std::views::transform([](const PipelineStageFlags& flags) -> VkPipelineStageFlags { return static_cast<VkPipelineStageFlags>(flags); })
-      | std::ranges::to<std::vector<VkPipelineStageFlags>>();
+    // auto native_wait_dst_stage_mask = pipeline_flags
+    //   | std::views::transform([](const PipelineStageFlags& flags) -> VkPipelineStageFlags { return static_cast<VkPipelineStageFlags>(flags); })
+    //   | std::ranges::to<std::vector<VkPipelineStageFlags>>();
 
-    auto native_command_buffers = command_buffers
-      | std::views::transform([](const CommandBuffer& command_buffer) -> VkCommandBuffer { return static_cast<VkCommandBuffer>(command_buffer); })
-      | std::ranges::to<std::vector<VkCommandBuffer>>();
+    // auto native_command_buffers = command_buffers
+    //   | std::views::transform([](const CommandBuffer& command_buffer) -> VkCommandBuffer { return static_cast<VkCommandBuffer>(command_buffer); })
+    //   | std::ranges::to<std::vector<VkCommandBuffer>>();
       
-    auto native_signal_semaphores = signal_semaphores
-      | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
-      | std::ranges::to<std::vector<VkSemaphore>>();
+    // auto native_signal_semaphores = signal_semaphores
+    //   | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
+    //   | std::ranges::to<std::vector<VkSemaphore>>();
     // clang-format on
 
     auto native_type = VkSubmitInfo{
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = next,
-        .waitSemaphoreCount = static_cast<uint32_t>(native_wait_semaphores.size()),
-        .pWaitSemaphores = native_wait_semaphores.data(),
-        .pWaitDstStageMask = native_wait_dst_stage_mask.data(),
-        .commandBufferCount = static_cast<uint32_t>(native_command_buffers.size()),
-        .pCommandBuffers = native_command_buffers.data(),
-        .signalSemaphoreCount = static_cast<uint32_t>(native_signal_semaphores.size()),
-        .pSignalSemaphores = native_signal_semaphores.data(),
+        .waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
+        .pWaitSemaphores = wait_semaphores.data(),
+        .pWaitDstStageMask = pipeline_flags.data(),
+        .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
+        .pCommandBuffers = command_buffers.data(),
+        .signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size()),
+        .pSignalSemaphores = signal_semaphores.data(),
     };
 
     return SubmitInfo(native_type);
@@ -2338,10 +2409,65 @@ public:
 
 private:
   void* next = nullptr;
+  std::vector<Semaphore::NativeHandle> wait_semaphores;
+  std::vector<VkPipelineStageFlags> pipeline_flags;
+  std::vector<CommandBuffer::NativeHandle> command_buffers;
+  std::vector<Semaphore::NativeHandle> signal_semaphores;
+};
+
+class PresentInfoBuilder {
+public:
+  PresentInfoBuilder& with_next() noexcept {
+    next = nullptr;
+    return *this;
+  }
+
+  PresentInfoBuilder& add_wait_semaphore(const Semaphore& semaphore) noexcept {
+    wait_semaphores.push_back(semaphore);
+    return *this;
+  }
+
+  PresentInfoBuilder& add_swapchain(const Swapchain& swapchain) noexcept {
+    swapchains.push_back(swapchain);
+    return *this;
+  }
+
+  PresentInfoBuilder& add_image_index(std::size_t index) noexcept {
+    image_indexes.push_back(static_cast<uint32_t>(index));
+    return *this;
+  }
+
+  PresentInfo build() noexcept {
+    // clang-format off
+    auto native_wait_semaphores = wait_semaphores
+      | std::views::transform([](const Semaphore& sem) -> VkSemaphore { return static_cast<VkSemaphore>(sem); })
+      | std::ranges::to<std::vector<VkSemaphore>>();
+
+    auto native_swapchains = swapchains
+      | std::views::transform([](const Swapchain& swapchain) -> VkSwapchainKHR { return static_cast<VkSwapchainKHR>(swapchain); })
+      | std::ranges::to<std::vector<VkSwapchainKHR>>();
+    // clang-format on
+
+    auto native_type = VkPresentInfoKHR{
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pNext = next,
+        .waitSemaphoreCount = static_cast<uint32_t>(native_wait_semaphores.size()),
+        .pWaitSemaphores = native_wait_semaphores.data(),
+        .swapchainCount = static_cast<uint32_t>(native_swapchains.size()),
+        .pSwapchains = native_swapchains.data(),
+        .pImageIndices = image_indexes.data(), // TODO: static_cast<uint32_t>(native_signal_semaphores.size()),
+        .pResults = results.data(),            // TODO: native_signal_semaphores.data(),
+    };
+
+    return PresentInfo(native_type);
+  }
+
+private:
+  void* next = nullptr;
   std::vector<std::reference_wrapper<const Semaphore>> wait_semaphores;
-  std::vector<PipelineStageFlags> pipeline_flags;
-  std::vector<std::reference_wrapper<const CommandBuffer>> command_buffers;
-  std::vector<std::reference_wrapper<const Semaphore>> signal_semaphores;
+  std::vector<std::reference_wrapper<const Swapchain>> swapchains;
+  std::vector<std::uint32_t> image_indexes;
+  std::vector<VkResult> results;
 };
 
 class CommandBuffersBuilder {
@@ -2352,7 +2478,7 @@ public:
     command_buffer_allocate_info = VkCommandBufferAllocateInfo{
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
       .pNext = nullptr,
-      .commandPool = command_pool.native_handle(),
+      .commandPool = static_cast<CommandPool::NativeHandle>(command_pool),
       .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
       .commandBufferCount = 1,
     };
