@@ -534,6 +534,10 @@ template <> struct FlagTraits<ImageUsageFlagBits> {
 
 using ImageUsageFlags = Flags<ImageUsageFlagBits>;
 
+ImageUsageFlags operator|(ImageUsageFlagBits lhs, ImageUsageFlagBits rhs) {
+  return ImageUsageFlags{std::to_underlying(lhs) | std::to_underlying(rhs)};
+}
+
 enum class PresentMode {
   immediate = VK_PRESENT_MODE_IMMEDIATE_KHR,
   mailbox = VK_PRESENT_MODE_MAILBOX_KHR,

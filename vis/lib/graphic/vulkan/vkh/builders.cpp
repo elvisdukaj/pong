@@ -1964,7 +1964,7 @@ public:
   }
 
   SwapchainBuilder& with_required_format(Format format) {
-    required_format = format;
+    swapchain_create_info.imageFormat = static_cast<VkFormat>(format);
     return *this;
   }
 
@@ -1984,17 +1984,13 @@ public:
   }
 
   SwapchainBuilder& with_usage(ImageUsageFlags required_image_usage) {
-    image_usage_bit = required_image_usage;
+    swapchain_create_info.imageUsage = static_cast<ImageUsageFlags::MaskType>(required_image_usage);
     return *this;
   }
 
-  SwapchainBuilder& add_usage(ImageUsageFlagBits required_image_usage) {
-    image_usage_bit |= required_image_usage;
-    return *this;
-  }
-
-  SwapchainBuilder& add_queue_family_index(std::size_t index) {
-    queue_family_indices.push_back(static_cast<uint32_t>(index));
+  SwapchainBuilder& with_queue_family_indexes(std::span<uint32_t> indexes) {
+    swapchain_create_info.queueFamilyIndexCount = static_cast<uint32_t>(indexes.size());
+    swapchain_create_info.pQueueFamilyIndices = indexes.data();
     return *this;
   }
 
@@ -2004,28 +2000,15 @@ public:
   }
 
   Swapchain build() {
-    if (required_format) {
-      swapchain_create_info.imageFormat = static_cast<VkFormat>(*required_format);
-    }
-
-    swapchain_create_info.imageUsage = static_cast<VkImageUsageFlags>(image_usage_bit);
-
-    swapchain_create_info.queueFamilyIndexCount = static_cast<uint32_t>(queue_family_indices.size());
-    swapchain_create_info.pQueueFamilyIndices = queue_family_indices.data();
 
     VkSwapchainKHR swapchain;
     vkCreateSwapchainKHR(device, &swapchain_create_info, nullptr, &swapchain);
-
     return Swapchain{swapchain, &device};
   }
 
 private:
   Device& device;
   VkSwapchainCreateInfoKHR swapchain_create_info;
-  std::optional<uint32_t> min_image_count{};
-  ImageUsageFlags image_usage_bit = ImageUsageFlagBits::color_attachment_bit;
-  std::vector<uint32_t> queue_family_indices;
-  std::optional<Format> required_format;
 };
 
 class AcquireNextImageInfoKHRBuilder {

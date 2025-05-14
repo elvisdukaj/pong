@@ -213,8 +213,7 @@ private:
       .with_required_format(vkh::Format::B8G8R8A8Srgb)
       .with_present_mode(vkh::PresentMode::fifo)
       .with_image_count(swapchain_image_count)
-      .add_usage(vkh::ImageUsageFlagBits::color_attachment_bit)
-      .add_usage(vkh::ImageUsageFlagBits::transfer_dst_bit)
+      .with_usage(vkh::ImageUsageFlagBits::color_attachment_bit | vkh::ImageUsageFlagBits::transfer_dst_bit)
       .with_old_swapchain(swapchain)
       .build();
     // clang-format on
