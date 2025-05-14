@@ -36,7 +36,8 @@ target_sources(vis_obj
         graphic/vulkan/vulkan_renderer.cpp        
         graphic/vulkan/vkh/type_traits.cpp
         graphic/vulkan/vkh/concepts.cpp
-        graphic/vulkan/vkh/types.cpp
+        graphic/vulkan/vkh/enums.cpp
+        graphic/vulkan/vkh/structures.cpp
         graphic/vulkan/vkh/constants.cpp
         graphic/vulkan/vkh/helper.cpp
         graphic/vulkan/vkh/builders.cpp

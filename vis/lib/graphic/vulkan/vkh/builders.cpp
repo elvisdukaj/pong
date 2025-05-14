@@ -13,7 +13,8 @@ import vis.window;
 
 import :traits;
 import :concepts;
-import :types;
+import :enums;
+import :structures;
 import :constants;
 import :helper;
 

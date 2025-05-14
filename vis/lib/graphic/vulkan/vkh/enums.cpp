@@ -2,7 +2,7 @@ module;
 
 #include <volk.h>
 
-export module vis.graphic.vulkan.vkh:types;
+export module vis.graphic.vulkan.vkh:enums;
 
 import std;
 

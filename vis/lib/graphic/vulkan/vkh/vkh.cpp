@@ -4,5 +4,6 @@ export import :builders;
 export import :concepts;
 export import :constants;
 export import :traits;
-export import :types;
+export import :enums;
+export import :structures;
 import :helper;
