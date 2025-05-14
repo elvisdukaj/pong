@@ -355,6 +355,7 @@ private:
   VkDeviceQueueCreateInfo native;
 };
 
+// TODO: Achtung the pattern here is broken, don't store internal reference or dangling will happen
 class DeviceCreateInfoBuilder {
 public:
   using NativeType = VkDeviceCreateInfo;
@@ -836,21 +837,18 @@ class Device {
 public:
   using NativeHandle = VkDevice;
 
-  explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE} /*, allocator{VK_NULL_HANDLE}, graphic_queue_index{}*/ {}
+  explicit Device(std::nullptr_t) : handle{VK_NULL_HANDLE} {}
 
   Device(const Device& other) = delete;
   Device& operator=(const Device& other) = delete;
 
   Device(Device&& other) noexcept
-      : handle{other.handle} /*, allocator{other.allocator}, graphic_queue_index{other.graphic_queue_index} */ {
+      : handle{other.handle}  {
     other.handle = VK_NULL_HANDLE;
-    // other.allocator = nullptr;
   }
 
   Device& operator=(Device&& other) noexcept {
     std::swap(handle, other.handle);
-    // std::swap(allocator, other.allocator);
-    // std::swap(graphic_queue_index, other.graphic_queue_index);
     return *this;
   }
 
@@ -874,14 +872,11 @@ public:
   }
 
 private:
-  Device(VkDevice device /*, VmaAllocator allocator, std::size_t graphic_queue_index*/)
-      : handle{device} /*, allocator{allocator}, graphic_queue_index{graphic_queue_index*/
-  {}
+  Device(VkDevice device )
+      : handle{device} {}
 
 private:
   NativeHandle handle = VK_NULL_HANDLE;
-  // VmaAllocator allocator = VK_NULL_HANDLE;
-  // std::size_t graphic_queue_index = 0;
 };
 
 class PhysicalDevice {
@@ -1654,16 +1649,12 @@ public:
   }
 
   MemoryBarrierBuilder& with_src_access_mask(AccessFlags src_access_mask) noexcept {
-    auto flags = AccessFlags{mem_barr.srcAccessMask};
-    flags |= src_access_mask;
-    mem_barr.srcAccessMask = static_cast<VkAccessFlags>(flags);
+    mem_barr.srcAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
     return *this;
   }
 
   MemoryBarrierBuilder& with_dst_access_mask(AccessFlags dst_access_mask) noexcept {
-    auto flags = AccessFlags{mem_barr.dstAccessMask};
-    flags |= dst_access_mask;
-    mem_barr.dstAccessMask = static_cast<VkAccessFlags>(flags);
+    mem_barr.dstAccessMask = static_cast<AccessFlags::MaskType>(dst_access_mask);
     return *this;
   }
 
@@ -1730,7 +1721,7 @@ public:
   }
 
   ImageSubresourceRangeBuilder& with_aspect_mask(ImageAspectFlags aspect_mask) {
-    sub_range.aspectMask = static_cast<VkImageAspectFlags>(aspect_mask);
+    sub_range.aspectMask = static_cast<ImageAspectFlags::MaskType>(aspect_mask);
     return *this;
   }
 
@@ -1785,15 +1776,11 @@ public:
   }
 
   ImageMemoryBarrierBuilder& with_src_access_mask(AccessFlags src_access_mask) noexcept {
-    auto flags = AccessFlags{image_memory_barrier.srcAccessMask};
-    flags |= src_access_mask;
     image_memory_barrier.srcAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
     return *this;
   }
 
   ImageMemoryBarrierBuilder& with_dst_access_mask(AccessFlags src_access_mask) noexcept {
-    auto flags = AccessFlags{image_memory_barrier.dstAccessMask};
-    flags |= src_access_mask;
     image_memory_barrier.dstAccessMask = static_cast<AccessFlags::MaskType>(src_access_mask);
     return *this;
   }
@@ -1928,49 +1915,6 @@ public:
       return std::unexpected{Result{res}};
 
     return image_index;
-  }
-
-  // ImageMemoryBarrier barrier_from() const noexcept { ImageMemoryBarrierBuilder{}.};
-  ImageMemoryBarrier barrier_from_present_to_clear(const Image& image, std::size_t src_family_index,
-                                                   std::size_t dst_family_index) const noexcept {
-    // clang-format off
-    return ImageMemoryBarrierBuilder{}
-      .with_src_access_mask(AccessFlagBits::memory_read_bit)
-      .with_dst_access_mask(AccessFlagBits::transfer_write_bit)
-      .with_old_layout(ImageLayout::undefined)
-      .with_new_layout(ImageLayout::transfer_dst_optimal)
-      .with_src_queue_family_index(src_family_index)
-      .with_dst_queue_family_index(dst_family_index)
-      .with_image(image)
-      .with_subresource_range(ImageSubresourceRangeBuilder{}
-        .with_aspect_mask(ImageAspectFlagBits::color_bit)
-        .with_level_count(1)
-        .with_layer_count(1)
-        .build()
-        )
-      .build();
-    // clang-format on
-  }
-
-  ImageMemoryBarrier barrier_from_clear_to_present(const Image& image, std::size_t src_family_index,
-                                                   std::size_t dst_family_index) const noexcept {
-    // clang-format off
-    return ImageMemoryBarrierBuilder{}
-    .with_src_access_mask(AccessFlagBits::transfer_write_bit)
-    .with_dst_access_mask(AccessFlagBits::memory_read_bit)
-    .with_old_layout(ImageLayout::transfer_dst_optimal)
-    .with_new_layout(ImageLayout::present_src_khr)
-    .with_src_queue_family_index(src_family_index)
-    .with_dst_queue_family_index(dst_family_index)
-    .with_image(image)
-    .with_subresource_range(ImageSubresourceRangeBuilder{}
-      .with_aspect_mask(ImageAspectFlagBits::color_bit)
-      .with_level_count(1)
-      .with_layer_count(1)
-      .build()
-      )
-    .build();
-    // clang-format on
   }
 
 private:
