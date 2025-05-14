@@ -81,7 +81,8 @@ public:
   void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
     width = view_width;
     height = view_height;
-    init_swapchain();
+    // init_swapchain();
+    // record_command_buffer();
   }
 
   void set_clear_color([[maybe_unused]] vec4 color) noexcept {
@@ -99,43 +100,38 @@ public:
 
   void draw() const noexcept {
 
-    // std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sem,
-    //              (void*)rendering_finished_sem);
+    std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sem,
+                 (void*)rendering_finished_sem);
 
-    // // clang-format off
-    // auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
-    //                                 .with_semaphore(image_availables_sem)
-    //                                 .build();
-    // // clang-format on
+    // clang-format off
+    [[maybe_unused]] auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
+                                    .with_semaphore(image_availables_sem)
+                                    .build();
+    // clang-format on
 
-    // auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
+    auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
 
-    // if (not swap_chain_image_index) {
-    //   std::println("acquire image didn't succed: {}", static_cast<int>(swap_chain_image_index.error()));
-    //   return;
-    // }
+    std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
+    vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
+    const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
 
-    // std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
-    // vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
-    // const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
+    auto submit_info = vkh::SubmitInfoBuilder{}
+                           .with_semaphore(image_availables_sem)
+                           .with_dst_stage_mask(dst_stage_mask)
+                           .with_command_buffer(cmd_buffer)
+                           .with_signal_semaphore(rendering_finished_sem)
+                           .build();
 
-    // auto submit_info = vkh::SubmitInfoBuilder{}
-    //                        .with_semaphore(image_availables_sem)
-    //                        .with_dst_stage_mask(dst_stage_mask)
-    //                        .with_command_buffer(cmd_buffer)
-    //                        .with_signal_semaphore(rendering_finished_sem)
-    //                        .build();
+    graphic_queue.submit(submit_info);
 
-    // graphic_queue.submit(submit_info);
+    uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
+    auto present_info = vkh::PresentInfoBuilder{}
+                            .with_wait_semaphore(rendering_finished_sem)
+                            .with_image_index(image_index)
+                            .with_swapchain(swapchain)
+                            .build();
 
-    // uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
-    // auto present_info = vkh::PresentInfoBuilder{}
-    //                         .with_wait_semaphore(rendering_finished_sem)
-    //                         .with_image_index(image_index)
-    //                         .with_swapchain(swapchain)
-    //                         .build();
-
-    // present_queue.present(present_info);
+    present_queue.present(present_info);
   }
 
 private:
@@ -154,7 +150,7 @@ private:
                       .add_required_layers(required_layers)
                       .add_required_extensions(required_extensions)
                       .add_required_extensions(required_windows_extensions)
-                      .with_minimum_required_instance_version(0, 1, 2, 0)
+                      .with_minimum_required_instance_version(0, 1, 1, 0)
                       // .with_maximum_required_instance_version(0, 1, 2, 0)
                       .build();
   }

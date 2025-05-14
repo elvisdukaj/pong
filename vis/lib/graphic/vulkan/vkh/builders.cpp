@@ -320,6 +320,7 @@ public:
   DeviceQueueCreateInfoBuilder() noexcept {
     native = VkDeviceQueueCreateInfo{};
     native.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    native.queueCount = 1;
   }
 
   DeviceQueueCreateInfoBuilder& with_next(void* next) {
@@ -1888,6 +1889,10 @@ public:
     return handle;
   }
 
+  const NativeHandle& get_handle() const noexcept {
+    return handle;
+  }
+
   std::size_t get_image_count() const noexcept {
     uint32_t image_count = {};
     vkGetSwapchainImagesKHR(*device, handle, &image_count, nullptr);
@@ -1900,16 +1905,13 @@ public:
 
   std::expected<std::size_t, Result> acquire_image(const AcquireNextImageInfoKHR& acquire_info) const noexcept {
     uint32_t image_index = {};
-    const VkAcquireNextImageInfoKHR& native_info = static_cast<const VkAcquireNextImageInfoKHR&>(acquire_info);
+    // const VkAcquireNextImageInfoKHR& native_info = static_cast<const VkAcquireNextImageInfoKHR&>(acquire_info);
 
-    auto res = vkAcquireNextImageKHR(*device, native_info.swapchain, native_info.timeout, native_info.semaphore,
-                                     native_info.fence, &image_index);
-    //        vkAcquireNextImage2KHR(static_cast<Device::NativeHandle>(*device),
-    //                               static_cast<const AcquireNextImageInfoKHR::NativeType*>(acquire_info),
-    //                               &image_index);
-
-    std::println("acquire_image result: {}", static_cast<int>(res));
-    return true;
+    // auto res = vkAcquireNextImageKHR(*device, native_info.swapchain, native_info.timeout, native_info.semaphore,
+    //                                  native_info.fence, &image_index);
+    auto res =
+        vkAcquireNextImage2KHR(static_cast<Device::NativeHandle>(*device),
+                               static_cast<const AcquireNextImageInfoKHR::NativeType*>(acquire_info), &image_index);
 
     if (res != VK_SUCCESS)
       return std::unexpected{Result{res}};
@@ -2125,7 +2127,6 @@ public:
 
 private:
   VkCommandPoolCreateInfo command_pool_create_info;
-  CommandPoolCreateFlags flags;
   Device& device;
 };
 
@@ -2168,9 +2169,7 @@ public:
     return *this;
   }
 
-  CommandBufferBeginInfoBuilder& with_flags(CommandBufferUsageFlags required_flags) noexcept {
-    auto flags = CommandBufferUsageFlags{native_type.flags};
-    flags |= required_flags;
+  CommandBufferBeginInfoBuilder& with_flags(CommandBufferUsageFlags flags) noexcept {
     native_type.flags = static_cast<VkCommandBufferUsageFlags>(flags);
     return *this;
   }
@@ -2286,10 +2285,8 @@ public:
   }
 
 private:
-  CommandBuffers(Device* device, CommandPool* command_pool, std::span<VkCommandBuffer> created_command_buffers)
-      : device{device}, command_pool{command_pool} {
-    command_buffers.insert(end(command_buffers), begin(created_command_buffers), end(created_command_buffers));
-  }
+  CommandBuffers(Device* device, CommandPool* command_pool, std::vector<VkCommandBuffer>&& command_buffers)
+      : device{device}, command_pool{command_pool}, command_buffers{std::move(command_buffers)} {}
 
 private:
   Device* device = nullptr;
@@ -2360,7 +2357,7 @@ public:
 
   PresentInfoBuilder& with_swapchain(const Swapchain& swapchain) noexcept {
     native.swapchainCount = 1;
-    native.pSwapchains = reinterpret_cast<const Swapchain::NativeHandle*>(&swapchain);
+    native.pSwapchains = &(swapchain.get_handle());
     return *this;
   }
 
@@ -2409,7 +2406,7 @@ public:
   CommandBuffers build() const noexcept {
     std::vector<VkCommandBuffer> command_buffer(command_buffer_allocate_info.commandBufferCount, VK_NULL_HANDLE);
     vkAllocateCommandBuffers(device, &command_buffer_allocate_info, command_buffer.data());
-    return CommandBuffers{&device, &command_pool, command_buffer};
+    return CommandBuffers{&device, &command_pool, std::move(command_buffer)};
   }
 
 private:
