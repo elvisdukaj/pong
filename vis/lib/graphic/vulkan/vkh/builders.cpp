@@ -317,44 +317,42 @@ class DeviceQueueCreateInfoBuilder {
 public:
   using NativeType = VkDeviceQueueCreateInfo;
 
-  DeviceQueueCreateInfoBuilder& with_next(void* required_next) {
-    next = required_next;
+  DeviceQueueCreateInfoBuilder() noexcept {
+    native = VkDeviceQueueCreateInfo{};
+    native.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  }
+
+  DeviceQueueCreateInfoBuilder& with_next(void* next) {
+    native.pNext = next;
     return *this;
   }
 
-  DeviceQueueCreateInfoBuilder& with_family_index(std::size_t index) {
-    family_index = static_cast<uint32_t>(index);
+  DeviceQueueCreateInfoBuilder& with_flags(DeviceQueueCreateFlags flags) {
+    native.flags = static_cast<DeviceQueueCreateFlags::MaskType>(flags);
+    return *this;
+  }
+
+  DeviceQueueCreateInfoBuilder& with_family_index(std::size_t family_index) {
+    native.queueFamilyIndex = static_cast<uint32_t>(family_index);
     return *this;
   }
 
   DeviceQueueCreateInfoBuilder& with_queue_counts(std::size_t count) {
-    priorities.clear();
-    std::fill_n(std::back_inserter(priorities), count, 1.0f);
+    native.queueCount = static_cast<uint32_t>(count);
     return *this;
   }
 
-  DeviceQueueCreateInfoBuilder& with_queue_counts(std::span<float> priorities_hint) {
-    priorities.insert(priorities.end(), begin(priorities_hint), end(priorities_hint));
+  DeviceQueueCreateInfoBuilder& with_queue_priorities(std::span<float> priorities) {
+    native.pQueuePriorities = priorities.data();
     return *this;
   }
 
   NativeType build() const noexcept {
-    // clang-format off
-    return VkDeviceQueueCreateInfo {
-      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .pNext = next,
-      .flags = {},
-      .queueFamilyIndex = family_index,
-      .queueCount = static_cast<uint32_t>(priorities.size()),
-      .pQueuePriorities = priorities.data(),
-    };
-    // clang-format on
+    return native;
   }
 
 private:
-  void* next = nullptr;
-  uint32_t family_index{};
-  std::vector<float> priorities{1.0f};
+  VkDeviceQueueCreateInfo native;
 };
 
 class DeviceCreateInfoBuilder {

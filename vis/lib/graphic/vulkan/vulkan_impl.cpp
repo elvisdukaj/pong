@@ -99,43 +99,43 @@ public:
 
   void draw() const noexcept {
 
-    std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sem,
-                 (void*)rendering_finished_sem);
+    // std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sem,
+    //              (void*)rendering_finished_sem);
 
-    // clang-format off
-    auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
-                                    .with_semaphore(image_availables_sem)
-                                    .build();
-    // clang-format on
+    // // clang-format off
+    // auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
+    //                                 .with_semaphore(image_availables_sem)
+    //                                 .build();
+    // // clang-format on
 
-    auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
+    // auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
 
-    if (not swap_chain_image_index) {
-      std::println("acquire image didn't succed: {}", static_cast<int>(swap_chain_image_index.error()));
-      return;
-    }
+    // if (not swap_chain_image_index) {
+    //   std::println("acquire image didn't succed: {}", static_cast<int>(swap_chain_image_index.error()));
+    //   return;
+    // }
 
-    std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
-    vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
-    const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
+    // std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
+    // vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
+    // const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
 
-    auto submit_info = vkh::SubmitInfoBuilder{}
-                           .with_semaphore(image_availables_sem)
-                           .with_dst_stage_mask(dst_stage_mask)
-                           .with_command_buffer(cmd_buffer)
-                           .with_signal_semaphore(rendering_finished_sem)
-                           .build();
+    // auto submit_info = vkh::SubmitInfoBuilder{}
+    //                        .with_semaphore(image_availables_sem)
+    //                        .with_dst_stage_mask(dst_stage_mask)
+    //                        .with_command_buffer(cmd_buffer)
+    //                        .with_signal_semaphore(rendering_finished_sem)
+    //                        .build();
 
-    graphic_queue.submit(submit_info);
+    // graphic_queue.submit(submit_info);
 
-    uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
-    auto present_info = vkh::PresentInfoBuilder{}
-                            .with_wait_semaphore(rendering_finished_sem)
-                            .with_image_index(image_index)
-                            .with_swapchain(swapchain)
-                            .build();
+    // uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
+    // auto present_info = vkh::PresentInfoBuilder{}
+    //                         .with_wait_semaphore(rendering_finished_sem)
+    //                         .with_image_index(image_index)
+    //                         .with_swapchain(swapchain)
+    //                         .build();
 
-    present_queue.present(present_info);
+    // present_queue.present(present_info);
   }
 
 private:
@@ -185,11 +185,14 @@ private:
     std::println("selected device: {}", selected_physical_device_it->device_name());
 
     // clang-format off
-    auto present_queue_info_builder = vkh::DeviceQueueCreateInfoBuilder{}
-          .with_family_index(present_queue_family_index);
+    float queue_priorities[] = {1.0f};
+    auto present_queue_info = vkh::DeviceQueueCreateInfoBuilder{}
+          .with_family_index(present_queue_family_index)
+          .with_queue_priorities(queue_priorities)
+          .build();
 
     device = physical_device_selector
-		      .with_queue(present_queue_info_builder.build())
+		      .with_queue(present_queue_info)
 		      .create_device(*selected_physical_device_it);
     // clang-format on
 

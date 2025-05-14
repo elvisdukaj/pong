@@ -751,4 +751,14 @@ template <> struct FlagTraits<CommandBufferUsageFlagBits> {
 
 using CommandBufferUsageFlags = Flags<CommandBufferUsageFlagBits>;
 
+enum class DeviceQueueCreateFlagBits : VkDeviceQueueCreateFlags {
+  protected_bit = VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT,
+};
+
+template <> struct FlagTraits<DeviceQueueCreateFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using DeviceQueueCreateFlags = Flags<DeviceQueueCreateFlagBits>;
+
 } // namespace vkh
