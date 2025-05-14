@@ -716,33 +716,10 @@ public:
   }
 
 private:
-  explicit SubmitInfo(const NativeType& native, std::vector<VkSemaphore>&& required_wait_semaphores,
-                      std::vector<VkPipelineStageFlags>&& required_pipeline_flags,
-                      std::vector<VkCommandBuffer>&& required_command_buffers,
-                      std::vector<VkSemaphore>&& required_signal_semaphores)
-      : native_type{native},
-        wait_semaphores{std::move(required_wait_semaphores)},
-        pipeline_flags{std::move(required_pipeline_flags)},
-        command_buffers{std::move(required_command_buffers)},
-        signal_semaphores{std::move(required_signal_semaphores)} {
-    std::println("Creating SubmitInfo: \n"
-                 "wait_semaphores : {}\n"
-                 "wait_semaphores[0] : {}\n"
-                 "pipeline_flags[0] : {}\n"
-                 "command_buffers : {}\n"
-                 "command_buffers[0] : {}\n"
-                 "signal_semaphores : {}\n"
-                 "signal_semaphores[0] : {} ",
-                 wait_semaphores.size(), (void*)wait_semaphores[0], pipeline_flags[0], command_buffers.size(),
-                 (void*)command_buffers[0], signal_semaphores.size(), (void*)signal_semaphores[0]);
-  }
+  explicit SubmitInfo(const NativeType& native) : native_type{native} {}
 
 private:
   NativeType native_type;
-  std::vector<VkSemaphore> wait_semaphores;
-  std::vector<VkPipelineStageFlags> pipeline_flags;
-  std::vector<VkCommandBuffer> command_buffers;
-  std::vector<VkSemaphore> signal_semaphores;
 };
 
 class PresentInfo {
@@ -760,21 +737,10 @@ public:
   }
 
 private:
-  explicit PresentInfo(const NativeType& native, std::vector<VkSemaphore>&& wait_semaphores,
-                       std::vector<VkSwapchainKHR>&& swapchains, std::vector<std::uint32_t>&& image_indexes,
-                       std::vector<VkResult>&& results)
-      : native_type{native},
-        wait_semaphores{std::move(wait_semaphores)},
-        swapchains{std::move(swapchains)},
-        image_indexes{std::move(image_indexes)},
-        results{std::move(results)} {}
+  explicit PresentInfo(const NativeType& native) : native_type{native} {}
 
 private:
   NativeType native_type;
-  std::vector<VkSemaphore> wait_semaphores;
-  std::vector<VkSwapchainKHR> swapchains;
-  std::vector<std::uint32_t> image_indexes;
-  std::vector<VkResult> results;
 };
 
 class Queue {
@@ -2417,103 +2383,72 @@ public:
     return *this;
   }
 
-  SubmitInfoBuilder& add_wait_semaphore(const Semaphore& semaphore) noexcept {
-    wait_semaphores.push_back(semaphore);
+  SubmitInfoBuilder& with_semaphore(const Semaphore& semaphore) noexcept {
+    native.waitSemaphoreCount = 1;
+    native.pWaitSemaphores = reinterpret_cast<const Semaphore::NativeHandle*>(&semaphore);
     return *this;
   }
 
-  SubmitInfoBuilder& add_pipeline_flags(PipelineStageFlags flags) noexcept {
-    pipeline_flags.push_back(static_cast<PipelineStageFlags::MaskType>(flags));
+  SubmitInfoBuilder& with_dst_stage_mask(PipelineStageFlags& flags) noexcept {
+    native.pWaitDstStageMask = reinterpret_cast<PipelineStageFlags::MaskType*>(&flags);
     return *this;
   }
 
-  SubmitInfoBuilder& add_command_buffer(const CommandBuffer& command_buffer) noexcept {
-    command_buffers.push_back(command_buffer);
+  SubmitInfoBuilder& with_command_buffer(const CommandBuffer& command_buffer) noexcept {
+    native.commandBufferCount = 1;
+    native.pCommandBuffers = reinterpret_cast<const CommandBuffer::NativeHandle*>(&command_buffer);
     return *this;
   }
 
-  SubmitInfoBuilder& add_signal_semaphore(const Semaphore& semaphore) noexcept {
-    signal_semaphores.push_back(semaphore);
+  SubmitInfoBuilder& with_signal_semaphore(const Semaphore& semaphore) noexcept {
+    native.signalSemaphoreCount = 1;
+    native.pSignalSemaphores = reinterpret_cast<const Semaphore::NativeHandle*>(&semaphore);
     return *this;
   }
 
   SubmitInfo build() noexcept {
-    std::println(R"(building SubmitInfo
-      wait_semaphores.count: {}
-      wait_semaphores[0]: {}
-      pipeline_flags[0]: {}
-      command_buffers.count: {}
-      command_buffers[0]: {}
-      signal_semaphores.count: {}
-      signal_semaphores[0]: {}      
-      )",
-                 wait_semaphores.size(), (void*)wait_semaphores[0], pipeline_flags[0], command_buffers.size(),
-                 (void*)command_buffers[0], signal_semaphores.size(), (void*)signal_semaphores[0]);
-
-    native.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
-    native.pWaitSemaphores = wait_semaphores.data();
-    native.pWaitDstStageMask = pipeline_flags.data();
-    native.commandBufferCount = static_cast<uint32_t>(command_buffers.size());
-    native.pCommandBuffers = command_buffers.data();
-    native.signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size());
-    native.pSignalSemaphores = signal_semaphores.data();
-
-    return SubmitInfo(native, std::move(wait_semaphores), std::move(pipeline_flags), std::move(command_buffers),
-                      std::move(signal_semaphores));
+    return SubmitInfo(native);
   }
 
 private:
   VkSubmitInfo native;
-  std::vector<Semaphore::NativeHandle> wait_semaphores;
-  std::vector<PipelineStageFlags::MaskType> pipeline_flags;
-  std::vector<CommandBuffer::NativeHandle> command_buffers;
-  std::vector<Semaphore::NativeHandle> signal_semaphores;
 };
 
 class PresentInfoBuilder {
 public:
-  PresentInfoBuilder& with_next() noexcept {
-    next = nullptr;
+  PresentInfoBuilder() {
+    native = VkPresentInfoKHR{};
+    native.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  }
+
+  PresentInfoBuilder& with_next(void* next) noexcept {
+    native.pNext = next;
     return *this;
   }
 
-  PresentInfoBuilder& add_wait_semaphore(const Semaphore& semaphore) noexcept {
-    wait_semaphores.push_back(semaphore);
+  PresentInfoBuilder& with_wait_semaphore(const Semaphore& semaphore) noexcept {
+    native.waitSemaphoreCount = 1;
+    native.pWaitSemaphores = reinterpret_cast<const Semaphore::NativeHandle*>(&semaphore);
     return *this;
   }
 
-  PresentInfoBuilder& add_swapchain(const Swapchain& swapchain) noexcept {
-    swapchains.push_back(swapchain);
+  PresentInfoBuilder& with_swapchain(const Swapchain& swapchain) noexcept {
+    native.swapchainCount = 1;
+    native.pSwapchains = reinterpret_cast<const Swapchain::NativeHandle*>(&swapchain);
     return *this;
   }
 
-  PresentInfoBuilder& add_image_index(std::size_t index) noexcept {
-    image_indexes.push_back(static_cast<uint32_t>(index));
+  PresentInfoBuilder& with_image_index(uint32_t& index) noexcept {
+    native.pImageIndices = &index;
     return *this;
   }
 
   PresentInfo build() noexcept {
-    auto native_type = VkPresentInfoKHR{
-        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext = next,
-        .waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
-        .pWaitSemaphores = wait_semaphores.data(),
-        .swapchainCount = static_cast<uint32_t>(swapchains.size()),
-        .pSwapchains = swapchains.data(),
-        .pImageIndices = image_indexes.data(), // TODO: static_cast<uint32_t>(native_signal_semaphores.size()),
-        .pResults = results.data(),            // TODO: native_signal_semaphores.data(),
-    };
-
-    return PresentInfo(native_type, std::move(wait_semaphores), std::move(swapchains), std::move(image_indexes),
-                       std::move(results));
+    return PresentInfo(native);
   }
 
 private:
-  void* next = nullptr;
-  std::vector<Semaphore::NativeHandle> wait_semaphores;
-  std::vector<Swapchain::NativeHandle> swapchains;
-  std::vector<std::uint32_t> image_indexes;
-  std::vector<VkResult> results;
+  VkPresentInfoKHR native;
 };
 
 class CommandBuffersBuilder {

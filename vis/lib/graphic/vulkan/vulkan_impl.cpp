@@ -116,31 +116,23 @@ public:
     }
 
     std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
-
-    // std::vector<vkh::SubmitInfo> submits_info = std::vector<vkh::SubmitInfo>{
-    //     vkh::SubmitInfoBuilder{}
-    //         .add_wait_semaphore(image_availables_sem)
-    //         .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
-    //         .add_command_buffer(command_buffers[*swap_chain_image_index])
-    //         .add_signal_semaphore(rendering_finished_sem)
-    //         .build(),
-    // };
+    vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
+    const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
 
     auto submit_info = vkh::SubmitInfoBuilder{}
-                           .add_wait_semaphore(image_availables_sem)
-                           .add_pipeline_flags(vkh::PipelineStageFlagBits::transfer_bit)
-                           .add_command_buffer(command_buffers[*swap_chain_image_index])
-                           .add_signal_semaphore(rendering_finished_sem)
+                           .with_semaphore(image_availables_sem)
+                           .with_dst_stage_mask(dst_stage_mask)
+                           .with_command_buffer(cmd_buffer)
+                           .with_signal_semaphore(rendering_finished_sem)
                            .build();
-
-    // std::print("I have {} submits_info", submits_info.size());
 
     graphic_queue.submit(submit_info);
 
+    uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
     auto present_info = vkh::PresentInfoBuilder{}
-                            .add_wait_semaphore(rendering_finished_sem)
-                            .add_image_index(*swap_chain_image_index)
-                            .add_swapchain(swapchain)
+                            .with_wait_semaphore(rendering_finished_sem)
+                            .with_image_index(image_index)
+                            .with_swapchain(swapchain)
                             .build();
 
     present_queue.present(present_info);
