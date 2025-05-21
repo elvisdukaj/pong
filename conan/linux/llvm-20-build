@@ -13,3 +13,6 @@ os=Linux
 CC=/usr/bin/clang-20
 CXX=/usr/bin/clang++-20
 
+[conf]
+tools.cmake.cmaketoolchain:extra_variables*={"LINUX_LLVM_LIBCPP": "/usr/lib/llvm-20/share/libc++/v1"}
+
