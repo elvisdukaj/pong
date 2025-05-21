@@ -105,14 +105,9 @@ public:
   }
 
   void draw() noexcept {
-    std::println("frame: {}", frame_index);
-
     // wait for the submit queue to finish for the nth frame
     in_flight_fences[frame_index].wait();
     in_flight_fences[frame_index].reset();
-
-    // std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sems[frame_index],
-    //              (void*)rendering_finished_sems[frame_index]);
 
     // clang-format off
     [[maybe_unused]] auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
@@ -127,7 +122,6 @@ public:
       return;
     }
 
-    std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
     vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
     const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
 
@@ -150,7 +144,6 @@ public:
     present_queue.present(present_info);
 
     frame_index = (frame_index + 1) % swapchain_image_count;
-    std::println("next frame!");
   }
 
 private:
