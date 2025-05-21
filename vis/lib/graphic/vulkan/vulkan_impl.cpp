@@ -105,7 +105,6 @@ public:
   }
 
   void draw() noexcept {
-    // wait for the submit queue to finish for the nth frame
     in_flight_fences[frame_index].wait();
     in_flight_fences[frame_index].reset();
 
@@ -142,8 +141,11 @@ public:
                             .build();
 
     present_queue.present(present_info);
+    increment_frame_index();
+  }
 
-    frame_index = (frame_index + 1) % swapchain_image_count;
+  void increment_frame_index() {
+    frame_index = frame_index + 1 - (frame_index + 1 >= swapchain_image_count) * swapchain_image_count;
   }
 
 private:
@@ -210,8 +212,7 @@ private:
     auto surface_caps = selected_physical_device_it->get_surface_capabilities();
     width = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.width);
     height = static_cast<int>(surface_caps.surfaceCapabilities.currentExtent.height);
-    swapchain_image_count =
-        3; // std::min(static_cast<std::size_t>(surface_caps.surfaceCapabilities.maxImageCount), 3uz);
+    swapchain_image_count = 3;
   }
 
   void init_swapchain() {
@@ -332,7 +333,7 @@ private:
   int width = 800;
   int height = 600;
   std::size_t present_queue_family_index = 0;
-  std::size_t swapchain_image_count = 0;
+  std::size_t swapchain_image_count = 0; // must be a power of two!
 };
 
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}
