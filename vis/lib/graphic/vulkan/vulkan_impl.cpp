@@ -74,6 +74,10 @@ public:
     record_command_buffer();
   }
 
+  ~Impl() {
+    device.wait_for_idle();
+  }
+
   std::string show_info() const noexcept {
     return {};
   }
@@ -81,8 +85,10 @@ public:
   void set_viewport([[maybe_unused]] int x, [[maybe_unused]] int y, int view_width, int view_height) noexcept {
     width = view_width;
     height = view_height;
-    // init_swapchain();
-    // record_command_buffer();
+    init_swapchain();
+    init_semaphores();
+    record_command_buffer();
+    frame_index = 0;
   }
 
   void set_clear_color([[maybe_unused]] vec4 color) noexcept {
@@ -98,40 +104,53 @@ public:
     }
   }
 
-  void draw() const noexcept {
+  void draw() noexcept {
+    std::println("frame: {}", frame_index);
 
-    std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sem,
-                 (void*)rendering_finished_sem);
+    // wait for the submit queue to finish for the nth frame
+    in_flight_fences[frame_index].wait();
+    in_flight_fences[frame_index].reset();
+
+    // std::println("image_availables_sem: {}, rendering_finished_sem: {}", (void*)image_availables_sems[frame_index],
+    //              (void*)rendering_finished_sems[frame_index]);
 
     // clang-format off
     [[maybe_unused]] auto acquire_info = vkh::AcquireNextImageInfoKHRBuilder{swapchain}
-                                    .with_semaphore(image_availables_sem)
+                                    .with_semaphore(image_availables_sems[frame_index])
                                     .build();
     // clang-format on
 
     auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
+
+    if (not swap_chain_image_index.has_value()) {
+      set_viewport(0, 0, width, height);
+      return;
+    }
 
     std::println("\n\n\n\nAcquired frame {} !!!!", *swap_chain_image_index);
     vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
     const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
 
     auto submit_info = vkh::SubmitInfoBuilder{}
-                           .with_semaphore(image_availables_sem)
+                           .with_wait_semaphore(image_availables_sems[frame_index])
                            .with_dst_stage_mask(dst_stage_mask)
                            .with_command_buffer(cmd_buffer)
-                           .with_signal_semaphore(rendering_finished_sem)
+                           .with_signal_semaphore(rendering_finished_sems[frame_index])
                            .build();
 
-    graphic_queue.submit(submit_info);
+    graphic_queue.submit(submit_info, in_flight_fences[frame_index]);
 
     uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
     auto present_info = vkh::PresentInfoBuilder{}
-                            .with_wait_semaphore(rendering_finished_sem)
+                            .with_wait_semaphore(rendering_finished_sems[frame_index])
                             .with_image_index(image_index)
                             .with_swapchain(swapchain)
                             .build();
 
     present_queue.present(present_info);
+
+    frame_index = (frame_index + 1) % swapchain_image_count;
+    std::println("next frame!");
   }
 
 private:
@@ -231,8 +250,16 @@ private:
   }
 
   void init_semaphores() {
-    image_availables_sem = vkh::SemaphoreBuilder{device}.build();
-    rendering_finished_sem = vkh::SemaphoreBuilder{device}.build();
+    image_availables_sems.clear();
+    rendering_finished_sems.clear();
+    in_flight_fences.clear();
+
+    for (auto i = 0uz; i < swapchain_image_count; ++i) {
+      image_availables_sems.emplace_back(vkh::SemaphoreBuilder{device}.build());
+      rendering_finished_sems.emplace_back(vkh::SemaphoreBuilder{device}.build());
+      in_flight_fences.emplace_back(
+          vkh::FenceBuilder{device}.with_flags(vkh::FenceCreateFlagBits::signaled_bit).build());
+    }
   }
 
   void record_command_buffer() const {
@@ -303,8 +330,10 @@ private:
   vkh::Swapchain swapchain{nullptr};
   vkh::CommandPool command_pool{nullptr};
   vkh::CommandBuffers command_buffers{};
-  vkh::Semaphore image_availables_sem{nullptr};
-  vkh::Semaphore rendering_finished_sem{nullptr};
+  std::vector<vkh::Semaphore> image_availables_sems;
+  std::vector<vkh::Semaphore> rendering_finished_sems;
+  std::vector<vkh::Fence> in_flight_fences;
+  std::size_t frame_index = 0;
 
   vis::vec4 clear_color{1.0f, 0.0f, 0.0f, 1.0f};
   int width = 800;

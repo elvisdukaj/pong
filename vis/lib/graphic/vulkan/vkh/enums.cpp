@@ -676,7 +676,7 @@ template <> struct FlagTraits<ImageAspectFlagBits> {
 using ImageAspectFlags = Flags<ImageAspectFlagBits>;
 
 enum class FenceCreateFlagBits : VkFenceCreateFlags {
-  signaled = VK_FENCE_CREATE_SIGNALED_BIT,
+  signaled_bit = VK_FENCE_CREATE_SIGNALED_BIT,
 };
 
 template <> struct FlagTraits<FenceCreateFlagBits> {

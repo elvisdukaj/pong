@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <volk.h>
 
+#include "ecs/entity/handle.hpp"
 #include "vk_enum_string_helper.h"
 
 export module vis.graphic.vulkan.vkh:builders;
@@ -21,6 +22,12 @@ import :helper;
 using namespace std::chrono_literals;
 
 export namespace vkh {
+
+class PhysicalDevice;
+class Device;
+class Queue;
+class Semaphore;
+class Fence;
 
 class ApplicationInfoBuilder {
 public:
@@ -744,6 +751,39 @@ private:
   NativeType native_type;
 };
 
+class Fence {
+  friend class FenceBuilder;
+
+public:
+  using NativeHandle = VkFence;
+
+  Fence(std::nullptr_t) noexcept;
+
+  Fence(const Fence&) = delete;
+  Fence& operator=(const Fence&) = delete;
+
+  Fence(Fence&& other) noexcept;
+
+  Fence& operator=(Fence&& other) noexcept;
+
+  ~Fence();
+
+  operator NativeHandle() const noexcept {
+    return handle;
+  }
+
+  void wait_for(std::chrono::nanoseconds timeout) const noexcept;
+  void wait() const noexcept;
+  void reset() const noexcept;
+
+private:
+  Fence(NativeHandle handle, Device* device);
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+  Device* device = nullptr;
+};
+
 class Queue {
   friend class Device;
 
@@ -756,7 +796,7 @@ public:
     return handle;
   }
 
-  bool submit(const std::vector<SubmitInfo>& submits_info /*, TODO: std::optional<Fence> fence = {}*/) const noexcept {
+  bool submit(const SubmitInfo& submit_info, const Fence& fence) const noexcept {
     // clang-format off
     // auto native_infos = submits_info
     //                       | std::views::transform([](const SubmitInfo& si) -> SubmitInfo::NativeType { return static_cast<SubmitInfo::NativeType>(si); })
@@ -764,25 +804,25 @@ public:
     // clang-format on
 
     // clang-format off
-    const SubmitInfo::NativeType& native = static_cast<const SubmitInfo::NativeType&>(submits_info[0]);
-    std::println(R"(
-      submits_info count: {},
-      submits_info[0].semmaphore count = {}
-      submits_info[0].semmaphore[0] = {}
-      submits_info[0].pipeline_flags[0]: {}
-      submits_info[0].commands: {}      
-      submits_info[0].signal semaphore counts: {},
-      submits_info[0].signal semaphore[0] = {}
-      )",
-      submits_info.size(),
-      native.waitSemaphoreCount, (void*)native.pWaitSemaphores[0],
-      native.pWaitDstStageMask[0],
-      native.commandBufferCount,
-      native.signalSemaphoreCount, (void*)native.pSignalSemaphores[0]
-    );
+    // const SubmitInfo::NativeType& native = static_cast<const SubmitInfo::NativeType&>(submits_info[0]);
+    // std::println(R"(
+    //   submits_info count: {},
+    //   submits_info[0].semmaphore count = {}
+    //   submits_info[0].semmaphore[0] = {}
+    //   submits_info[0].pipeline_flags[0]: {}
+    //   submits_info[0].commands: {}
+    //   submits_info[0].signal semaphore counts: {},
+    //   submits_info[0].signal semaphore[0] = {}
+    //   )",
+    //   submits_info.size(),
+    //   native.waitSemaphoreCount, (void*)native.pWaitSemaphores[0],
+    //   native.pWaitDstStageMask[0],
+    //   native.commandBufferCount,
+    //   native.signalSemaphoreCount, (void*)native.pSignalSemaphores[0]
+    // );
 
-    auto res = vkQueueSubmit(handle, static_cast<uint32_t>(submits_info.size()),
-                             reinterpret_cast<const SubmitInfo::NativeType*>(submits_info.data()), VK_NULL_HANDLE);
+    auto res = vkQueueSubmit(handle, static_cast<uint32_t>(1),
+                             static_cast<const SubmitInfo::NativeType*>(submit_info), static_cast<Fence::NativeHandle>(fence));
     std::println("submit result: {}", static_cast<int>(res));
     return true;
   }
@@ -857,7 +897,7 @@ public:
     if (handle == VK_NULL_HANDLE)
       return;
 
-    vkDeviceWaitIdle(handle);
+    wait_for_idle();
     vkDestroyDevice(handle, nullptr);
   }
 
@@ -870,6 +910,10 @@ public:
     VkQueue queue{};
     vkGetDeviceQueue(handle, static_cast<uint32_t>(family_index), static_cast<uint32_t>(queue_index), &queue);
     return Queue{queue};
+  }
+
+  void wait_for_idle() const noexcept {
+    vkDeviceWaitIdle(handle);
   }
 
 private:
@@ -1492,53 +1536,46 @@ private:
   VkSemaphoreCreateInfo semaphore_create_info;
 };
 
-class Fence {
-  friend class FenceBuilder;
+Fence::Fence(std::nullptr_t) noexcept : handle{VK_NULL_HANDLE}, device{nullptr} {}
 
-public:
-  using NativeHandle = VkFence;
+Fence::Fence(Fence&& other) noexcept : handle{other.handle}, device{other.device} {
+  other.handle = VK_NULL_HANDLE;
+  other.device = nullptr;
+}
 
-  Fence(std::nullptr_t) noexcept : handle{VK_NULL_HANDLE}, device{nullptr} {}
+Fence& Fence::operator=(Fence&& other) noexcept {
+  std::swap(handle, other.handle);
+  std::swap(device, other.device);
+  return *this;
+}
 
-  Fence(const Fence&) = delete;
-  Fence& operator=(const Fence&) = delete;
+Fence::~Fence() {
+  if (handle == VK_NULL_HANDLE)
+    return;
 
-  Fence(Fence&& other) noexcept : handle{other.handle}, device{other.device} {
-    other.handle = VK_NULL_HANDLE;
-    other.device = nullptr;
-  }
+  vkDestroyFence(*device, handle, nullptr);
+}
 
-  Fence& operator=(Fence&& other) noexcept {
-    std::swap(handle, other.handle);
-    std::swap(device, other.device);
-    return *this;
-  }
+void Fence::wait_for(std::chrono::nanoseconds timeout) const noexcept {
+  vkWaitForFences(*device, 1, &handle, VK_TRUE, static_cast<uint64_t>(timeout.count()));
+}
 
-  ~Fence() {
-    if (handle == VK_NULL_HANDLE)
-      return;
+void Fence::wait() const noexcept {
+  vkWaitForFences(*device, 1, &handle, VK_TRUE, std::numeric_limits<uint64_t>::max());
+}
 
-    vkDestroyFence(*device, handle, nullptr);
-  }
+Fence::Fence(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
 
-  operator NativeHandle() const noexcept {
-    return handle;
-  }
-
-private:
-  Fence(NativeHandle handle, Device* device) : handle{handle}, device{device} {}
-
-private:
-  NativeHandle handle = VK_NULL_HANDLE;
-  Device* device = nullptr;
-};
+void Fence::reset() const noexcept {
+  vkResetFences(*device, 1, &handle);
+}
 
 class FenceBuilder {
 public:
   explicit FenceBuilder(Device& device) : device{device} {
     // clang-format off
     fence_create_info = VkFenceCreateInfo{
-      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
       .pNext = nullptr,
       .flags = {},
     };
@@ -2019,6 +2056,8 @@ public:
     native = VkAcquireNextImageInfoKHR{};
     native.sType = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR;
     native.swapchain = static_cast<Swapchain::NativeHandle>(swapchain);
+    native.timeout = std::numeric_limits<uint64_t>::max();
+    native.deviceMask = 1;
   }
 
   AcquireNextImageInfoKHRBuilder& with_next(void* next) noexcept {
@@ -2306,7 +2345,7 @@ public:
     return *this;
   }
 
-  SubmitInfoBuilder& with_semaphore(const Semaphore& semaphore) noexcept {
+  SubmitInfoBuilder& with_wait_semaphore(const Semaphore& semaphore) noexcept {
     native.waitSemaphoreCount = 1;
     native.pWaitSemaphores = reinterpret_cast<const Semaphore::NativeHandle*>(&semaphore);
     return *this;
