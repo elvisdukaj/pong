@@ -152,9 +152,12 @@ public:
 private:
   void init_instance() noexcept {
     auto required_flags = helper::get_required_instance_flags();
-    auto required_extensions = helper::get_required_extensions();
-    auto required_layers = helper::get_required_layers();
+    required_layers = helper::get_required_layers();
+    required_extensions = helper::get_required_extensions();
     auto required_windows_extensions = window->get_required_renderer_extension();
+
+    required_extensions.insert(end(required_extensions), begin(required_windows_extensions),
+                               end(required_windows_extensions));
 
     vk_instance = vkh::InstanceBuilder{vk_context}
                       .with_app_name("Pong")
@@ -162,11 +165,9 @@ private:
                       .with_engine_name("vis")
                       .with_engine_version(0, 1, 1)
                       .with_app_flags(required_flags)
-                      .add_required_layers(required_layers)
-                      .add_required_extensions(required_extensions)
-                      .add_required_extensions(required_windows_extensions)
+                      .with_required_layers(required_layers)
+                      .with_required_extensions(required_extensions)
                       .with_minimum_required_instance_version(0, 1, 1, 0)
-                      // .with_maximum_required_instance_version(0, 1, 2, 0)
                       .build();
   }
 
@@ -313,6 +314,9 @@ private:
   }
 
 private:
+  std::vector<const char*> required_layers;
+  std::vector<const char*> required_extensions;
+
   Window* window = nullptr;
   vkh::Context vk_context;
   vkh::Instance vk_instance{nullptr};

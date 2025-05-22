@@ -91,7 +91,7 @@ public:
     return *this;
   }
 
-  [[nodiscard]] VkApplicationInfo create() const noexcept {
+  [[nodiscard]] VkApplicationInfo build() const noexcept {
     return VkApplicationInfo{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = next,
@@ -113,77 +113,51 @@ private:
 };
 
 struct InstanceCreateInfoBuilder {
-  VkInstanceCreateInfo create() {
+  InstanceCreateInfoBuilder() noexcept {
+    native_type = VkInstanceCreateInfo{};
+    native_type.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  }
 
-    std::ranges::sort(enabled_layer_names);
-    auto [first_layer, last_layer] = std::ranges::unique(enabled_layer_names);
-    enabled_layer_names.erase(first_layer, last_layer);
-
-    std::ranges::sort(enabled_extension_names);
-    auto [first_ext, last_ext] = std::ranges::unique(enabled_extension_names);
-    enabled_extension_names.erase(first_ext, last_ext);
-
-    return VkInstanceCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pNext = next,
-        .flags = static_cast<VkInstanceCreateFlags>(flags),
-        .pApplicationInfo = application_info,
-        .enabledLayerCount = static_cast<uint32_t>(enabled_layer_names.size()),
-        .ppEnabledLayerNames = enabled_layer_names.data(),
-        .enabledExtensionCount = static_cast<uint32_t>(enabled_extension_names.size()),
-        .ppEnabledExtensionNames = enabled_extension_names.data(),
-    };
+  [[nodiscard]] VkInstanceCreateInfo build() const noexcept {
+    return native_type;
   }
 
   InstanceCreateInfoBuilder& with_next(const void* requested_next) noexcept {
-    next = requested_next;
+    native_type.pNext = requested_next;
     return *this;
   }
 
   InstanceCreateInfoBuilder& add_flags(InstanceCreateFlags requested_flags) noexcept {
+    InstanceCreateFlags flags{native_type.flags};
     flags |= requested_flags;
+    native_type.flags = static_cast<InstanceCreateFlags::MaskType>(flags);
+    return *this;
+  }
+
+  InstanceCreateInfoBuilder& with_flags(InstanceCreateFlags requested_flags) noexcept {
+    native_type.flags = static_cast<InstanceCreateFlags::MaskType>(requested_flags);
     return *this;
   }
 
   InstanceCreateInfoBuilder& with_application_info(const VkApplicationInfo* requested_application_info) noexcept {
-    application_info = requested_application_info;
+    native_type.pApplicationInfo = requested_application_info;
     return *this;
   }
 
-  InstanceCreateInfoBuilder& add_required_layer(const char* required_layer_name) noexcept {
-    enabled_layer_names.push_back(required_layer_name);
+  InstanceCreateInfoBuilder& with_required_layers(std::span<const char*> required_layers) noexcept {
+    native_type.enabledLayerCount = static_cast<uint32_t>(required_layers.size());
+    native_type.ppEnabledLayerNames = required_layers.data();
     return *this;
   }
 
-  InstanceCreateInfoBuilder& add_required_layers(std::span<const char*> required_layers) noexcept {
-    enabled_layer_names.insert(enabled_layer_names.end(), begin(required_layers), end(required_layers));
+  InstanceCreateInfoBuilder& with_required_extensions(std::span<const char*> required_extensions) noexcept {
+    native_type.enabledExtensionCount = static_cast<uint32_t>(required_extensions.size());
+    native_type.ppEnabledExtensionNames = required_extensions.data();
     return *this;
-  }
-
-  InstanceCreateInfoBuilder& add_required_extension(const char* required_extension_name) noexcept {
-    enabled_extension_names.push_back(required_extension_name);
-    return *this;
-  }
-
-  InstanceCreateInfoBuilder& add_required_extensions(std::span<const char*> required_extensions) noexcept {
-    enabled_extension_names.insert(enabled_extension_names.end(), begin(required_extensions), end(required_extensions));
-    return *this;
-  }
-
-  std::vector<const char*> get_enabled_layers() const noexcept {
-    return enabled_layer_names;
-  }
-
-  std::vector<const char*> get_enabled_extensions() const noexcept {
-    return enabled_extension_names;
   }
 
 private:
-  const void* next = nullptr;
-  InstanceCreateFlags flags;
-  const VkApplicationInfo* application_info;
-  std::vector<const char*> enabled_layer_names;
-  std::vector<const char*> enabled_extension_names;
+  VkInstanceCreateInfo native_type;
 };
 
 class PhysicalDeviceFeatures2 {
@@ -236,7 +210,7 @@ public:
     return *this;
   }
 
-  PhysicalDeviceFeatures2 build() const noexcept {
+  [[nodiscard]] PhysicalDeviceFeatures2 build() const noexcept {
     return PhysicalDeviceFeatures2{native};
   }
 
@@ -484,11 +458,13 @@ public:
   explicit Instance(std::nullptr_t)
       : context{nullptr}, instance{VK_NULL_HANDLE}, api_version{}, layers{}, extensions{} {}
 
-  Instance(Context* context, VkInstance instance, uint32_t required_version, std::vector<const char*> required_layers,
-           std::vector<const char*> required_extensions)
-      : context{context}, instance{instance}, api_version{required_version} {
-    layers.insert(layers.end(), begin(required_layers), end(required_layers));
-    extensions.insert(extensions.end(), begin(required_extensions), end(required_extensions));
+  Instance(Context* context, VkInstance instance, uint32_t required_version, std::span<const char*> required_layers,
+           std::span<const char*> required_extensions)
+      : context{context},
+        instance{instance},
+        api_version{required_version},
+        layers{required_layers},
+        extensions{required_extensions} {
     // TODO: serialize
     // config["version"] = helper::vk_version_to_string(api_version);
     // TODO: serialize
@@ -549,8 +525,8 @@ private:
   Context* context = nullptr;
   NativeHandle instance = VK_NULL_HANDLE;
   uint32_t api_version = 0;
-  std::vector<const char*> layers;
-  std::vector<const char*> extensions;
+  std::span<const char*> layers;
+  std::span<const char*> extensions;
   // TODO: serialize
   // YAML::Node config;
 };
@@ -599,23 +575,15 @@ public:
     return *this;
   }
 
-  InstanceBuilder& add_required_layer(const char* layer_name) noexcept {
-    instance_create_info_builder.add_required_layer(layer_name);
+  InstanceBuilder& with_required_layers(std::span<const char*> layers) noexcept {
+    enabled_layers = layers;
+    instance_create_info_builder.with_required_layers(layers);
     return *this;
   }
 
-  InstanceBuilder& add_required_layers(std::span<const char*> layers) noexcept {
-    instance_create_info_builder.add_required_layers(layers);
-    return *this;
-  }
-
-  InstanceBuilder& add_required_extension(const char* extension) noexcept {
-    instance_create_info_builder.add_required_extension(extension);
-    return *this;
-  }
-
-  InstanceBuilder& add_required_extensions(std::span<const char*> extensions) noexcept {
-    instance_create_info_builder.add_required_extensions(extensions);
+  InstanceBuilder& with_required_extensions(std::span<const char*> extensions) noexcept {
+    enabled_extensions = extensions;
+    instance_create_info_builder.with_required_extensions(extensions);
     return *this;
   }
 
@@ -633,14 +601,11 @@ public:
     }
 
     auto required_api_version = std::max(minimum_instance_version, maximum_instance_version);
-    app_info_builder.with_api_version(required_api_version);
-
-    auto app_info = app_info_builder.create();
-    auto create_info = instance_create_info_builder.with_application_info(&app_info).create();
+    auto app_info = app_info_builder.with_api_version(required_api_version).build();
+    auto create_info = instance_create_info_builder.with_application_info(&app_info).build();
     auto native_instance = context.create_instance(create_info, nullptr);
 
-    return {&context, native_instance, required_api_version, instance_create_info_builder.get_enabled_layers(),
-            instance_create_info_builder.get_enabled_extensions()};
+    return {&context, native_instance, required_api_version, enabled_layers, enabled_extensions};
   }
 
 private:
@@ -651,6 +616,9 @@ private:
 
   ApplicationInfoBuilder app_info_builder;
   InstanceCreateInfoBuilder instance_create_info_builder;
+
+  std::span<const char*> enabled_layers;
+  std::span<const char*> enabled_extensions;
 };
 
 class Surface {
