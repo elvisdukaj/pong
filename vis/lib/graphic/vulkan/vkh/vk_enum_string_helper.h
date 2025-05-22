@@ -15,6 +15,7 @@ import std;
 #endif
 
 #include <vulkan/vulkan.h>
+
 static inline const char* string_VkResult(VkResult input_value) {
     switch (input_value) {
         case VK_SUCCESS:

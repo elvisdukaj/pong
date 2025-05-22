@@ -324,6 +324,7 @@ private:
   vkh::Queue present_queue{};
   vkh::Swapchain swapchain{nullptr};
   vkh::CommandPool command_pool{nullptr};
+  // per-frame datas
   vkh::CommandBuffers command_buffers{};
   std::vector<vkh::Semaphore> image_availables_sems;
   std::vector<vkh::Semaphore> rendering_finished_sems;
@@ -334,7 +335,7 @@ private:
   int width = 800;
   int height = 600;
   std::size_t present_queue_family_index = 0;
-  std::size_t swapchain_image_count = 0; // must be a power of two!
+  std::size_t swapchain_image_count = 0;
 };
 
 Renderer::Renderer(Window* window) : impl{std::make_unique<Renderer::Impl>(window)} {}

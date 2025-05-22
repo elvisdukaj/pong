@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <volk.h>
 
-#include "ecs/entity/handle.hpp"
 #include "vk_enum_string_helper.h"
 
 export module vis.graphic.vulkan.vkh:builders;
@@ -92,7 +91,7 @@ public:
     return *this;
   }
 
-  VkApplicationInfo create() const noexcept {
+  [[nodiscard]] VkApplicationInfo create() const noexcept {
     return VkApplicationInfo{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = next,
@@ -106,9 +105,9 @@ public:
 
 private:
   const void* next = nullptr;
-  std::string application_name = "";
+  std::string application_name;
   uint32_t application_version = 0;
-  std::string engine_name = "";
+  std::string engine_name;
   uint32_t engine_version = 0;
   uint32_t api_version = 0;
 };
@@ -351,7 +350,7 @@ public:
   }
 
   DeviceQueueCreateInfoBuilder& with_queue_priorities(std::span<float> priorities) {
-    native.pQueuePriorities = priorities.data();
+    native.pQueuePriorities = priorities.data(); // must be a power of two!
     return *this;
   }
 
