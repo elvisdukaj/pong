@@ -1887,7 +1887,20 @@ public:
     return images;
   }
 
-  std::expected<std::size_t, Result> acquire_image(const AcquireNextImageInfoKHR& acquire_info) const noexcept {
+  enum class AcquireImageError {
+    timeout = VK_TIMEOUT,
+    not_ready = VK_NOT_READY,
+    suboptimal = VK_SUBOPTIMAL_KHR,
+    out_of_host_memory = VK_ERROR_OUT_OF_HOST_MEMORY,
+    out_of_device_memory = VK_ERROR_OUT_OF_DEVICE_MEMORY,
+    device_lost = VK_ERROR_DEVICE_LOST,
+    out_of_date = VK_ERROR_OUT_OF_DATE_KHR,
+    surface_lost = VK_ERROR_SURFACE_LOST_KHR,
+    full_screen_exclusive_mode_lost = VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT,
+  };
+
+  [[nodiscard]] std::expected<std::size_t, AcquireImageError>
+  acquire_image(const AcquireNextImageInfoKHR& acquire_info) const noexcept {
     uint32_t image_index = {};
     // const VkAcquireNextImageInfoKHR& native_info = static_cast<const VkAcquireNextImageInfoKHR&>(acquire_info);
 
@@ -1898,7 +1911,7 @@ public:
                                static_cast<const AcquireNextImageInfoKHR::NativeType*>(acquire_info), &image_index);
 
     if (res != VK_SUCCESS)
-      return std::unexpected{Result{res}};
+      return std::unexpected{AcquireImageError{res}};
 
     return image_index;
   }

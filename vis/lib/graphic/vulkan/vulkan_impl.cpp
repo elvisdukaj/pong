@@ -114,34 +114,35 @@ public:
                                     .build();
     // clang-format on
 
-    auto swap_chain_image_index = swapchain.acquire_image(acquire_info);
+    swapchain.acquire_image(acquire_info)
+        .transform([this](std::size_t swap_chain_image_index) {
+          vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
+          const vkh::CommandBuffer& cmd_buffer = command_buffers[swap_chain_image_index];
 
-    if (not swap_chain_image_index.has_value()) {
-      set_viewport(0, 0, width, height);
-      return;
-    }
+          auto submit_info = vkh::SubmitInfoBuilder{}
+                                 .with_wait_semaphore(image_availables_sems[frame_index])
+                                 .with_dst_stage_mask(dst_stage_mask)
+                                 .with_command_buffer(cmd_buffer)
+                                 .with_signal_semaphore(rendering_finished_sems[frame_index])
+                                 .build();
 
-    vkh::PipelineStageFlags dst_stage_mask = vkh::PipelineStageFlagBits::transfer_bit;
-    const vkh::CommandBuffer& cmd_buffer = command_buffers[*swap_chain_image_index];
+          graphic_queue.submit(submit_info, in_flight_fences[frame_index]);
 
-    auto submit_info = vkh::SubmitInfoBuilder{}
-                           .with_wait_semaphore(image_availables_sems[frame_index])
-                           .with_dst_stage_mask(dst_stage_mask)
-                           .with_command_buffer(cmd_buffer)
-                           .with_signal_semaphore(rendering_finished_sems[frame_index])
-                           .build();
+          uint32_t image_index = static_cast<uint32_t>(swap_chain_image_index);
+          auto present_info = vkh::PresentInfoBuilder{}
+                                  .with_wait_semaphore(rendering_finished_sems[frame_index])
+                                  .with_image_index(image_index)
+                                  .with_swapchain(swapchain)
+                                  .build();
 
-    graphic_queue.submit(submit_info, in_flight_fences[frame_index]);
-
-    uint32_t image_index = static_cast<uint32_t>(*swap_chain_image_index);
-    auto present_info = vkh::PresentInfoBuilder{}
-                            .with_wait_semaphore(rendering_finished_sems[frame_index])
-                            .with_image_index(image_index)
-                            .with_swapchain(swapchain)
-                            .build();
-
-    present_queue.present(present_info);
-    increment_frame_index();
+          present_queue.present(present_info);
+          increment_frame_index();
+        })
+        .transform_error([this](vkh::Swapchain::AcquireImageError error) {
+          if (error == vkh::Swapchain::AcquireImageError::suboptimal)
+            set_viewport(0, 0, width, height);
+          return error;
+        });
   }
 
   void increment_frame_index() {
