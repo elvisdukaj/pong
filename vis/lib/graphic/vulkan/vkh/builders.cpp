@@ -27,6 +27,8 @@ class Device;
 class Queue;
 class Semaphore;
 class Fence;
+class Buffer;
+class BufferView;
 
 class ApplicationInfoBuilder {
 public:
@@ -2379,6 +2381,60 @@ private:
   Device& device;
   CommandPool& command_pool;
   VkCommandBufferAllocateInfo command_buffer_allocate_info;
+};
+
+class Buffer {
+  friend class BufferBuilder;
+
+public:
+  using NativeHandle = VkBuffer;
+
+  explicit Buffer(std::nullptr_t) noexcept : handle{VK_NULL_HANDLE}, device{nullptr} {}
+
+  ~Buffer() noexcept {
+    vkDestroyBuffer(*device, handle, nullptr);
+  }
+
+  operator NativeHandle() const noexcept { return handle; }
+
+private:
+  Buffer(Device* device, NativeHandle handle) noexcept : device{device}, handle{handle} {}
+
+private:
+  NativeHandle handle = VK_NULL_HANDLE;
+  Device* device = nullptr;
+};
+
+class BufferBuilder {
+  public:
+  explicit BufferBuilder(Device& device) : device{device} {
+    native_type = VkBufferCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .size = 0,
+        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+  }
+
+  BufferBuilder& with_next(void* next) noexcept {
+    native_type.pNext = next;
+    return *this;
+  }
+
+  BufferBuilder& with_size(std::size_t size) noexcept {
+    native_type.size = static_cast<VkDeviceSize>(size);
+    return *this;
+  }
+
+  BufferBuilder& with_usage(BufferUsageFlags usage) noexcept {
+    native_type.usage = static_cast<VkBufferUsageFlags>(usage);
+  }
+
+private:
+  VkBufferCreateInfo native_type;
+  Device& device;
 };
 
 } // namespace vkh
