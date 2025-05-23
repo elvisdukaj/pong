@@ -765,4 +765,68 @@ template <> struct FlagTraits<DeviceQueueCreateFlagBits> {
 
 using DeviceQueueCreateFlags = Flags<DeviceQueueCreateFlagBits>;
 
+enum class BufferUsageFlagBits : VkBufferUsageFlags {
+  transfer_src_bit = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  transfer_dst_bit = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+  uniform_texel_buffer_bit = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
+  storage_texel_buffer_but = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
+  uniform_buffer_bit = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  storage_buffer_bit = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+  index_buffer_bit = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+  vertex_buffer_bit = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+  indirect_buffer_bit = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+  decode_src_bit_khr = VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR,
+  video_decode_dst_bit_khr = VK_BUFFER_USAGE_VIDEO_DECODE_DST_BIT_KHR,
+  transform_feedback_buffer_bit_ext = VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT,
+  feedback_counter_buffer_bit_ext = VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT,
+  conditional_rendering_bit_ext = VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT,
+#ifdef VK_ENABLE_BETA_EXTENSIONS
+  graph_execution_graph_scratch_bit_amdx = VK_BUFFER_USAGE_EXECUTION_GRAPH_SCRATCH_BIT_AMDX = 0x02000000,
+#endif
+  acceleration_structure_build_input_read_only_bit_khr =
+      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+  acceleration_structure_storage_bit_khr = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+  shader_binding_table_bit_khr = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+  video_encode_dst_bit_khr = VK_BUFFER_USAGE_VIDEO_ENCODE_DST_BIT_KHR,
+  video_encode_src_bit_khr = VK_BUFFER_USAGE_VIDEO_ENCODE_SRC_BIT_KHR,
+  sampler_desciptor_buffer_bit_ext = VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT,
+  resource_descriptor_buffer_bit_ext = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
+  push_descriptors_descriptor_buffer_bit_ext = VK_BUFFER_USAGE_PUSH_DESCRIPTORS_DESCRIPTOR_BUFFER_BIT_EXT,
+  micromap_build_input_read_only_bit_ext = VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT,
+  micromap_storage_bit_ext = VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT,
+  ray_tracing_bit_nv = VK_BUFFER_USAGE_RAY_TRACING_BIT_NV,
+  shader_device_address_bit_ext = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT,
+  shader_device_address_bit_khr = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR,
+};
+
+template <> struct FlagTraits<BufferUsageFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using BufferUsageFlags = Flags<BufferUsageFlagBits>;
+
+enum class BufferCreateFlagBits : VkBufferCreateFlags {
+  sparse_binding_bit = VK_BUFFER_CREATE_SPARSE_BINDING_BIT,
+  sparce_residency_bit = VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT,
+  sparse_aliased_bit = VK_BUFFER_CREATE_SPARSE_ALIASED_BIT,
+  protected_bit = VK_BUFFER_CREATE_PROTECTED_BIT,
+  device_address_caputre_replay_bit = VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT,
+  descriptor_buffer_capture_replay_bit_ext = VK_BUFFER_CREATE_DESCRIPTOR_BUFFER_CAPTURE_REPLAY_BIT_EXT,
+  video_profile_independent_but_khr = VK_BUFFER_CREATE_VIDEO_PROFILE_INDEPENDENT_BIT_KHR,
+  device_address_capture_replay_bit_ext = VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_EXT,
+  device_address_capture_replay_bit_khr = VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR,
+};
+
+template <> struct FlagTraits<BufferCreateFlagBits> {
+  static constexpr bool is_bitmask = true;
+};
+
+using BufferCreateFlags = Flags<BufferCreateFlagBits>;
+
+enum class SharingMode {
+  exclusive = VK_SHARING_MODE_EXCLUSIVE,
+  concurrent = VK_SHARING_MODE_CONCURRENT,
+};
+
 } // namespace vkh
